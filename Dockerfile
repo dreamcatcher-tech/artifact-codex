@@ -14,7 +14,7 @@ WORKDIR /app
 # Install minimal native deps common to Rust crates
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates pkg-config build-essential libssl-dev \
+    ca-certificates pkg-config build-essential libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -35,36 +35,36 @@ RUN apt-get update && \
     add-apt-repository --yes universe && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-      software-properties-common \
-      build-essential \
-      curl \
-      dnsutils \
-      git \
-      ca-certificates \
-      pkg-config \
-      clang \
-      lld \
-      musl-tools \
-      libssl-dev \
-      just \
-      aggregate \
-      git-lfs \
-      bash-completion \
-      sudo \
-      fzf \
-      gh \
-      gnupg2 \
-      iproute2 \
-      ipset \
-      iptables \
-      jq \
-      less \
-      man-db \
-      procps \
-      unzip \
-      ripgrep \
-      zsh \
-      openssh-client \
+    software-properties-common \
+    build-essential \
+    curl \
+    dnsutils \
+    git \
+    ca-certificates \
+    pkg-config \
+    clang \
+    lld \
+    musl-tools \
+    libssl-dev \
+    just \
+    aggregate \
+    git-lfs \
+    bash-completion \
+    sudo \
+    fzf \
+    gh \
+    gnupg2 \
+    iproute2 \
+    ipset \
+    iptables \
+    jq \
+    less \
+    man-db \
+    procps \
+    unzip \
+    ripgrep \
+    zsh \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js via NodeSource + Codex CLI
@@ -86,6 +86,10 @@ COPY --from=build /app/codex/codex-rs/target/release/codex /usr/local/bin/codex
 
 # install Rust + musl targets as ubuntu user
 USER ubuntu
+
+RUN mkdir -p /home/ubuntu/.codex
+COPY --chown=ubuntu:ubuntu fly.config.toml /home/ubuntu/.codex/config.toml
+
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
     ~/.cargo/bin/rustup target add aarch64-unknown-linux-musl x86_64-unknown-linux-musl && \
     ~/.cargo/bin/rustup component add clippy rustfmt && \
@@ -95,6 +99,14 @@ ENV PATH="/home/ubuntu/.cargo/bin:${PATH}"
 
 WORKDIR /workspace
 
-# Default entrypoint; CI may override the command for smoke tests
-ENTRYPOINT ["/usr/local/bin/codex"]
-CMD ["mcp"]
+# Copy only what's needed to run the MCP web server
+COPY --chown=ubuntu:ubuntu mcp-server /workspace/mcp-server
+
+# Pre-cache Deno deps for faster cold starts (non-fatal if network blocked later)
+RUN deno cache -A /workspace/mcp-server/start.ts
+
+# Default entrypoint runs the MCP web server
+# Listens on PORT (default 8080) for Fly's internal HTTP service
+EXPOSE 8080
+ENTRYPOINT ["deno", "run", "-A", "--unstable", "mcp-server/start.ts"]
+CMD []

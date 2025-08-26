@@ -1,0 +1,24 @@
+
+
+[projects."/workspace"]
+trust_level = "trusted"
+
+
+preferred_auth_method = "apikey"
+
+approval_policy = "never"
+
+model = "gpt-5"
+model_provider = "openai"       # optional; default is OpenAI
+model_reasoning_effort = "high" # valid: "low" | "medium" | "high"
+model_verbosity = "low"
+
+network_access = true
+sandbox_mode = "workspace-write"
+
+[tools]
+web_search = true
+
+# [mcp_servers.fly]
+# args = ["mcp", "server"]
+# command = "fly"
