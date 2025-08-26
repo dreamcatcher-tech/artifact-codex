@@ -42,19 +42,18 @@ RUN apt-get install -y --no-install-recommends \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     apt-get update && \
-    apt-get install -y --no-install-recommends nodejs && \
-    npm install -g '@openai/codex' 
-    
+    apt-get install -y --no-install-recommends nodejs
+
 # enable pnpm via corepack for the Node workspace
 RUN corepack enable && corepack prepare pnpm@10.8.1 --activate
 
 # install latest Deno (stable) to /usr/local/bin
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
     deno --version
-    
+
 # allow passwordless sudo for the ubuntu user
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/90-ubuntu && chmod 0440 /etc/sudoers.d/90-ubuntu
-    
+
 RUN rm -rf /var/lib/apt/lists/*
 
 # Ubuntu 24.04 ships with user 'ubuntu' already created with UID 1000.

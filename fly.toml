@@ -1,0 +1,25 @@
+app = 'codex-rs'
+primary_region = 'syd'
+
+[build]
+dockerfile = 'Dockerfile'
+
+# Default port your app listens on. Adjust if your server uses a different port.
+[env]
+PORT = "8080"
+
+# Expose an internal HTTP service for Flycast-only access.
+# Do NOT allocate public IPs; use `<app>.flycast` to reach it.
+[http_service]
+internal_port = 8080
+
+# Keep HTTP as-is for private Flycast
+force_https = false
+auto_start_machines = true
+auto_stop_machines = "suspend"
+min_machines_running = 0
+
+[[vm]]
+memory = '1gb'
+cpu_kind = 'shared'
+cpus = 1
