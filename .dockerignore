@@ -10,9 +10,11 @@ node_modules
 *.tmp
 *.swp
 .DS_Store
-Cargo.lock
+/Cargo.lock
 **/.insta
 **/.cache
 **/.pytest_cache
 **/.venv
 
+napps
+codex-universal

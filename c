@@ -21,15 +21,14 @@ if [[ "$RESOLVED_TARGET" != "$RESOLVED_SELF" ]]; then
   ln -sf -- "$RESOLVED_SELF" "$TARGET"
 fi
 
-JUSTFILE="$SCRIPT_DIR/codex/codex-rs/justfile"
-
-if ! command -v just >/dev/null 2>&1; then
-  echo "Error: 'just' is not installed or not on PATH." >&2
-  echo "Install: https://github.com/casey/just#installation" >&2
+# Ensure npx is available
+if ! command -v npx >/dev/null 2>&1; then
+  echo "Error: 'npx' is not installed or not on PATH." >&2
+  echo "Install Node.js which provides npx: https://nodejs.org/" >&2
   exit 127
 fi
 
 # Use the caller's absolute working directory for codex's own --cd argument
 CWD_ABS="$(pwd -P)"
 
-exec just -f "$JUSTFILE" codex --cd "$CWD_ABS" "$@"
+exec npx -y @openai/codex --cd "$CWD_ABS" "$@"
