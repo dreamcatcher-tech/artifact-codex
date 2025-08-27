@@ -1,69 +1,28 @@
-# React + TypeScript + Vite
+# Live Terminal (Deno + Vite + React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A minimal web UI that renders a terminal using xterm.js and streams stdout from a remote process. Includes a mock stream for local development and an input box that logs commands.
 
-Currently, two official plugins are available:
+## Prerequisites
+- Deno 2.x
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Develop
+- Start dev server: `deno task dev`
+ 
+- Open http://localhost:5173
 
-## Expanding the ESLint configuration
+## Build & Preview
+- Build: `deno task build`
+- Preview built app: `deno task preview`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tests
+- Run headless tests: `deno task test`
+- UI mode: `deno task test:ui`
+- If your environment restricts home writes, prefix with `DENO_DIR=.deno`.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Lint & Format
+- Lint: `deno task lint` (rules in `deno.json`)
+- Format: `deno task fmt`
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Notes
+- The terminal component lives in `src/features/terminal/TerminalPanel.tsx`.
+- Mock streaming is on by default; to connect to a real stream, render `<TerminalPanel url="/api/stream" useMock={false} />` and return a streaming response from that endpoint.
