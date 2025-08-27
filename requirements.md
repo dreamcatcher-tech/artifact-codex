@@ -57,3 +57,18 @@ basically my central servers store git objects super efficient, and I need a way
 to present these to client containers that virtualize the disk so the containers
 stay small and very quick to checkout, and then they write, they hold the diffs
 locally
+
+## agent header mcp
+
+What I need to do is to make the mcp server take a two tool commands:
+
+1. start
+2. message
+
+when start is called, this container needs to run the 'codex' command, and it
+needs to capture the stdout stream to a tmp file, and make it available for
+download at any time on the url '/live'.
+
+whenever the 'message' tool is called, it always contains a string, and it
+immediately sends that string into stdin, as tho a user had entered it at a
+terminal and then pressed enter.

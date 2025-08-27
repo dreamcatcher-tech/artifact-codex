@@ -8,13 +8,14 @@ dockerfile = 'Dockerfile'
 [env]
 PORT = "8080"
 
-# Expose an internal HTTP service for Flycast-only access.
-# Do NOT allocate public IPs; use `<app>.flycast` to reach it.
+# Expose HTTP service. Public and Flycast compatible.
+# - Public: allocate IPs (e.g., `fly ips allocate-v4` / `fly ips allocate-v6`).
+# - Private-only: don't allocate public IPs; use `<app>.flycast`.
 [http_service]
 internal_port = 8080
 
-# Keep HTTP as-is for private Flycast
-force_https = false
+# Keep HTTP allowed so Flycast (HTTP-only) continues to work
+force_https = true
 auto_start_machines = true
 auto_stop_machines = "suspend"
 min_machines_running = 1

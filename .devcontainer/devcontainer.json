@@ -16,7 +16,7 @@
       "CARGO_TARGET_DIR": "${containerWorkspaceFolder}/codex-rs/target"
     },
   
-    "remoteUser": "codex",
+    "remoteUser": "ubuntu",
     "customizations": {
       "vscode": {
         "settings": {

@@ -51,15 +51,13 @@ RUN corepack enable && corepack prepare pnpm@10.8.1 --activate
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
     deno --version
 
-## Create dedicated non-root user 'codex' and grant passwordless sudo
-RUN groupadd --gid 1000 codex && \
-    useradd --uid 1000 --gid 1000 -m -s /bin/bash codex && \
-    echo 'codex ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/90-codex && \
-    chmod 0440 /etc/sudoers.d/90-codex
+# allow passwordless sudo for the ubuntu user
+RUN echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/90-ubuntu && chmod 0440 /etc/sudoers.d/90-ubuntu
 
 RUN rm -rf /var/lib/apt/lists/*
 
-USER codex
+# Ubuntu 24.04 ships with user 'ubuntu' already created with UID 1000.
+USER ubuntu
 
 # install Rust + musl target as dev user
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
@@ -69,7 +67,7 @@ RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
 # snapshot testing tool for TUI
 RUN ~/.cargo/bin/cargo install cargo-insta
 
-ENV PATH="/home/codex/.cargo/bin:${PATH}"
+ENV PATH="/home/ubuntu/.cargo/bin:${PATH}"
 
 
 
