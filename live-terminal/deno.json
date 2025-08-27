@@ -1,0 +1,29 @@
+{
+  "$schema": "https://deno.land/x/deno@v2.0.0/cli/schemas/config-file.v1.json",
+  "tasks": {
+    "dev": "deno run -A npm:vite",
+    "build": "deno run -A npm:tsc -b && deno run -A npm:vite build",
+    "preview": "deno run -A npm:vite preview",
+    "lint": "deno run -A npm:eslint .",
+    "fmt": "deno fmt",
+    "test": "deno run -A npm:vitest",
+    "deps": "deno cache --node-modules-dir npm:vite npm:@vitejs/plugin-react npm:react npm:react-dom npm:typescript npm:eslint npm:vitest npm:@xterm/xterm npm:@xterm/addon-fit"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "files": { "exclude": ["dist", "node_modules"] }
+  },
+  "lint": {
+    "rules": { "tags": ["recommended"] },
+    "files": { "exclude": ["dist", "node_modules"] }
+  },
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": true
+  }
+}
