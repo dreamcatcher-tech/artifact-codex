@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
-import { Hono, type Context, type ErrorHandler } from 'hono'
+import { type Context, type ErrorHandler, Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { cors } from 'hono/cors'
 import { poweredBy } from 'hono/powered-by'
@@ -66,12 +66,29 @@ const mcpHandler = createMiddleware<TypedContext>(async (c) => {
     return transport.handleRequest(c)
   }
 
-  return c.text(sessionId ? 'Session not found' : 'Bad Request', sessionId ? 404 : 400)
+  return c.text(
+    sessionId ? 'Session not found' : 'Bad Request',
+    sessionId ? 404 : 400,
+  )
 })
 
 const error: ErrorHandler = function (error: Error, c: Context<TypedContext>) {
   return c.json({ error: error.message }, 500)
 }
+
+const preferMachine = (machineId?: string) =>
+  createMiddleware<TypedContext>(async (c, next) => {
+    const currentId = machineId
+    if (!currentId) return next()
+
+    const preferred = c.req.header('fly-prefer-instance-id')
+
+    if (preferred && preferred !== currentId) {
+      c.header('fly-replay', `instance=${preferred}`)
+      return c.body(null, 204)
+    }
+    return next()
+  })
 
 export type ServerGateway = {
   app: Hono<TypedContext>
@@ -80,12 +97,15 @@ export type ServerGateway = {
   [Symbol.asyncDispose]: () => Promise<void>
 }
 
-export const createServer = (opts?: { apiKeys?: readonly string[] }): ServerGateway => {
+export const createServer = (
+  opts?: { apiKeys?: readonly string[]; machineId?: string },
+): ServerGateway => {
   const sessions = new Map<string, McpSession>()
-  const envKeys = (Deno.env.get('MCP_API_KEYS') || Deno.env.get('MCP_API_KEY') || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+  const envKeys =
+    (Deno.env.get('MCP_API_KEYS') || Deno.env.get('MCP_API_KEY') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
   const apiKeys = new Set([...(opts?.apiKeys ?? []), ...envKeys])
 
   const app = new Hono<TypedContext>()
@@ -97,21 +117,27 @@ export const createServer = (opts?: { apiKeys?: readonly string[] }): ServerGate
         'content-type',
         'mcp-session-id',
         'mcp-protocol-version',
+        // Allow clients to send a preferred machine id
+        'fly-prefer-instance-id',
+        'x-machine-id',
+        'x-preferred-machine-id',
       ],
       exposeHeaders: [
         'mcp-session-id',
       ],
     }))
     .use(poweredBy(), secureHeaders())
+    .use(preferMachine(opts?.machineId))
     .use(setup(sessions, apiKeys))
     .use(authApiKey(apiKeys))
     .all('/mcp', mcpHandler)
     .onError(error)
 
   const close = async () => {
-    await Promise.all(Array.from(sessions.values()).map(({ server }) => server.close()))
+    await Promise.all(
+      Array.from(sessions.values()).map(({ server }) => server.close()),
+    )
   }
 
   return { app, close, sessions, [Symbol.asyncDispose]: close }
 }
-

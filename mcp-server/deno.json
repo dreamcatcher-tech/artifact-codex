@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run -A --unstable --watch web-server.ts",
+    "watch": "deno test -A --watch",
     "test": "deno test -A --trace-leaks --parallel --clean"
   },
   "imports": {
@@ -12,5 +12,24 @@
     "ulid": "npm:ulid@3.0.1",
     "zod": "npm:zod@3.25.76"
   },
-  "nodeModulesDir": "auto"
+  "nodeModulesDir": "auto",
+  "lint": {
+    "rules": {
+      "tags": [],
+      "include": [
+        "camelcase",
+        "no-sync-fn-in-async-fn",
+        "single-var-declarator",
+        "verbatim-module-syntax",
+        "no-console",
+        "no-slow-types"
+      ]
+    }
+  },
+  "fmt": {
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 80,
+    "proseWrap": "always"
+  }
 }

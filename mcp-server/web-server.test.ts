@@ -49,7 +49,24 @@ Deno.test('echo tool works', async () => {
   const { tools } = await client.listTools()
   expect(tools.some((t) => t.name === 'echo')).toBe(true)
 
-  const res = await client.callTool({ name: 'echo', arguments: { message: 'hi' } })
+  const res = await client.callTool({
+    name: 'echo',
+    arguments: { message: 'hi' },
+  })
   expect((res as any).structuredContent.echoed).toBe('hi')
 })
 
+Deno.test('Fly-Replay prefer_instance when client requests another machine', async () => {
+  await using server = createServer({ apiKeys: ['ok'], machineId: 'machine-a' })
+  const res = await server.app.request('/mcp', {
+    method: 'POST',
+    body: '{}',
+    headers: {
+      Authorization: 'Bearer ok',
+      'fly-prefer-instance-id': 'machine-b',
+      'content-type': 'application/json',
+    },
+  })
+  expect(res.status).toBe(204)
+  expect(res.headers.get('fly-replay')).toBe('instance=machine-b')
+})
