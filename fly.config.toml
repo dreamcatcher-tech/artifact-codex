@@ -1,35 +1,19 @@
-## Codex CLI runtime config used by the Fly image
-
-# Treat this repo as trusted (skips trust onboarding defaults)
-[projects."/workspace"]
-trust_level = "trusted"
-
-# Always prefer API key authentication and do not prompt for alternatives
-preferred_auth_method = "apikey"
-
-file_opener = "none"
-
-# Never pause to ask for elevation; keep running autonomously
-approval_policy = "never"
-
-# Use OpenAI GPT-5 defaults (can be overridden elsewhere if needed)
 model = "gpt-5"
 model_provider = "openai"
-model_reasoning_effort = "high" # "low" | "medium" | "high"
+model_reasoning_effort = "high"
 model_verbosity = "low"
-
-# Full access prevents sandbox escalations (e.g., when tools invoke `node`)
+approval_policy = "never"
 sandbox_mode = "danger-full-access"
+preferred_auth_method = "apikey"
+
+[projects."/workspace"]
+trust_level = "trusted"
 
 [tools]
 web_search = true
 
-# Example MCP server wiring (disabled by default)
-# [mcp_servers.fly]
-# command = "fly"
-# args = ["mcp", "server"]
+# Only used if sandbox_mode = "workspace-write"
 
-# Settings below only apply when sandbox_mode = "workspace-write"; retained for portability
 [sandbox_workspace_write]
 network_access = true
 writable_roots = ["/root"]

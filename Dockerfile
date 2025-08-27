@@ -13,13 +13,19 @@ RUN apt-get update && \
   build-essential \
   clang \
   curl \
+  wget \
   dnsutils \
   git \
   git-lfs \
   gnupg \
   iproute2 \
+  iputils-ping \
+  traceroute \
+  mtr-tiny \
   ipset \
   iptables \
+  net-tools \
+  netcat-openbsd \
   jq \
   less \
   libssl-dev \
