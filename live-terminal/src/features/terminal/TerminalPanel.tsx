@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -9,19 +9,21 @@ type Props = {
   minCols?: number
 }
 
-export default function TerminalPanel({ url = '/api/stream', useMock = true, minCols = 80 }: Props) {
+export default function TerminalPanel(
+  { url = '/api/stream', useMock = true, minCols = 80 }: Props,
+) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const lineBufRef = useRef<string>('')
   const maxColsRef = useRef<number>(minCols)
   const abortRef = useRef<AbortController | null>(null)
   const inputBufRef = useRef('')
-  const [connected, setConnected] = useState(false)
   const fitRef = useRef<FitAddon | null>(null)
 
   useEffect(() => {
     const rootStyles = getComputedStyle(document.documentElement)
-    const bg = (rootStyles.getPropertyValue('--terminal-bg') || '#0b0c0f').trim()
+    const bg = (rootStyles.getPropertyValue('--terminal-bg') || '#0b0c0f')
+      .trim()
     const term = new Terminal({
       convertEol: true,
       cursorBlink: true,
@@ -72,10 +74,16 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
     abortRef.current = abort
 
     try {
-      const stream = useMock ? createMockStdoutStream() : await fetchStream(url, abort.signal)
-      setConnected(true)
+      const stream = useMock
+        ? createMockStdoutStream()
+        : await fetchStream(url, abort.signal)
       term.writeln('Connected. Streaming output...\r\n')
-      await pumpStreamToTerminal(stream, term, abort.signal, (t) => updateWidth(t, term))
+      await pumpStreamToTerminal(
+        stream,
+        term,
+        abort.signal,
+        (t) => updateWidth(t, term),
+      )
       term.writeln('\r\n<stream closed>')
     } catch (err: unknown) {
       if ((err as any)?.name === 'AbortError') return
@@ -84,7 +92,8 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
   }
 
   function stripAnsi(input: string) {
-    const pattern = /[\u001B\u009B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g
+    const pattern =
+      /[\u001B\u009B][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g
     return input.replace(pattern, '')
   }
 
@@ -110,12 +119,12 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
 
   function setMinWidthPx(term: Terminal) {
     const anyTerm = term as unknown as { _core?: any }
-    const cw = anyTerm._core?.
-      _renderService?.
-      dimensions?.
-      css?.
-      cell?.
-      width
+    const cw = anyTerm._core
+      ?._renderService
+      ?.dimensions
+      ?.css
+      ?.cell
+      ?.width
     const cellWidth = typeof cw === 'number' && cw > 0 ? cw : 9
     const minPx = Math.ceil(cellWidth * maxColsRef.current)
     if (containerRef.current) {
@@ -137,7 +146,8 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
       console.log('stdin:', line)
       const color = '\u001b[36m'
       termRef.current?.writeln(`${color}> received: ${line}\u001b[0m`)
-      updateWidth(`> received: ${line}`, termRef.current!)
+      // Include a newline so width tracking resets per line
+      updateWidth(`> received: ${line}\n`, termRef.current!)
       return
     }
     if (data === '\u007F') {
@@ -153,7 +163,14 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
   }
 
   return (
-    <div style={{ height: '100%', width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+    <div
+      style={{
+        height: '100%',
+        width: '100%',
+        overflowX: 'hidden',
+        overflowY: 'hidden',
+      }}
+    >
       <div
         ref={containerRef}
         style={{
@@ -167,8 +184,6 @@ export default function TerminalPanel({ url = '/api/stream', useMock = true, min
       />
     </div>
   )
-
-  
 }
 
 async function pumpStreamToTerminal(
@@ -197,7 +212,9 @@ async function pumpStreamToTerminal(
 
 async function fetchStream(url: string, signal?: AbortSignal) {
   const res = await fetch(url, { signal })
-  if (!res.ok || !res.body) throw new Error(`Failed to fetch stream: ${res.status}`)
+  if (!res.ok || !res.body) {
+    throw new Error(`Failed to fetch stream: ${res.status}`)
+  }
   return res.body
 }
 
@@ -220,8 +237,14 @@ function createMockStdoutStream(): ReadableStream<Uint8Array> {
           return
         }
         tick++
-        const color = tick % 3 === 0 ? '\u001b[32m' : tick % 3 === 1 ? '\u001b[33m' : '\u001b[31m'
-        const msg = `${color}[${new Date().toISOString()}] heartbeat ${tick} — all systems nominal\u001b[0m\n`
+        const color = tick % 3 === 0
+          ? '\u001b[32m'
+          : tick % 3 === 1
+          ? '\u001b[33m'
+          : '\u001b[31m'
+        const msg = `${color}[${
+          new Date().toISOString()
+        }] heartbeat ${tick} — all systems nominal\u001b[0m\n`
         controller.enqueue(encoder.encode(msg))
         if (tick >= 12) {
           clearInterval(interval)
@@ -232,37 +255,3 @@ function createMockStdoutStream(): ReadableStream<Uint8Array> {
   })
 }
 
-function CommandInput({
-  onSend,
-  disabled,
-}: {
-  onSend: (value: string) => void
-  disabled?: boolean
-}) {
-  const [value, setValue] = useState('')
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (!value.trim()) return
-        onSend(value)
-        setValue('')
-      }}
-      style={{ display: 'flex', gap: 8 }}
-    >
-      <input
-        type="text"
-        placeholder={disabled ? 'Connecting…' : 'Type a command and press Enter'}
-        value={value}
-        onChange={(e) => setValue(e.currentTarget.value)}
-        disabled={disabled}
-        style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #2a2d34' }}
-      />
-      <button type="submit" disabled={disabled}>
-        Send
-      </button>
-    </form>
-  )
-}
-
- 

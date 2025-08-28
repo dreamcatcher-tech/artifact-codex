@@ -5,5 +5,5 @@ class NoopResizeObserver {
   disconnect() {}
 }
 // @ts-ignore
-globalThis.ResizeObserver = globalThis.ResizeObserver || (NoopResizeObserver as any)
-
+globalThis.ResizeObserver = globalThis.ResizeObserver ||
+  (NoopResizeObserver as any)
