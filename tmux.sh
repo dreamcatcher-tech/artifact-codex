@@ -135,7 +135,10 @@ ttyd_running() {
 
 start_ttyd() {
   info "Starting ttyd on http://localhost:${PORT}"
-  exec ttyd -W -p "$PORT" -t scrollback="$SCROLL" -t disableLeaveAlert=true \
+  exec ttyd -W -p "$PORT" \
+    -t scrollback="$SCROLL" \
+    -t scrollOnUserInput=false \
+    -t disableLeaveAlert=true \
     tmux -L "$SOCKET" attach -t "$SESSION"
 }
 
