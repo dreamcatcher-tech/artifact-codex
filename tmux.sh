@@ -8,8 +8,11 @@ set -Eeuo pipefail
 #   SOCKET   – tmux socket name   (default: codex-sock)
 #   PORT     – ttyd port          (default: 7681)
 #   SCROLL   – scrollback lines   (default: 200000)
+#               tip: set to "unlimited" for a huge buffer
 #   AUTOSTART_CMD – command to run (default: c 'hi there')
 #   RESTART_DELAY – seconds to wait before restart (default: 2)
+#   WINDOW_TITLE  – tmux window title/name (default: Dreamcatcher)
+#   MOUSE    – enable tmux mouse (on|off, default: on)
 
 SESSION=${SESSION:-codex-demo}
 SOCKET=${SOCKET:-codex-sock}
@@ -17,6 +20,25 @@ PORT=${PORT:-7681}
 SCROLL=${SCROLL:-200000}
 AUTOSTART_CMD=${AUTOSTART_CMD:-"c 'hi there'"}
 RESTART_DELAY=${RESTART_DELAY:-2}
+WINDOW_TITLE=${WINDOW_TITLE:-Dreamcatcher}
+MOUSE=${MOUSE:-on}
+
+# Normalize special scroll values
+case "${SCROLL}" in
+  unlimited|inf|INF)
+    # Extremely large but finite to avoid memory blowups
+    SCROLL=10000000
+    ;;
+  0)
+    # In tmux, 0 means no history; choose a large finite value instead
+    SCROLL=10000000
+    ;;
+esac
+
+# Guarantee a UTF-8 locale so tmux/Node correctly enable Unicode/emoji
+export LANG=${LANG:-C.UTF-8}
+export LC_ALL=${LC_ALL:-C.UTF-8}
+export LC_CTYPE=${LC_CTYPE:-C.UTF-8}
 
 # --- tiny ui helpers -------------------------------------------------------
 color() { printf "\033[%sm" "$1"; }
@@ -42,7 +64,7 @@ apply_ui_settings() {
         set -g status-right "" \; \
         set -g display-time 0 \; \
         set -g set-titles off \; \
-        set -g mouse off \; \
+        set -g mouse "$MOUSE" \; \
         set -g status-style "bg=colour235,fg=white" \; \
         set -g message-style "bg=colour237,fg=white" \; \
         set -g message-command-style "bg=colour237,fg=white" \; \
@@ -55,12 +77,20 @@ apply_ui_settings() {
         set -g monitor-activity off \; \
         setw -g allow-rename off \; \
         setw -g automatic-rename off >/dev/null
+
+  # Map Alt shortcuts to Control for browser-reserved keys
+  tmuxx unbind-key -n M-t 2>/dev/null || true
+  tmuxx unbind-key -n M-j 2>/dev/null || true
+  tmuxx unbind-key -n M-c 2>/dev/null || true
+  tmuxx bind-key -n M-t send-keys C-t >/dev/null
+  tmuxx bind-key -n M-j send-keys C-j >/dev/null
+  tmuxx bind-key -n M-c send-keys C-c >/dev/null
 }
 
 create_session() {
   info "Creating tmux session '$SESSION' on socket '$SOCKET'"
   # Start the app window first so attach focuses it.
-  tmuxx -f /dev/null new-session -Ad -s "$SESSION" -n app \
+  tmuxx -f /dev/null new-session -Ad -s "$SESSION" -n "$WINDOW_TITLE" \
     "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null
 
   apply_ui_settings
@@ -68,23 +98,30 @@ create_session() {
 
 # Ensure the app window exists and focus it (no auto-respawn loops).
 ensure_app_window() {
-  if ! tmuxx list-windows -t "$SESSION" -F "#{window_name}" | grep -qx "app"; then
-    info "Creating app window: $AUTOSTART_CMD"
-    tmuxx new-window -t "$SESSION" -n app \
-      "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null
-  else
-    # If the app window is just a shell, respawn it to run the app.
-    current_cmd=$(tmuxx display-message -p -t "$SESSION":app "#{pane_current_command}") || current_cmd=""
-    case "$current_cmd" in
-      bash|sh|zsh|fish)
-        info "Respawning existing app window to run: $AUTOSTART_CMD"
-        tmuxx respawn-window -k -t "$SESSION":app \
-          "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null || true
-        ;;
-      *) ;;
-    esac
+  if ! tmuxx list-windows -t "$SESSION" -F "#{window_name}" | grep -qx "$WINDOW_TITLE"; then
+    # Migrate an old 'app' window name if present; otherwise create anew
+    if tmuxx list-windows -t "$SESSION" -F "#{window_name}" | grep -qx "app"; then
+      info "Renaming legacy 'app' window to '$WINDOW_TITLE'"
+      tmuxx rename-window -t "$SESSION":app "$WINDOW_TITLE" >/dev/null || true
+    else
+      info "Creating app window: $AUTOSTART_CMD"
+      tmuxx new-window -t "$SESSION" -n "$WINDOW_TITLE" \
+        "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null
+    fi
   fi
-  tmuxx select-window -t "$SESSION":app >/dev/null
+
+  # Ensure the window runs the app (not an idle shell)
+  current_cmd=$(tmuxx display-message -p -t "$SESSION":"$WINDOW_TITLE" "#{pane_current_command}") || current_cmd=""
+  case "$current_cmd" in
+    bash|sh|zsh|fish)
+      info "Respawning existing app window to run: $AUTOSTART_CMD"
+      tmuxx respawn-window -k -t "$SESSION":"$WINDOW_TITLE" \
+        "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null || true
+      ;;
+    *) ;;
+  esac
+
+  tmuxx select-window -t "$SESSION":"$WINDOW_TITLE" >/dev/null
 }
 
 # --- ttyd helpers ----------------------------------------------------------
@@ -98,7 +135,7 @@ ttyd_running() {
 
 start_ttyd() {
   info "Starting ttyd on http://localhost:${PORT}"
-  exec ttyd -W -p "$PORT" -t scrollback="$SCROLL" \
+  exec ttyd -W -p "$PORT" -t scrollback="$SCROLL" -t disableLeaveAlert=true \
     tmux -L "$SOCKET" attach -t "$SESSION"
 }
 

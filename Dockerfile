@@ -3,48 +3,63 @@
 ##   docker build -t codex:latest .
 ##   docker run --rm codex:latest codex --help
 
-ARG DEBIAN_FRONTEND=noninteractive
-FROM node:22-bookworm-slim
+ARG NODE_MAJOR=22
+FROM node:${NODE_MAJOR}-bookworm-slim AS node
 
-# Core tooling for runtime/developer experience on Debian
+ARG DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:24.04
+
+
+# Enable universe and install core tooling (includes ttyd from Ubuntu repos)
 RUN apt-get update && \
-  apt-get install -y --no-install-recommends \
-  ca-certificates \
-  build-essential \
-  clang \
-  curl \
-  wget \
-  dnsutils \
-  git \
-  git-lfs \
-  gnupg \
-  iproute2 \
-  iputils-ping \
-  traceroute \
-  mtr-tiny \
-  ipset \
-  iptables \
-  net-tools \
-  netcat-openbsd \
-  jq \
-  less \
-  libssl-dev \
-  lld \
-  man-db \
-  musl-tools \
-  pkg-config \
-  procps \
-  ripgrep \
-  sudo \
-  unzip \
-  zsh \
-  bash-completion \
-  fzf \
-  openssh-client \
-  gh \
-  rustc \
-  cargo \
-  && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends software-properties-common && \
+    add-apt-repository --yes universe && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      build-essential \
+      clang \
+      curl \
+      wget \
+      dnsutils \
+      git \
+      git-lfs \
+      gnupg \
+      iproute2 \
+      iputils-ping \
+      traceroute \
+      mtr-tiny \
+      ipset \
+      iptables \
+      net-tools \
+      netcat-openbsd \
+      jq \
+      less \
+      libssl-dev \
+      lld \
+      man-db \
+      musl-tools \
+      pkg-config \
+      procps \
+      ripgrep \
+      sudo \
+      unzip \
+      zsh \
+      bash-completion \
+      fzf \
+      openssh-client \
+      gh \
+      rustc \
+      cargo \
+      tmux \
+      ttyd && \
+    rm -rf /var/lib/apt/lists/*
+
+
+COPY --from=node /usr/local/ /usr/local/
+
+
+
 
 # Install latest Deno (stable) system-wide
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
@@ -68,5 +83,10 @@ WORKDIR /workspace
 # Default entrypoint runs the MCP web server
 # Listens on PORT (default 8080) for Fly's internal HTTP service
 EXPOSE 8080
-ENTRYPOINT ["deno", "run", "-A", "/mcp-server/start.ts"]
+
+ENV PORT=8080
+ENV AUTOSTART_CMD="codex 'ayo'"
+COPY tmux.sh /tmux.sh
+ENTRYPOINT ["/tmux.sh"]
+# ENTRYPOINT ["deno", "run", "-A", "/mcp-server/start.ts"]
 CMD []
