@@ -1,36 +1,32 @@
 {
-    "name": "Codex",
-    "build": {
-      "dockerfile": "Dockerfile",
-      "context": ".."
-    },
-  
-    "mounts": [
-      "source=${localEnv:HOME}/.codex,target=/tmp/host-codex,type=bind,consistency=cached,readonly"
-    ],
-  
-    
-  
-    "containerEnv": {
-      "RUST_BACKTRACE": "1",
-      "CARGO_TARGET_DIR": "${containerWorkspaceFolder}/codex-rs/target"
-    },
-  
-    "remoteUser": "ubuntu",
-    "customizations": {
-      "vscode": {
-        "settings": {
-          "terminal.integrated.defaultProfile.linux": "bash",
-            "deno.enable": true,
-            "javascript.validate.enable": false,
-            "typescript.validate.enable": false
-        },
-        "extensions": ["rust-lang.rust-analyzer", "tamasfe.even-better-toml", "denoland.vscode-deno"]
-      }
-    },
-    "remoteEnv": {
-      "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
-    },
-    "postCreateCommand": "mkdir -p ~/.codex && if [ -f /tmp/host-codex/auth.json ]; then cp -f /tmp/host-codex/auth.json ~/.codex/; fi && if [ -f /tmp/host-codex/config.toml ]; then cp -f /tmp/host-codex/config.toml ~/.codex/; fi && curl -L https://fly.io/install.sh | sh && echo 'export PATH=\"$HOME/.fly/bin:$PATH\"' >> ~/.bashrc"
-  }
-  
+  "name": "Codex",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  "mounts": [
+    "source=${localEnv:HOME}/.codex,target=/tmp/host-codex,type=bind,consistency=cached,readonly"
+  ],
+
+  "remoteUser": "ubuntu",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "deno.enable": true,
+        "javascript.validate.enable": false,
+        "typescript.validate.enable": false
+      },
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "denoland.vscode-deno"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
+  },
+  "postCreateCommand": "mkdir -p ~/.codex && if [ -f /tmp/host-codex/auth.json ]; then cp -f /tmp/host-codex/auth.json ~/.codex/; fi && if [ -f /tmp/host-codex/config.toml ]; then cp -f /tmp/host-codex/config.toml ~/.codex/; fi && curl -L https://fly.io/install.sh | sh && echo 'export PATH=\"$HOME/.fly/bin:$PATH\"' >> ~/.bashrc"
+}

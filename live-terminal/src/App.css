@@ -2,7 +2,7 @@
   width: 100vw;
   height: 100dvh;
   margin: 0;
-  padding: 6px; /* breathing room around the app */
+  padding-left: 12px; /* breathing room around the app */
   box-sizing: border-box; /* include padding in viewport height */
   background: var(--terminal-bg); /* make padding match terminal */
 }
