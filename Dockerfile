@@ -46,10 +46,6 @@ RUN apt-get update && \
   cargo \
   && rm -rf /var/lib/apt/lists/*
 
-
-# Minimal Rust toolchain via Debian packages
-RUN rustc --version && cargo --version
-
 # Install latest Deno (stable) system-wide
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
@@ -63,7 +59,7 @@ COPY fly.config.toml /root/.codex/config.toml
 # Copy only what's needed to run the MCP web server
 COPY mcp-server /mcp-server
 
-# Pre-cache Deno deps for faster cold starts (non-fatal if network blocked later)
+# Pre-cache Deno deps for faster cold starts
 WORKDIR /mcp-server
 RUN deno cache --quiet start.ts
 

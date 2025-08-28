@@ -22,7 +22,7 @@
 ## Coding Style & Naming Conventions
 
 - **TypeScript**: `strict` enabled; add explicit types at module boundaries.
-- **Indentation**: 2 spaces; keep lines ≈100 chars.
+- **Indentation**: 2 spaces; keep lines ≈80 chars.
 - **React**: Components in `.tsx`, PascalCase (e.g., `TerminalView.tsx`); hooks
   `use*` in `hooks/`; shared types in `types.ts`.
 - **Lint/Format**: Use `deno lint` (custom rules in `deno.json`) and `deno fmt`

@@ -72,3 +72,8 @@ download at any time on the url '/live'.
 whenever the 'message' tool is called, it always contains a string, and it
 immediately sends that string into stdin, as tho a user had entered it at a
 terminal and then pressed enter.
+
+## terminal
+
+need to block some special keys, like ctrl+z so task isn't put into the
+background.
