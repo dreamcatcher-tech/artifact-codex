@@ -21,7 +21,8 @@
       "extensions": [
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
-        "denoland.vscode-deno"
+        "denoland.vscode-deno",
+        "bierner.markdown-mermaid"
       ]
     }
   },

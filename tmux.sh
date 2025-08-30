@@ -78,6 +78,13 @@ apply_ui_settings() {
         setw -g allow-rename off \; \
         setw -g automatic-rename off >/dev/null
 
+  # Disable tmux's right-click menu so RMB does nothing
+  tmuxx unbind-key -n MouseDown3Pane 2>/dev/null || true
+  tmuxx unbind-key -n MouseDown3Status 2>/dev/null || true
+  tmuxx unbind-key -n MouseDown3Client 2>/dev/null || true
+  tmuxx unbind-key -n MouseDown3StatusLeft 2>/dev/null || true
+  tmuxx unbind-key -n MouseDown3StatusRight 2>/dev/null || true
+
   # Map Alt shortcuts to Control for browser-reserved keys
   tmuxx unbind-key -n M-t 2>/dev/null || true
   tmuxx unbind-key -n M-j 2>/dev/null || true
@@ -138,6 +145,10 @@ start_ttyd() {
   exec ttyd -W -p "$PORT" \
     -t scrollback="$SCROLL" \
     -t scrollOnUserInput=false \
+    -t disableResizeOverlay=true \
+    -t copyOnSelection=true \
+    -t rightClickSelectsWord=false \
+    -t macOptionClickForcesSelection=true \
     -t disableLeaveAlert=true \
     tmux -L "$SOCKET" attach -t "$SESSION"
 }

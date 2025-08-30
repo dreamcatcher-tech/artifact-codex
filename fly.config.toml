@@ -11,6 +11,7 @@ trust_level = "trusted"
 
 [tools]
 web_search = true
+view_image = true
 
 # Only used if sandbox_mode = "workspace-write"
 [sandbox_workspace_write]

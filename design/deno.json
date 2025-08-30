@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "check:mermaid": "deno run --quiet --allow-read --no-lock scripts/mermaid-validate.ts"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "useTabs": false,
+    "singleQuote": false
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.19",
+    "@std/path": "jsr:@std/path@^1.1.2"
+  }
+}
