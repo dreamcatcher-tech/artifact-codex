@@ -111,3 +111,36 @@ Notes:
 
 - If the file is provided at `/etc/agent/config.toml`, the launcher MAY skip stdin write and point
   codex at that path. If both are provided, launcher precedence is: explicit stdin > existing file.
+
+**Session Model (proposed)**
+
+- **Goal:** Allow a single agent/container to host multiple concurrent user sessions.
+- **Mechanism:** One `tmux` server per agent; one `tmux` session per `session_id`. Web attaches via
+  TTYD; SSH attaches the PTY directly. Sessions are isolated at the terminal/process group level but
+  share the agent process and container resources.
+- **Limits:** Concurrency is capped via config (e.g., `max_sessions`) to protect CPU/RAM. When
+  exceeded, the agent rejects new sessions with a clear error.
+- **Lifecycle:** create → attach/detach → idle → suspend/evict. Eviction policies MAY close oldest
+  idle sessions first.
+- **Identity propagation:** Expose `SESSION_ID` and `SESSION_KIND` (`ssh|web`) in the session env;
+  log session start/stop and attach/detach events.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Agent (codex)
+  participant T as TTYD/SSHD
+  participant X as tmux
+  participant O as Observability
+  Note over A,X: Agent already running (post Launch Sequence)
+  T->>A: start_session(sid, kind=web|ssh)
+  A->>X: tmux new -s sid || attach -t sid
+  X-->>A: ok
+  A->>O: event session_started{sid, kind}
+  T-->>User: PTY attached
+  User-->>T: disconnect
+  T->>A: detach_session(sid)
+  A->>O: event session_detached{sid}
+```
+
+Caption: Session start/attach lifecycle inside a single running agent.

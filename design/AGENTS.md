@@ -9,6 +9,9 @@ fundamental changes go through an ADR.
 - One container per AI agent (Fly.io deployment).
 - Users connect to a specific agent via SSH to that container.
 - The SSH session is the primary UI (terminal-first experience).
+- Agents are multi-session: a single agent container can host multiple concurrent sessions. The
+  Concierge Agent is shared; users get a new or existing session on that container, not a new
+  container. Per-user Base Agents also support multiple sessions (e.g., extra tabs/viewers).
 
 ## How We Work
 

@@ -122,3 +122,54 @@ Caption: Returning user attach flow with health gates and ratings.
 
 - Region selection method: compute nearest Fly region from request IP, or show a picker with a
   sensible default.
+
+---
+
+**Web Session Routing (proposed)**
+
+- **Default page → Session URL:** Landing on a page without a `sid` param creates a new session on
+  the target agent (Concierge or Base) and redirects to the Session URL including `?sid={session_id}`.
+- **Resume with sid:** Landing with a valid `sid` reattaches to that session; invalid/expired `sid`
+  yields a friendly error and an option to start a new session.
+- **No per-user container for Concierge:** Concierge operates as a shared agent container hosting
+  many sessions; users get sessions, not containers.
+- **Multiple tabs:** Each browser tab has its own `sid`; viewers may attach to the same `sid` when
+  authorized.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User (Browser)
+  participant F as Frontend
+  participant C as Concierge Agent
+  participant R as Registry/Session Store
+  U->>F: GET /concierge (no sid)
+  F->>R: create_session(agent=concierge)
+  R-->>F: {sid}
+  F-->>U: 302 Location /concierge?sid={sid}
+  U->>F: GET /concierge?sid={sid}
+  F->>C: attach(sid) via TTYD
+  C-->>U: terminal connected
+```
+
+Caption: Default concierge page redirects to a Session URL and attaches that session.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User (Browser)
+  participant F as Frontend
+  participant B as Base Agent
+  participant R as Registry/Session Store
+  U->>F: GET /a/{user} (no sid)
+  F->>R: ensure_base_agent(user)
+  R-->>F: {endpoint}
+  F->>R: create_session(agent=base@{user})
+  R-->>F: {sid}
+  F-->>U: 302 Location /a/{user}?sid={sid}
+  U->>F: GET /a/{user}?sid={sid}
+  F->>B: attach(sid) via TTYD
+  B-->>U: terminal connected
+```
+
+Caption: Base agent page ensures agent exists, then creates and attaches a session.
