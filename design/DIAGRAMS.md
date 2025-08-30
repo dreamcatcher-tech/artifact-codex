@@ -1,14 +1,18 @@
 # Diagrams: Mermaid Index & Templates
 
-Use Mermaid to visualize architecture, flows, and behaviors. Keep diagrams close to the docs they explain; add shared or canonical versions here.
+Use Mermaid to visualize architecture, flows, and behaviors. Keep diagrams close to the docs they
+explain; add shared or canonical versions here.
 
 ## Conventions
-- Place diagrams inline in `ARCHITECTURE.md`, `USER-FLOW.md`, etc.; cross-link canonical copies here.
+
+- Place diagrams inline in `ARCHITECTURE.md`, `USER-FLOW.md`, etc.; cross-link canonical copies
+  here.
 - Prefer: `flowchart`, `stateDiagram-v2`, `sequenceDiagram`.
 - Include a short caption and a one-line text summary below each diagram.
 - Avoid color-only distinctions; label edges and nodes clearly.
 
 ## Architecture (template)
+
 ```mermaid
 flowchart LR
   User[SSH Client] -->|ssh| Fly[Fly.io Edge]
@@ -24,6 +28,7 @@ flowchart LR
 Summary: SSH path from user to agent; supporting services.
 
 ## UI State Machine (template)
+
 ```mermaid
 stateDiagram-v2
   [*] --> WelcomeBanner
@@ -40,6 +45,7 @@ stateDiagram-v2
 Summary: High-level SSH TUI states; must match `UI-STATES.md`.
 
 ## SSH Login Sequence (template)
+
 ```mermaid
 sequenceDiagram
   autonumber
@@ -60,7 +66,9 @@ sequenceDiagram
 Summary: Authentication and session start handshake.
 
 ## Launch Sequence (canonical)
+
 Status: accepted/locked 2025-08-28; authoritative for invocation.
+
 ```mermaid
 sequenceDiagram
   autonumber
@@ -84,6 +92,7 @@ sequenceDiagram
 Summary: Post-boot MCP call writes config.toml, sets CODEX_HOME, and execs codex.
 
 ## Agent Runtime States (canonical)
+
 ```mermaid
 stateDiagram-v2
   [*] --> MachineBoot

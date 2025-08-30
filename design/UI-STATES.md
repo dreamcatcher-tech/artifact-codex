@@ -1,6 +1,7 @@
 # UI States: ASCII Wireframes
 
-Purpose: Define the terminal UI (TUI) for SSH sessions in clear, monospace-friendly diagrams. Each state shows layout, labeled regions, and transitions. State names must exist in TERMS.md.
+Purpose: Define the terminal UI (TUI) for SSH sessions in clear, monospace-friendly diagrams. Each
+state shows layout, labeled regions, and transitions. State names must exist in TERMS.md.
 
 ---
 
@@ -39,9 +40,11 @@ Purpose: Define the terminal UI (TUI) for SSH sessions in clear, monospace-frien
 ```
 
 Notes
+
 - [1] Header shows product + agent name. Keep under 72 chars.
 
 Transitions
+
 - -> Agent Shell on first prompt render.
 
 ---
@@ -64,10 +67,12 @@ Transitions
 ```
 
 Notes
-- `PROMPT` example: `{AGENT_SLUG}@{HOST}:{PWD}$ `
+
+- `PROMPT` example: `{AGENT_SLUG}@{HOST}:{PWD}$`
 - Keep status line compact; collapsible if needed.
 
 Transitions
+
 - `help` -> Help Overlay
 - `exit`/`logout` -> Session Summary / Exit
 - Tool request -> Tool Execution / Progress
@@ -91,6 +96,7 @@ Transitions
 ```
 
 Transitions
+
 - Any keypress `q` or `Esc` -> Agent Shell (Main)
 
 ---
@@ -111,6 +117,7 @@ Transitions
 ```
 
 Transitions
+
 - Success -> Agent Shell (Main) with summary line
 - Failure -> Policy Blocked / Error or Agent Shell with error note
 
@@ -130,6 +137,7 @@ Transitions
 ```
 
 Transitions
+
 - `Enter` -> Agent Shell (Main)
 
 ---
@@ -147,6 +155,7 @@ Transitions
 ```
 
 Transitions
+
 - End SSH connection.
 
 ---
@@ -155,4 +164,3 @@ Transitions
 
 - Any change to prompts, banners, or layouts must update this file and `USER-FLOW.md` together.
 - State names and key terms must match `TERMS.md`.
-

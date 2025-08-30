@@ -1,25 +1,32 @@
 # ADR 0001: Concierge Entry + Per‑User Base Agent
 
-**Status:** Proposed  
+**Status:** Proposed\
 **Date:** 2025-08-28
 
 ## Context
+
 - We want a clear first‑run experience: users authenticate via Clerk in a frontend web app.
 - Each user should have an isolated base agent in its own Fly app and Machine.
 - Provisioning and routing should be automated and abstracted behind MCP servers.
 
 ## Decision
-- Use a web `Frontend` with Clerk for auth; it embeds an iframe that points to each agent’s TTYD endpoint.
-- On first login, Frontend/concierge provisions a per‑user Fly app + Machine using the standard agent image, then routes the iframe to the base agent.
-- Concierge/base agents call MCP servers (provisioning, auth, registry, secrets, observability; optional policy/session).
+
+- Use a web `Frontend` with Clerk for auth; it embeds an iframe that points to each agent’s TTYD
+  endpoint.
+- On first login, Frontend/concierge provisions a per‑user Fly app + Machine using the standard
+  agent image, then routes the iframe to the base agent.
+- Concierge/base agents call MCP servers (provisioning, auth, registry, secrets, observability;
+  optional policy/session).
 
 ## Consequences
+
 - Simpler onboarding; clear isolation per user.
 - Requires robust identity mapping with Clerk and a registry to find/route users.
 - Adds dependency on MCP host reliability and Fly provisioning quotas.
 - “Handoff” is iframe routing; no SSH client hops are required.
 
 ## Open Points
+
 - App naming: Clerk `username`; Org: default; Region: nearest to user.
 - Sizing: 1 shared vCPU, 1GB RAM; Storage: no volumes.
 - Idle: suspend/autostop on idle; autostart on HTTP/WebSocket traffic.
