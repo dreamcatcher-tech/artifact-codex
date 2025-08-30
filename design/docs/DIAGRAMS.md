@@ -85,7 +85,8 @@ sequenceDiagram
   A-->>F: {ok}
 ```
 
-Summary: First login reserves a random app name, creates the app, maps a friendly DNS alias, and records the mapping in Artifact.
+Summary: First login reserves a random app name, creates the app, maps a friendly DNS alias, and
+records the mapping in Artifact.
 
 ## Launch Sequence (canonical)
 
@@ -144,4 +145,3 @@ flowchart TB
 ```
 
 Summary: One interface presents multiple faces (sessions) that share the same mutable filesystem.
-

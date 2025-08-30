@@ -31,4 +31,3 @@
 - Sizing: 1 shared vCPU, 1GB RAM; Storage: no volumes.
 - Idle: suspend/autostop on idle; autostart on HTTP/WebSocket traffic.
 - Exact MCP tool inputs/outputs and error taxonomy.
-

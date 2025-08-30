@@ -140,4 +140,3 @@ separate MCP host product; here we only define names and tool contracts.
 - Coarse vs fine-grained tool exposure per agent?
 - Where SSH CA keys live (auth.mcp vs HSM)?
 - Which secrets are Fly app secrets vs external KMS refs?
-

@@ -7,10 +7,9 @@ export default {
   themeConfig: {
     // Built-in local search (no external service)
     search: { provider: 'local' },
-    outline: 'deep'
+    outline: 'deep',
   },
   markdown: {
-    lineNumbers: true
-  }
+    lineNumbers: true,
+  },
 };
-

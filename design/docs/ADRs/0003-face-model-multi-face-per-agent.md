@@ -1,14 +1,13 @@
 # ADR 0003: Face Model — Multiple Faces per Agent Container (renamed from Session Model)
 
-Status: Proposed
-Date: 2025-08-30
+Status: Proposed Date: 2025-08-30
 
 ## Context
 
 - The Concierge chat runs as a shared agent: users do not receive a dedicated container; they
   receive a face hosted on an existing container.
-- Base (per-user) agents should also support multiple concurrent faces (e.g., multiple browser
-  tabs, SSH + web, or viewers).
+- Base (per-user) agents should also support multiple concurrent faces (e.g., multiple browser tabs,
+  SSH + web, or viewers).
 - The current docs define a per-agent Launch Sequence but do not specify how sessions are created,
   addressed, and resumed across web and SSH.
 
@@ -40,4 +39,3 @@ Date: 2025-08-30
 - Define `max_faces`, idle timeout, and eviction policy defaults in `RUNTIME.md`.
 - Add guidance for monotonic `face_id`s with Artifact-enforced auth.
 - Extend `OBSERVABILITY.md` with face-scoped log/tracing fields.
-

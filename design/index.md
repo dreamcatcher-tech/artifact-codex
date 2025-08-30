@@ -6,7 +6,7 @@ title: Docs Home
 
 Quick links:
 
-- [AGENTS.md](docs/AGENTS.md)
+- [AGENTS.md](./AGENTS.md)
 - [TERMS.md](docs/TERMS.md)
 - [RUNTIME.md](docs/RUNTIME.md)
 - [LIFECYCLE.md](docs/LIFECYCLE.md)

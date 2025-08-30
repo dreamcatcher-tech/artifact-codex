@@ -70,7 +70,9 @@ Call over SSH from the MCP host with the `config.toml` piped on STDIN.
 
 **Infrastructure Access (accepted — 2025-08-30)**
 
-- Customer apps do not hold Fly API tokens. When agents need infrastructure (create/update Machines, etc.), they call MCP tools exposed by the central Artifact app, which holds the org‑scoped token `FLY_ORG_TOKEN`.
+- Customer apps do not hold Fly API tokens. When agents need infrastructure (create/update Machines,
+  etc.), they call MCP tools exposed by the central Artifact app, which holds the org‑scoped token
+  `FLY_ORG_TOKEN`.
 
 **Artifact MCP — Provisioning Tool Contracts (accepted — 2025-08-30)**
 
@@ -78,7 +80,8 @@ Namespace: `infra.*` (served by the Artifact app’s MCP host)
 
 - `infra.ensure_app(name, region)` → `{ app, created }`
   - Creates the app if missing; idempotent.
-- `infra.create_machine(app, image, region, size?, cmd?, files?, env?, services?)` → `{ machine_id, state }`
+- `infra.create_machine(app, image, region, size?, cmd?, files?, env?, services?)` →
+  `{ machine_id, state }`
   - `files`: array of `{ path, literal?, secret_name? }` to project config at boot.
   - `size`: e.g., `shared-cpu-1x@1024MB` (impl-defined mapping to CPUs/RAM).
 - `infra.update_machine(app, machine_id, patch)` → `{ machine_id, state }`
@@ -90,7 +93,9 @@ Namespace: `infra.*` (served by the Artifact app’s MCP host)
   - Rotates `FLY_ORG_TOKEN` held by Artifact (no per‑app tokens exist).
 
 Security:
-- Artifact authenticates the caller (customer app) and authorizes per‑app actions (e.g., app name prefix or allowlist).
+
+- Artifact authenticates the caller (customer app) and authorizes per‑app actions (e.g., app name
+  prefix or allowlist).
 - All actions are audited with `{app, user, tool, params-hash}`.
 
 **Fly.io Boot‑Time Config**
@@ -140,7 +145,6 @@ Notes:
 - Ephemeral rootfs performance is capped at ~2000 IOPs and ~8 MiB/s bandwidth, independent of
   Machine size. For persistence or higher throughput, attach a Fly Volume. See ref
   `FLY-VOLUMES-OVERVIEW`.
-
 
 **Launcher Interop**
 
@@ -236,11 +240,14 @@ Caption: Landing flow for multi-face agents with Face URL redirect.
 
 **State Persistence & Restore (proposed)**
 
-- Goal: Allow agents to optionally persist overall state on persistence events and optionally restore it on next start.
+- Goal: Allow agents to optionally persist overall state on persistence events and optionally
+  restore it on next start.
 - Model:
   - Live faces are ephemeral (tmux-backed). No continuous per-turn persistence is required.
-  - On a Persistence Event (autosuspend/upgrade/manual snapshot), the agent MAY serialize a freeform JSON “Agent State Object” and store it via the Artifact Storage Layer.
-  - On launch, the agent MAY load the latest snapshot and restore overall state. Multi-face agents MAY rehydrate faces from the snapshot. Rehydrated faces are inert until attached.
+  - On a Persistence Event (autosuspend/upgrade/manual snapshot), the agent MAY serialize a freeform
+    JSON “Agent State Object” and store it via the Artifact Storage Layer.
+  - On launch, the agent MAY load the latest snapshot and restore overall state. Multi-face agents
+    MAY rehydrate faces from the snapshot. Rehydrated faces are inert until attached.
 - MCP (sketch):
   - `artifacts.save_state(app, machine_id, agent_id, state_json)` → `{version, stored_at}`
   - `artifacts.load_state(app, machine_id, agent_id)` → `{state_json, version, stored_at}|null`
@@ -251,26 +258,29 @@ Caption: Landing flow for multi-face agents with Face URL redirect.
   "agent": { "id": "base@alice", "version": "v2" },
   "workspace": { "repos": ["main", "infra"], "scratch": ["s-123"] },
   "faces": [
-    { "face_id": "42", "title": "Chat", "kind": "chat", "state": {"thread": [/*...*/]} },
-    { "face_id": "43", "title": "Logs", "kind": "logs", "state": {"cursor": 102938} }
+    { "face_id": "42", "title": "Chat", "kind": "chat", "state": { "thread": [/*...*/] } },
+    { "face_id": "43", "title": "Logs", "kind": "logs", "state": { "cursor": 102938 } }
   ]
 }
 ```
 
-- Security: State may contain sensitive data. Apply redaction policies; encrypt at rest in the Artifact Storage Layer; avoid logging full payloads.
+- Security: State may contain sensitive data. Apply redaction policies; encrypt at rest in the
+  Artifact Storage Layer; avoid logging full payloads.
 - Limits: Snapshots should be size-bounded; consider pruning transient data before save.
 
 ---
 
 **Workspace Initialization (proposed)**
 
-- **Goal:** Ensure `/workspace` exists and required repos are present before the agent accepts faces/sessions.
+- **Goal:** Ensure `/workspace` exists and required repos are present before the agent accepts
+  faces/sessions.
 - **Inputs:** `$HOME/workspace.toml` (Workspace Manifest) and `[workspace.*]` keys in `config.toml`.
 - **Steps:**
-  1) Create `/workspace` (0700) if missing; verify free space and quotas.
-  2) For each manifest repo, if path missing → `git clone`; else → `git fetch` and `git checkout` the requested ref; apply sparse rules if set.
-  3) Create scratch root `/workspace/.scratch` (0700).
-  4) Emit `workspace_ready` event.
+  1. Create `/workspace` (0700) if missing; verify free space and quotas.
+  2. For each manifest repo, if path missing → `git clone`; else → `git fetch` and `git checkout`
+     the requested ref; apply sparse rules if set.
+  3. Create scratch root `/workspace/.scratch` (0700).
+  4. Emit `workspace_ready` event.
 
 - **TOML (example):**
 
@@ -305,5 +315,5 @@ ref = "v1.2.3"
 - **Notes:**
   - All faces share the same workspace; concurrent Git ops must lock per repo path.
   - Scratch repos have no remotes by default; pushing requires explicit `git remote add`.
-  - If `/workspace` is a volume, persistence extends across agent restarts; otherwise it is ephemeral.
-
+  - If `/workspace` is a volume, persistence extends across agent restarts; otherwise it is
+    ephemeral.

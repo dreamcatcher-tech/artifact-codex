@@ -193,4 +193,3 @@ Transitions
 
 - Any change to prompts, banners, or layouts must update this file and `USER-FLOW.md` together.
 - State names and key terms must match `TERMS.md`.
-

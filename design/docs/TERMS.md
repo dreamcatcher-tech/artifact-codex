@@ -1,8 +1,8 @@
 **Canonical Terms**
 
-- **Frontend (proposed):** Web application that serves agent faces, manages viewer attachments,
-  and embeds agent terminals via TTYD iframes. In open mode, it may operate
-  without auth; in private mode, it integrates with an IdP (e.g., Clerk).
+- **Frontend (proposed):** Web application that serves agent faces, manages viewer attachments, and
+  embeds agent terminals via TTYD iframes. In open mode, it may operate without auth; in private
+  mode, it integrates with an IdP (e.g., Clerk).
 - **App Host (alias):** Synonym for Frontend in diagrams.
 - **Concierge Agent (proposed):** Shared control-plane agent callable by the frontend to handle
   identity mapping, provisioning, and routing to a dedicated base agent.
@@ -12,7 +12,8 @@
   Machine) per agent, but capable of hosting multiple concurrent sessions.
 - **MCP Server (proposed):** Tool endpoint implementing Model Context Protocol, exposing callable
   tools (e.g., provisioning, auth). Implemented by a separate MCP host product.
-- **Fly App (proposed):** Fly.io application that contains one or more Machines; we create one per customer.
+- **Fly App (proposed):** Fly.io application that contains one or more Machines; we create one per
+  customer.
 - **Machine (proposed):** Fly.io VM instance within an app that runs the agent container.
 - **Agent Image (proposed):** Standard container image used to launch base agents; configured at
   boot.
@@ -38,8 +39,8 @@
   addressed by a unique `face_id`. One agent container may host many faces concurrently (e.g.,
   concierge chat faces), each with isolated terminal state (typically one `tmux` session per
   `face_id`).
-- **Face ID (proposed):** Monotonic, URL-safe identifier that binds a browser tab or SSH attach to
-  a specific face. In the web flow it appears as a query param `?face={face_id}`; with SSH it is
+- **Face ID (proposed):** Monotonic, URL-safe identifier that binds a browser tab or SSH attach to a
+  specific face. In the web flow it appears as a query param `?face={face_id}`; with SSH it is
   logged and propagated via env (e.g., `FACE_ID`). Authorization is enforced by Artifact; IDs need
   not be secret.
 - **Face URL (proposed):** Canonical web URL that includes `?face={face_id}`. Landing without a
@@ -49,13 +50,13 @@
 
 - **Agent Concurrency Mode (proposed):** The agent’s capability for parallel conversational/UI
   contexts (faces). Two modes:
-  - **Single‑Face Agent (proposed):** One active face per agent; new work replaces the current
-    face. Attempts to open another face are rejected or queued by policy.
+  - **Single‑Face Agent (proposed):** One active face per agent; new work replaces the current face.
+    Attempts to open another face are rejected or queued by policy.
   - **Multi‑Face Agent (proposed, default):** Multiple faces per agent. Faces can present different
     information concurrently (e.g., chat, logs, editor) while sharing the same mutable workspace
-    filesystem and process space.
-  Allowed synonyms: multi‑page, multi‑session, session‑aware, single‑/multi‑threaded,
-  single‑/multi‑context, single‑/multi‑view. “Face” is canonical; “session” is legacy.
+    filesystem and process space. Allowed synonyms: multi‑page, multi‑session, session‑aware,
+    single‑/multi‑threaded, single‑/multi‑context, single‑/multi‑view. “Face” is canonical;
+    “session” is legacy.
 
 - **Face UI (proposed):** Each face renders within the same single interface. Examples: Chat, Logs,
   Editor, Help. Faces share agent memory and the same working directory and filesystem.
@@ -75,9 +76,9 @@
 
 ---
 
-- **Agent Workspace (proposed):** The working directory tree available to the agent at
-  `/workspace`. Contains one or more Git repositories plus scratch repos used for temporary work.
-  Shared by all faces/sessions of the agent. Subject to quotas and cleanup policies.
+- **Agent Workspace (proposed):** The working directory tree available to the agent at `/workspace`.
+  Contains one or more Git repositories plus scratch repos used for temporary work. Shared by all
+  faces/sessions of the agent. Subject to quotas and cleanup policies.
 
 - **Workspace Root (proposed):** Absolute path `/workspace`. Must exist before agent launch. MAY be
   a mounted volume for persistence.
@@ -102,22 +103,22 @@
   (two words + hyphen + 3–5 digits, e.g., `calm-meadow-4821`). Serves `{app}.fly.dev` and is stable
   across orgs.
 
-- **Friendly DNS Alias (proposed):** One or more human-friendly hostnames CNAME’d/Alias’d to the
-  app host (e.g., `{user}.agents.example.com`). Managed by the platform; zero-downtime re-pointing
+- **Friendly DNS Alias (proposed):** One or more human-friendly hostnames CNAME’d/Alias’d to the app
+  host (e.g., `{user}.agents.example.com`). Managed by the platform; zero-downtime re-pointing
   during maintenance/recreate.
 
-- **Artifact State Tracker (proposed):** System of record that maps Clerk `user_id` → `{app name,
-  agent paths, dns aliases, status}`. Used to resolve user logins to their app and to orchestrate
-  maintenance/recreation.
+- **Artifact State Tracker (proposed):** System of record that maps Clerk `user_id` →
+  `{app name,
+  agent paths, dns aliases, status}`. Used to resolve user logins to their app and to
+  orchestrate maintenance/recreation.
 
 - **Maintenance Mode (proposed):** An app state where normal faces are paused; the platform serves a
   full but read-only maintenance face showing progress while the underlying app is being recreated
   or upgraded.
 
 - **App URL (proposed):** Canonical host for a user’s app, e.g., `{app}.fly.dev`.
-- **Agent Path (proposed):** Hierarchical subpath identifying an agent within the app,
-  e.g., `/agent1/child-agent-2/`. Full form with face:
-  `{app}.fly.dev/{agent_path}/?face={face_id}`.
+- **Agent Path (proposed):** Hierarchical subpath identifying an agent within the app, e.g.,
+  `/agent1/child-agent-2/`. Full form with face: `{app}.fly.dev/{agent_path}/?face={face_id}`.
 
 - **CODEX_HOME (accepted):** Environment variable pointing to the per‑agent directory that contains
   `config.toml` and any state files. Example: `/var/lib/codex/agents/{agent_id}`. Required for
@@ -136,15 +137,21 @@ sweep.
 **Tenancy (accepted)**
 
 - **Shared Organization (accepted):** A single Fly.io Organization that owns all customer apps.
-- Status: accepted 2025-08-30 (ADR 0009). The former org‑per‑customer model is deprecated (ADR 0008, superseded).
+- Status: accepted 2025-08-30 (ADR 0009). The former org‑per‑customer model is deprecated (ADR 0008,
+  superseded).
 
 **Apps**
 
-- **Artifact App (accepted):** Central control-plane application (MCP host) that provisions and manages Machines across customer apps. Holds an org‑scoped token (`FLY_ORG_TOKEN`). Synonyms: Infrastructure App, Infra MCP.
-- **Customer App (accepted):** Per‑customer application that hosts agent Machines and faces. Stores no Fly API tokens.
+- **Artifact App (accepted):** Central control-plane application (MCP host) that provisions and
+  manages Machines across customer apps. Holds an org‑scoped token (`FLY_ORG_TOKEN`). Synonyms:
+  Infrastructure App, Infra MCP.
+- **Customer App (accepted):** Per‑customer application that hosts agent Machines and faces. Stores
+  no Fly API tokens.
 
 **Tokens**
 
-- **Org Token (accepted):** Organization‑scoped access token granting API access across apps in the org. Created with `fly tokens create org`; injected as secret `FLY_ORG_TOKEN` into the Artifact App. Customer apps do not hold this.
-- **Deploy Token (note):** App‑scoped access token limited to one app. Not used in this design for customer apps; referenced for completeness.
-
+- **Org Token (accepted):** Organization‑scoped access token granting API access across apps in the
+  org. Created with `fly tokens create org`; injected as secret `FLY_ORG_TOKEN` into the Artifact
+  App. Customer apps do not hold this.
+- **Deploy Token (note):** App‑scoped access token limited to one app. Not used in this design for
+  customer apps; referenced for completeness.

@@ -40,8 +40,10 @@ Caption: Public root attaches to a default multi-face agent with session redirec
 
 **Assumptions** (updated 2025-08-30)
 
-- **One org, many apps:** All resources live in a single Fly organization; we create one app per customer.
-- **Artifact app (infra):** Central control-plane MCP host that provisions Machines inside any customer app.
+- **One org, many apps:** All resources live in a single Fly organization; we create one app per
+  customer.
+- **Artifact app (infra):** Central control-plane MCP host that provisions Machines inside any
+  customer app.
 - **Base agent per user:** Each user gets a base agent Machine in their Customer App.
 - **Standard image:** Base agents use a common image configured at boot (no volumes initially).
 - **MCP-backed ops:** Frontend/concierge calls MCP servers for provisioning, auth/registry, secrets,
@@ -104,12 +106,13 @@ Caption: Returning user attach flow with health gates and ratings.
 - **U2. Identify:** Frontend resolves `user_id` and `username` via Clerk; Registry MCP lookup for
   existing base agent.
 - **U3. Customer App:** Create a Customer App with friendly random name in the shared org.
-- **U4. Launch Machine:** Create one Machine in the Customer App with the standard image, CPU/RAM: `1 shared vCPU, 1GB RAM`; no volumes.
+- **U4. Launch Machine:** Create one Machine in the Customer App with the standard image, CPU/RAM:
+  `1 shared vCPU, 1GB RAM`; no volumes.
 - **U6. Health Gate:** Observability MCP waits for container readiness.
 - **U7. Launch Agent:** Call `runtime.mcp.launch_agent` (see RUNTIME “Launch Sequence”) to write
   `config.toml`, set `CODEX_HOME`, and exec `codex`.
-- **U8. Attach:** Frontend sets the iframe `src` to the agent’s TTYD endpoint (prefer friendly
-  alias in the URL); the agent starts/attaches a face (one tmux session per face).
+- **U8. Attach:** Frontend sets the iframe `src` to the agent’s TTYD endpoint (prefer friendly alias
+  in the URL); the agent starts/attaches a face (one tmux session per face).
 
 **Repeat Login (Existing User)**
 
@@ -140,7 +143,8 @@ Caption: Returning user attach flow with health gates and ratings.
 
 **Defaults and Policies** (revised)
 
-- **App name:** friendly, random globally-unique slug (two-words + digits, e.g., `calm-meadow-4821`).
+- **App name:** friendly, random globally-unique slug (two-words + digits, e.g.,
+  `calm-meadow-4821`).
 - **Org:** Single shared org; one app per customer (see ADR 0009).
 - **Region:** nearest Fly region to user at first provision.
 - **Sizing:** 1 shared vCPU, 1GB RAM.
@@ -148,8 +152,10 @@ Caption: Returning user attach flow with health gates and ratings.
 - **Idle policy:** suspend/stop on idle via Fly Proxy autostop; autostart on new HTTP/WebSocket
   traffic.
 - **Secrets:**
-  - Artifact app only: `FLY_ORG_TOKEN` (org‑scoped token to manage apps/Machines across the org). Customer apps store no Fly API tokens.
-- **Faces:** managed via `tmux` (one tmux session per face); multiple viewers may attach when allowed by frontend.
+  - Artifact app only: `FLY_ORG_TOKEN` (org‑scoped token to manage apps/Machines across the org).
+    Customer apps store no Fly API tokens.
+- **Faces:** managed via `tmux` (one tmux session per face); multiple viewers may attach when
+  allowed by frontend.
 - **Friendly DNS:** one or more aliases point to `{app}.fly.dev`; bookmarks prefer aliases.
 
 **Multi‑Face Mechanics (proposed)**
@@ -188,8 +194,8 @@ Caption: Returning user attach flow with health gates and ratings.
 - **Trigger:** Artifact marks the app as `maintenance` (e.g., recreate or upgrade in progress).
 - **Behavior:** Friendly DNS continues to resolve; requests to any agent path render a full but
   read-only maintenance face with progress and ETA. Authenticated users may see more detail.
-- **Recreate path:** Artifact can recreate the app using state (repos, config) and then re-point
-  DNS aliases back to the new `{app}.fly.dev`.
+- **Recreate path:** Artifact can recreate the app using state (repos, config) and then re-point DNS
+  aliases back to the new `{app}.fly.dev`.
 - **Exit:** Clear maintenance flag; resume normal faces; bookmarks remain valid.
 
 **Face Persistence Policy (snapshot-based)**
@@ -198,11 +204,11 @@ Caption: Returning user attach flow with health gates and ratings.
   container restart.
 - **Snapshot on persistence events:** When the container persists itself (e.g., autosuspend,
   upgrade, manual snapshot), the agent MAY write an overall freeform JSON state object to the
-  Artifact Storage Layer. A multi-face agent MAY include a list of faces and optional per-face
-  state in that object.
-- **Restore behavior:** On next start, the agent MAY read the last snapshot to restore overall
-  state and optionally rehydrate faces. Rehydrated faces are not live PTYs until reattached; deep
-  links only resume if the snapshot retained those `face_id`s.
+  Artifact Storage Layer. A multi-face agent MAY include a list of faces and optional per-face state
+  in that object.
+- **Restore behavior:** On next start, the agent MAY read the last snapshot to restore overall state
+  and optionally rehydrate faces. Rehydrated faces are not live PTYs until reattached; deep links
+  only resume if the snapshot retained those `face_id`s.
 - **Security note:** Face IDs are not secrets; authorization is enforced by Artifact. Mask IDs in
   logs by default; expose only short hashes in UI.
 
@@ -243,4 +249,3 @@ sequenceDiagram
 ```
 
 Caption: Base agent page ensures agent exists, then creates and attaches a session.
-

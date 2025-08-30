@@ -1,27 +1,25 @@
 import DefaultTheme from 'vitepress/theme';
-import { nextTick } from 'vue';
+import { inBrowser, onContentUpdated } from 'vitepress';
 import { createMermaidRenderer } from 'vitepress-mermaid-renderer';
 import 'vitepress-mermaid-renderer/dist/style.css';
 
+/** @type {import('vitepress').Theme} */
 export default {
   extends: DefaultTheme,
   enhanceApp({ router }) {
+    if (!inBrowser) return;
+
     const mr = createMermaidRenderer({
-      // You can tweak Mermaid options here if desired
-      mermaidConfig: { startOnLoad: false }
+      mermaidConfig: { startOnLoad: false },
     });
 
-    // Initial render after first mount
-    if (typeof window !== 'undefined') {
-      nextTick(() => mr.renderMermaidDiagrams());
-    }
+    // Initialize once on client and re-render whenever content updates
+    mr.initialize?.();
+    onContentUpdated(() => mr.renderMermaidDiagrams());
 
-    // Re-render on route changes
-    if (router && router.onAfterRouteChange) {
-      router.onAfterRouteChange = () => {
-        nextTick(() => mr.renderMermaidDiagrams());
-      };
-    }
-  }
+    // Fallback: also hook route changes (covers edge HMR cases)
+    router.onAfterRouteChange = () => {
+      mr.renderMermaidDiagrams();
+    };
+  },
 };
-

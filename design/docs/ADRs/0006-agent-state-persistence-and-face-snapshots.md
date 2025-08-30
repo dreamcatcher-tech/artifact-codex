@@ -1,7 +1,6 @@
 # ADR 0006: Agent State Persistence and Face Snapshots (renamed from Session)
 
-Status: Proposed
-Date: 2025-08-30
+Status: Proposed Date: 2025-08-30
 
 ## Context
 
@@ -9,7 +8,8 @@ Faces are ephemeral by default; we sometimes need snapshot/restore of overall ag
 
 ## Decision
 
-- On persistence events, optionally write a freeform Agent State Object to the Artifact Storage Layer.
+- On persistence events, optionally write a freeform Agent State Object to the Artifact Storage
+  Layer.
 - Optionally restore on next start; faces may be rehydrated but remain inert until attached.
 
 ## Consequences
@@ -29,4 +29,3 @@ Faces are ephemeral by default; we sometimes need snapshot/restore of overall ag
 ## Follow-ups
 
 - Add size limits and pruning guidance in `RUNTIME.md`.
-

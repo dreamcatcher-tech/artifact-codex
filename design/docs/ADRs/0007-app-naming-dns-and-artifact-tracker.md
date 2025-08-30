@@ -1,7 +1,6 @@
 # ADR 0007: App Naming, Friendly DNS, and Artifact Tracker
 
-Status: Accepted
-Date: 2025-08-30
+Status: Accepted Date: 2025-08-30
 
 ## Context
 
@@ -21,4 +20,3 @@ Apps need stable, human-friendly URLs and a registry mapping users to app endpoi
 ## Follow-ups
 
 - Add maintenance face design to `USER-FLOW.md` and `UI-STATES.md`.
-

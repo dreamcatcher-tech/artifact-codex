@@ -1,7 +1,6 @@
 # ADR 0005: Workspace Root and Repo Model
 
-Status: Accepted
-Date: 2025-08-30
+Status: Accepted Date: 2025-08-30
 
 ## Context
 
@@ -31,4 +30,3 @@ Agents require a predictable filesystem layout for repos and scratch space, with
 ## Follow-ups
 
 - Add enforcement hooks in runtime for quotas/GC.
-
