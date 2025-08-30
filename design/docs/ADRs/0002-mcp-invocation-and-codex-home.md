@@ -37,3 +37,4 @@
 - Harden error taxonomy for `runtime.launch_agent`.
 - Decide whether to supervise `codex` with `s6/supervisord` vs simple `exec`.
 - If persistence is needed, back `$CODEX_HOME` by a Fly volume and document rotation.
+

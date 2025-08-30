@@ -58,12 +58,34 @@ sequenceDiagram
   E->>H: Forward SSH
   U->>H: Key auth / handshake
   H-->>U: MOTD/banner
-  H->>A: Start session env
+  H->>A: Start face env
   A-->>U: Prompt appears
-  A->>O: Session start event
+  A->>O: Face start event
 ```
 
 Summary: Authentication and session start handshake.
+
+## App Provisioning with Friendly DNS (proposed)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User (Clerk)
+  participant F as Frontend
+  participant A as artifact.mcp
+  participant P as provisioning.mcp
+  participant D as DNS Provider
+  U->>F: First login
+  F->>A: reserve_app_name(user_id)
+  A-->>F: {app}
+  F->>P: fly_create_app(name=app, ...)
+  P-->>F: {app, machine_id}
+  F->>D: ensure CNAME alias → {app}.fly.dev
+  F->>A: record_user_app(user_id, app, aliases)
+  A-->>F: {ok}
+```
+
+Summary: First login reserves a random app name, creates the app, maps a friendly DNS alias, and records the mapping in Artifact.
 
 ## Launch Sequence (canonical)
 
@@ -105,3 +127,21 @@ stateDiagram-v2
 ```
 
 Summary: Container lifecycle from boot to codex running, highlighting the Launch Sequence.
+
+## Faces & Sessions (proposed)
+
+```mermaid
+flowchart TB
+  subgraph Interface[Single Agent Path Interface]
+    A[Agent Shell UI]
+    A -->|switch| F1[Face: Chat]
+    A -->|switch| F2[Face: Logs]
+    A -->|switch| F3[Face: Editor]
+  end
+  FS[(Shared Workspace FS)] --- P1
+  FS --- P2
+  FS --- P3
+```
+
+Summary: One interface presents multiple faces (sessions) that share the same mutable filesystem.
+

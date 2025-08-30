@@ -1,20 +1,24 @@
 # Agents: Purpose and Working Agreement
 
-This file defines how the “doc agent” partners with you to design a system where each AI agent runs
-in its own Fly.io container and users interact via SSH. Say “lock it” on any section to freeze it;
-fundamental changes go through an ADR.
+This file defines how the “doc agent” collaborates on documentation in this repo. It is
+process‑only; product/system design content belongs in docs under `docs/`. Say “lock it” on any
+section to freeze it; fundamental changes go through an ADR.
 
-## Scope & Base Assumptions
+## Repo Layout Rules (accepted — 2025-08-30)
 
-- One container per AI agent (Fly.io deployment).
-- Users connect to a specific agent via SSH to that container.
-- The SSH session is the primary UI (terminal-first experience).
-- Agents are multi-session: a single agent container can host multiple concurrent sessions. The
-  Concierge Agent is shared; users get a new or existing session on that container, not a new
-  container. Per-user Base Agents also support multiple sessions (e.g., extra tabs/viewers).
+- All documentation lives under `docs/`.
+- Architecture Decision Records live under `docs/ADRs/` (one decision per file, numbered).
+- The doc agent edits only within `docs/` (and `docs/ADRs/`) unless explicitly asked to modify
+  tooling (e.g., `scripts/`, `deno.json`).
+- Cross‑doc links use relative paths within `docs/` (e.g., `TERMS.md`, `ADRs/0004-…md`).
+- Validation: run `deno task ok` before PRs; failures block merges.
+
+## 
 
 ## How We Work
 
+- Discovery-first: assume user goals may be fuzzy; ask clarifying questions to converge, reflect
+  options, and capture decisions in ADRs.
 - Questions first: remove ambiguity with targeted questions and small decision packets.
 - Options with tradeoffs: propose alternatives, call risks, recommend a default.
 - Dictionary-first: settle terms in `TERMS.md` before changing other docs.
@@ -25,21 +29,20 @@ fundamental changes go through an ADR.
 
 ## Document Map
 
-- ARCHITECTURE.md — System overview, components, data/control flows.
-- AGENTS.md — This agreement and how we collaborate.
-- TERMS.md — Canonical dictionary and naming conventions.
-- LIFECYCLE.md — Provisioning, config, updates, suspend/resume, teardown.
-- RUNTIME.md — Agent process model, prompts, tools, state, policies.
-- NETWORKING.md — Ports, SSH entry, egress rules, discovery.
-- SECURITY.md — Identity, authN/authZ, secrets, isolation, audit.
-- OPERATIONS.md — Deploy, scaling, backups, incident runbooks, SLOs.
-- OBSERVABILITY.md — Logs, metrics, traces, session transcripts.
-- COSTS.md — Instance sizing, quotas, idle policies, autosuspend.
-- USER-FLOW.md — How users select/connect/use agents via SSH.
-- ADRs/ — Architecture Decision Records (one decision per file).
-- REFERENCES.md — External references and dated citations.
-- UI-STATES.md — ASCII wireframes for the terminal UI.
-- DIAGRAMS.md — Mermaid diagram index, conventions, and templates.
+- docs/ARCHITECTURE.md — System overview, components, data/control flows.
+- docs/TERMS.md — Canonical dictionary and naming conventions.
+- docs/LIFECYCLE.md — Provisioning, config, updates, suspend/resume, teardown.
+- docs/RUNTIME.md — Runtime model, tools, state, policies.
+- docs/NETWORKING.md — Ports, SSH entry, egress rules, discovery.
+- docs/SECURITY.md — Identity, authN/authZ, secrets, isolation, audit.
+- docs/OPERATIONS.md — Deploy, scaling, backups, incident runbooks, SLOs.
+- docs/OBSERVABILITY.md — Logs, metrics, traces, face transcripts.
+- docs/COSTS.md — Instance sizing, quotas, idle policies, autosuspend.
+- docs/USER-FLOW.md — User journeys and session flows.
+- docs/ADRs/ — Architecture Decision Records (one decision per file).
+- docs/REFERENCES.md — External references and dated citations.
+- docs/UI-STATES.md — ASCII wireframes for the terminal UI.
+- docs/DIAGRAMS.md — Mermaid diagram index, conventions, and templates.
 
 ## Naming & Terminology
 
@@ -92,21 +95,6 @@ fundamental changes go through an ADR.
 - Checklists: each lifecycle phase includes an auditable checklist.
 - Drift sweeps: after major changes, sweep all docs for consistency.
 
-## Decision Backlog (track in ADRs when resolved)
+## Decision Logging
 
-- Identity & addressability
-- SSH authZ/authN model
-- Runtime image strategy & sizing
-- State & storage (ephemeral vs volumes)
-- Session UX (bash + CLI vs agent REPL) and tool guardrails
-- Networking/egress and internal service access
-- Security & secrets handling
-- Observability (logs/metrics/traces/transcripts)
-- Cost controls (TTL, quotas, autosuspend)
-- Compliance/data boundaries and delivery/rollout
-
-## Next Steps
-
-Reply with high-level choices for: identity model, SSH auth, persistence needs, default CPU/RAM and
-idle timeout, and preferred session UX. I’ll draft the next docs and ADRs accordingly and run a
-consistency sweep.
+- Use ADRs in `docs/ADRs/` for impactful choices. Keep AGENTS.md free of product/system specifics.

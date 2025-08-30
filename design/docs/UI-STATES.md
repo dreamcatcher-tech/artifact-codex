@@ -22,7 +22,8 @@ state shows layout, labeled regions, and transitions. State names must exist in 
 3. Help Overlay
 4. Tool Execution / Progress
 5. Policy Blocked / Error
-6. Session Summary / Exit
+6. Face Summary / Exit
+7. Face Switcher (Multi-Face)
 
 ---
 
@@ -35,7 +36,7 @@ state shows layout, labeled regions, and transitions. State names must exist in 
 | Welcome, {USER_NAME}.                                                         |
 | Type `help` to see commands, or start interacting.                            |
 |                                                                              |
-| SSH session id: {SESSION_ID}    Started: {START_TIME}                         |
+| Face ID: {FACE_ID}               Started: {START_TIME}                         |
 +------------------------------------------------------------------------------+
 ```
 
@@ -74,9 +75,10 @@ Notes
 Transitions
 
 - `help` -> Help Overlay
-- `exit`/`logout` -> Session Summary / Exit
+- `exit`/`logout` -> Face Summary / Exit
 - Tool request -> Tool Execution / Progress
 - Policy violation -> Policy Blocked / Error
+- `/faces` (alias: `/sessions`) or `Ctrl+Tab` -> Face Switcher (Multi-Face)
 
 ---
 
@@ -142,11 +144,11 @@ Transitions
 
 ---
 
-## 6) Session Summary / Exit
+## 6) Face Summary / Exit
 
 ```
 +------------------------------------------------------------------------------+
-| Session Summary                                                                |
+| Face Summary                                                                   |
 |------------------------------------------------------------------------------|
 | Duration: {DURATION}   Turns: {TURN_COUNT}   Tools: {TOOL_COUNT}              |
 | Tokens: {TOKENS}   Estimated cost: {COST}                                     |
@@ -160,7 +162,35 @@ Transitions
 
 ---
 
+## 7) Face Switcher (Multi-Face)
+
+```
++------------------------------------------------------------------------------+
+| Faces — Switch or Create                                                     |
+|------------------------------------------------------------------------------|
+|  [*] {PAGE_ID} {PAGE_TITLE}                                                 |
+|      {PAGE_ID} {PAGE_TITLE}                                                 |
+|      {PAGE_ID} {PAGE_TITLE}                                                 |
+|------------------------------------------------------------------------------|
+|  n) New Page    c) Close    Enter) Switch    q) Back                        |
++------------------------------------------------------------------------------+
+```
+
+Notes
+
+- Appears only when `concurrency.mode = "multi-face"`.
+- Shows face/session list for the current agent path. All faces share the same filesystem/workspace.
+
+Transitions
+
+- `Enter` -> Agent Shell (Main) attached to selected face/session
+- `n` -> Agent Shell (Main) with a new face/session focused
+- `q`/`Esc` -> Agent Shell (Main)
+
+---
+
 ## Change Control
 
 - Any change to prompts, banners, or layouts must update this file and `USER-FLOW.md` together.
 - State names and key terms must match `TERMS.md`.
+

@@ -33,6 +33,18 @@ separate MCP host product; here we only define names and tool contracts.
   - `register_base_agent(user_id, app, machine_id, host)` → `{ok:boolean}`
   - `list_agents(user_id)` → `{agents:[...]}`
 
+**artifact.mcp (proposed)**
+
+- **Purpose:** Artifact State Tracker — maps Clerk users to apps, manages friendly DNS aliases, and
+  coordinates maintenance mode.
+- **Tools:**
+  - `reserve_app_name(user_id)` → `{app}`
+  - `record_user_app(user_id, app, aliases[])` → `{ok}`
+  - `ensure_dns_alias(app, alias_host)` → `{ok}`
+  - `set_maintenance(app, reason, eta?)` → `{status:"maintenance"}`
+  - `clear_maintenance(app)` → `{status:"active"}`
+  - `status(app)` → `{status, reason?, eta?, aliases[]}`
+
 **secrets.mcp**
 
 - **Purpose:** Manage agent secrets/config separate from app deploys.
@@ -77,6 +89,13 @@ separate MCP host product; here we only define names and tool contracts.
     }
     ```
 
+**artifacts.mcp** (optional)
+
+- **Purpose:** Durable artifact storage for agent snapshots and related state.
+- **Tools:**
+  - `save_state(app, machine_id, agent_id, state_json)` → `{version, stored_at}`
+  - `load_state(app, machine_id, agent_id)` → `{state_json, version, stored_at}|null`
+
 **policy.mcp** (optional)
 
 - **Purpose:** Central guardrails for tools, egress, and data boundaries.
@@ -84,6 +103,14 @@ separate MCP host product; here we only define names and tool contracts.
   - `evaluate(request_context)` → `{allow:boolean, reason, patches?}`
 
 —
+
+**faces.mcp** (optional)
+
+- **Purpose:** Manage faces (one `tmux` session per face) and viewer presence.
+- **Tools:**
+  - `attach(user_id, app, machine_id, face)` → `{attached:boolean}`
+  - `list_viewers(app, machine_id, face)` → `{viewers:[...]}`
+  - `end_face(app, machine_id, face)` → `{ok:boolean}`
 
 **Access Matrix (Concise)**
 
@@ -102,6 +129,7 @@ separate MCP host product; here we only define names and tool contracts.
     "registry": { "url": "mcp+http://registry" },
     "secrets": { "url": "mcp+http://secrets" },
     "observability": { "url": "mcp+http://observability" },
+    "artifacts": { "url": "mcp+http://artifacts" },
     "policy": { "url": "mcp+http://policy" }
   }
 }
@@ -111,9 +139,5 @@ separate MCP host product; here we only define names and tool contracts.
 
 - Coarse vs fine-grained tool exposure per agent?
 - Where SSH CA keys live (auth.mcp vs HSM)?
-- Which secrets are Fly app secrets vs external KMS refs? **session.mcp** (optional)
-- **Purpose:** Manage `tmux` workspaces and viewer presence.
-- **Tools:**
-  - `attach(user_id, app, machine_id, session)` → `{attached:boolean}`
-  - `list_viewers(app, machine_id, session)` → `{viewers:[...]}`
-  - `end_session(app, machine_id, session)` → `{ok:boolean}`
+- Which secrets are Fly app secrets vs external KMS refs?
+
