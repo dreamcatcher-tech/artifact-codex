@@ -1,6 +1,7 @@
 # ADR 0003: Face Model — Multiple Faces per Agent Container (renamed from Session Model)
 
-Status: Proposed Date: 2025-08-30
+Status: Proposed Date: 2025-08-30 Update (2025-08-31): Observability event/correlation notes
+superseded by ADR 0012; progress is shown via live faces.
 
 ## Context
 
@@ -19,15 +20,15 @@ Status: Proposed Date: 2025-08-30
 - Web entry without a `face` parameter redirects to a Face URL with `?face={face_id}`; web entry
   with `face` reattaches the same face.
 - Implement faces with one `tmux` server per agent and one `tmux` session per `face_id`.
-- Expose `FACE_ID` and `FACE_KIND` (`web|ssh`) in environments; emit observability events on face
-  start/attach/detach/end.
+- Expose `FACE_ID` and `FACE_KIND` (`web|ssh`) in environments. Eventing is implicit in terminals;
+  progress/correlation are visible via live faces (no Observability MCP).
 
 ## Consequences
 
 - Concierge operates as a true shared service with isolation at the face level.
 - Frontend links become stable by `face`, enabling reload/resume semantics.
 - Resource management must cap `max_faces` and implement idle eviction to protect the container.
-- Logs/metrics/traces can be correlated by `face_id` for support and auditing.
+- Correlate by `face_id` within faces and UI context.
 
 ## Alternatives Considered
 
@@ -37,5 +38,5 @@ Status: Proposed Date: 2025-08-30
 ## Follow-ups
 
 - Define `max_faces`, idle timeout, and eviction policy defaults in `RUNTIME.md`.
-- Add guidance for monotonic `face_id`s with Artifact-enforced auth.
-- Extend `OBSERVABILITY.md` with face-scoped log/tracing fields.
+- Add guidance for monotonic `face_id`s with Artifact-enforced auth. Remove Observability docs; see
+  ADR 0012.

@@ -1,0 +1,31 @@
+{
+  "workspace": ["design"],
+  "tasks": {
+    "docs": "deno run -A npm:vitepress dev .",
+    "docs:dev": "deno run -A npm:vitepress dev .",
+    "docs:build": "deno run -A npm:vitepress build .",
+    "docs:preview": "deno run -A npm:vitepress preview .",
+    "check:mermaid": "deno run --quiet --allow-read --no-lock scripts/mermaid-validate.ts",
+    "ok": "deno fmt --check && deno lint && deno task check:mermaid"
+  },
+  "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.19",
+    "@std/path": "jsr:@std/path@^1.1.2",
+    "mermaid": "npm:mermaid@^11.10.1",
+    "vitepress": "npm:vitepress@^1.6.4",
+    "vitepress-mermaid-renderer": "npm:vitepress-mermaid-renderer@^1.0.14",
+    "vue": "npm:vue@^3.5.20"
+  },
+  "fmt": {
+    "lineWidth": 100,
+    "useTabs": false,
+    "singleQuote": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "nodeModulesDir": "auto"
+}
+

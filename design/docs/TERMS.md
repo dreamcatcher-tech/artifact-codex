@@ -4,6 +4,19 @@
   embeds agent terminals via TTYD iframes. In open mode, it may operate without auth; in private
   mode, it integrates with an IdP (e.g., Clerk).
 - **App Host (alias):** Synonym for Frontend in diagrams.
+- **Face Viewer (proposed):** The browser page that renders exactly one face at a time and presents
+  the terminal UI (typically via a TTYD iframe). The Face Viewer also hosts the Face Hardware
+  Connector for local capabilities.
+- **Face Hardware Connector (proposed):** Frontend management layer inside the Face Viewer that
+  authenticates the user (Clerk), mediates device/resource access (microphone, camera, screen,
+  files, clipboard, navigation/redirect), and executes device-like commands from the agent so the
+  browser/computer behaves like controllable hardware.
+  - Allowed synonyms: Hardware Connector, Hardware Access Manager, Device Bridge.
+  - Discouraged alias: Browser I/O Bridge (legacy wording).
+  - Status: proposed (canonical name chosen; ADR 0010 records rationale).
+- **Browser Auth (proposed):** The authentication component running in the Face Viewer that performs
+  OAuth with Clerk and provides identity/claims to the Face Hardware Connector and Face Router
+  flows.
 - **Concierge Agent (proposed):** Shared control-plane agent callable by the frontend to handle
   identity mapping, provisioning, and routing to a dedicated base agent.
 - **Base Agent (proposed):** Per-user agent running in its own Fly app + Machine. Primary long-lived
@@ -17,13 +30,50 @@
 - **Machine (proposed):** Fly.io VM instance within an app that runs the agent container.
 - **Agent Image (proposed):** Standard container image used to launch base agents; configured at
   boot.
-- **Handoff (proposed):** Routing the frontend iframe to the per-user agent’s TTYD endpoint.
+- **Handoff (proposed):** Routing the Face Viewer to the per-user agent’s TTYD endpoint.
 - **TTYD (proposed):** WebSocket terminal server exposed by each agent for browser access.
 - **Viewer (proposed):** Additional user permitted to observe/attach to an active `tmux` session.
 - **Registry (proposed):** System of record mapping user → app → machine → hostname.
 - **Ephemeral SSH Cert (proposed):** Short‑lived client cert minted per session for SSH
   authorization.
 - **Suspend/Resume (proposed):** Policy to stop idle Machines and wake them on demand.
+
+- **Face Router (proposed):** Public web/API entrypoint that (a) serves or coordinates the static
+  page, (b) authenticates users (Clerk), (c) routes the Face Viewer to the correct agent face based
+  on host/path/auth, and (d) proxies both terminal WS and hardware control streams between the Face
+  Viewer and the agent.
+  - Subcomponents:
+    - **Face View Router (proposed):** Routes and proxies terminal WebSocket sessions from the Face
+      Viewer to the target Agent (TTYD/PTTY).
+    - **Face Hardware Router (proposed):** Exposes Hardware MCP to Agents and bridges hardware and
+      navigation commands to/from the Face Viewer’s Face Hardware Connector.
+  - Routing keys:
+    - Subdomain → Fly app that hosts the user’s agent containers.
+    - Path → Agent path hierarchy (e.g., a proc tree-like structure).
+    - Query `?face=` → Face ID for the target terminal session.
+  - Canonical name: Face Router. Synonyms: Front‑End Server, Terminal Router, Session Router.
+  - Modes: Static-only host for assets plus API/proxy; or unified server serving both.
+  - Policy: Enforces which hardware capabilities the agent may access for a given user/app/path.
+
+- **Hardware MCP (proposed):** MCP surface exposed by the Face Hardware Router to Agents to control
+  browser/computer hardware via the Face Hardware Connector. Tools: `hardware.enumerate`,
+  `hardware.open`, `hardware.subscribe`, `hardware.close`, `hardware.write`, and `page.redirect`.
+
+- **Page Session (proposed):** The Face Viewer page/tab attachment context; always exactly one
+  active `face_id` per page. Hardware handles and permissions are bound to the Page Session.
+
+- **Read‑Only Face (proposed):** A face that displays progress/output and accepts no user input.
+  Used during provisioning and boot until the interactive face is ready.
+- **Face Zero (proposed):** The initial readonly face presented by a newly created base machine to
+  show boot/provisioning progress before the agent’s interactive face is ready.
+
+—
+
+**Principles**
+
+- **Always‑Attached Face (accepted):** When infrastructure is responsive, the browser is always
+  attached to a running face. Progress is shown by redirecting across faces; no separate “show logs”
+  UI. See `PRINCIPLES.md` and ADR 0012.
 
 - **Artifact Storage Layer (proposed):** External service used by agents to store and retrieve
   durable artifacts (e.g., overall state snapshots).
@@ -45,6 +95,13 @@
   not be secret.
 - **Face URL (proposed):** Canonical web URL that includes `?face={face_id}`. Landing without a
   `face` param creates a new face and redirects to the Face URL.
+
+- **Agent Controller (proposed):** The long‑lived control process inside an agent container that
+  manages faces, policies, and persistence to Artifact, and receives MCP calls from Artifact.
+  - Canonical name: Agent Controller. Synonyms: Agent Supervisor (legacy), Conductor, Face Manager,
+    Runtime Supervisor, Agent Orchestrator.
+  - Responsibilities: manage tmux sessions (faces), persist/restore state, expose agent‑local tools,
+    call out to Artifact MCP for lifecycle (spawn/destroy peers/children, self‑destroy).
 
 ---
 

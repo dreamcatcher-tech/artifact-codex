@@ -1,7 +1,8 @@
 # ADR 0001: Concierge Entry + Per‑User Base Agent
 
 **Status:** Proposed\
-**Date:** 2025-08-28
+**Date:** 2025-08-28\
+Update (2025-08-31): Removed Observability MCP; progress shown via faces (ADR 0012).
 
 ## Context
 
@@ -15,8 +16,8 @@
   endpoint.
 - On first login, Frontend/concierge provisions a per‑user Fly app + Machine using the standard
   agent image, then routes the iframe to the base agent.
-- Concierge/base agents call MCP servers (provisioning, auth, registry, secrets, observability;
-  optional policy/session).
+- Concierge/base agents call MCP servers (provisioning, auth, registry, secrets; optional
+  policy/session). Observability MCP removed.
 
 ## Consequences
 

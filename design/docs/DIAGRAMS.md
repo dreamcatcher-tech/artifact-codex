@@ -145,3 +145,50 @@ flowchart TB
 ```
 
 Summary: One interface presents multiple faces (sessions) that share the same mutable filesystem.
+
+## Face Viewer + Router (canonical)
+
+```mermaid
+flowchart LR
+  DEV["Mic / Camera / Screen / Files / Clipboard"]
+  subgraph Browser Face Viewer
+    FV["Face View (ttyd iframe)"]
+    FH["Face Hardware Connector"]
+    BA[Browser Auth]
+  end
+  subgraph Face Router
+    FVR[Face View Router]
+    FR[Face Hardware Router]
+  end
+  AG["Agent Container"]
+  CL["Clerk (external oauth)"]
+
+  DEV <--> FH
+  FV -->|WS| FVR
+  FVR -->|WS| AG
+  FH <-->|MCP| FR
+  FR <-->|MCP| AG
+  BA -->|OAuth| CL
+```
+
+Summary: Canonical split: Face Viewer (view + hardware + auth) and Face Router (view WS proxy +
+hardware MCP proxy).
+
+## Face View Router (proposed)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Face Viewer
+  participant FVR as Face View Router
+  participant A as Agent (TTYD)
+  participant R as Artifact (Registry)
+  U->>FVR: GET wss://{host}/{agent_path}?face={id}
+  FVR->>R: resolve(host,path,user)
+  R-->>FVR: {app, machine_id, agent_path}
+  FVR->>A: WS attach TTYD (machine_id)
+  A-->>FVR: PTY stream
+  FVR-->>U: PTY stream
+```
+
+Summary: The Face View Router resolves the mapping and proxies the terminal stream.

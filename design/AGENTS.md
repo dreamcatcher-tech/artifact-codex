@@ -87,6 +87,50 @@ section to freeze it; fundamental changes go through an ADR.
 - Validation: after any edit to Markdown files, run `deno task check:mermaid`. Treat any failures as
   blockers and fix before commit/PR. Validation must pass before the task is considered done.
 
+### Mermaid Syntax Guardrails (accepted — 2025-08-30)
+
+- Quote labels that contain punctuation: use `node["Label (detail / detail)"]` to avoid the parser
+  interpreting `(`, `)`, `{`, `}`, `[`, `]`, `|`, or `:` as shape/control tokens.
+- Keep node IDs simple: letters/numbers/underscores only (e.g., `FV`, `BM`, `AppHost`). No spaces.
+- Prefer one edge per line: clearer diffs and fewer parse surprises than long chains.
+- Use the safe subset of shapes: default rectangles with `["..."]`. Avoid mixing shorthand shape
+  markers inside labels (e.g., `[(text)]`).
+- Subgraphs: `subgraph Name` … `end`. Keep titles simple (no punctuation) to reduce ambiguity.
+- Always validate locally: run `deno task check:mermaid` before PRs.
+
+Common error
+
+- Symptom: `Parse error ... Expecting 'SQE' ... got 'PS'`.
+- Cause: unquoted parentheses or other punctuation in a label (e.g., `FV[Face View (TTYD iframe)]`).
+- Fix: quote the label text or simplify the shape.
+
+Do (passes validation)
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    FV["Face View (TTYD iframe)"]
+    BM["Browser I/O Bridge"]
+  end
+  AH["App Host"]
+  AG["Agent"]
+  CL["Clerk"]
+  DEV["Mic / Camera / Screen / Files"]
+
+  FV -->|WS| AG
+  BM -->|Auth| CL
+  BM -->|Commands/Streams| AH
+  AH -->|WS/HTTP| AG
+  BM --> DEV
+```
+
+Don’t (example of the pitfall; not validated)
+
+```text
+flowchart LR
+  FV[Face View (TTYD iframe)]
+```
+
 ## Reconciliation Rules
 
 - Single source of truth: one authoritative location per fact; others link back.

@@ -53,13 +53,8 @@ separate MCP host product; here we only define names and tool contracts.
   - `get_agent_config(app, machine_id)` → `{doc, version}`
   - `store_secret(scope, key, value|ref)` → `{ref}`
 
-**observability.mcp**
-
-- **Purpose:** Logs/metrics/traces wiring and health gates.
-- **Tools:**
-  - `await_ready(app, machine_id, timeout_s)` → `{ready:boolean}`
-  - `tail_logs(app, machine_id, since)` → `{stream_url}`
-  - `emit_event(scope, type, payload)` → `{event_id}`
+<!-- Observability MCP removed per ADR 0012: Always‑Attached Faces; no out‑of‑band
+     readiness/logs service. Progress is shown via live faces. -->
 
 **runtime.mcp**
 
@@ -114,10 +109,9 @@ separate MCP host product; here we only define names and tool contracts.
 
 **Access Matrix (Concise)**
 
-- Frontend/concierge: provisioning, auth, registry, secrets, observability, runtime, policy,
-  session.
-- Base agent: registry (read-own), secrets (read scoped), observability (emit), policy (check),
-  session (intra-agent), provisioning (optional: sub-agents).
+- Frontend/concierge: provisioning, auth, registry, secrets, runtime, policy, session.
+- Base agent: registry (read-own), secrets (read scoped), policy (check), session (intra-agent),
+  provisioning (optional: sub-agents).
 
 **Config Example (per-agent)**
 
@@ -128,7 +122,6 @@ separate MCP host product; here we only define names and tool contracts.
     "auth": { "url": "mcp+http://auth" },
     "registry": { "url": "mcp+http://registry" },
     "secrets": { "url": "mcp+http://secrets" },
-    "observability": { "url": "mcp+http://observability" },
     "artifacts": { "url": "mcp+http://artifacts" },
     "policy": { "url": "mcp+http://policy" }
   }
