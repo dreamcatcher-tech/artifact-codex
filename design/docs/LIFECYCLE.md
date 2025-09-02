@@ -17,7 +17,7 @@ CUSTOMER_APP="<customer>-agents"
 fly apps create -o "$ORG" "$CUSTOMER_APP"
 ```
 
-2. Create base agent Machine in Customer App
+2. Create Home Agent Machine in Customer App
 
 ```bash
 fly machine run <image> -a "$CUSTOMER_APP" -r "$REGION" \

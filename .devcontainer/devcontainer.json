@@ -29,5 +29,5 @@
   "remoteEnv": {
     "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
   },
-  "postCreateCommand": "mkdir -p ~/.codex && if [ -f /tmp/host-codex/auth.json ]; then cp -f /tmp/host-codex/auth.json ~/.codex/; fi && if [ -f /tmp/host-codex/config.toml ]; then cp -f /tmp/host-codex/config.toml ~/.codex/; fi && curl -L https://fly.io/install.sh | sh && echo 'export PATH=\"$HOME/.fly/bin:$PATH\"' >> ~/.bashrc"
+  "postCreateCommand": "bash .devcontainer/postCreate.sh"
 }

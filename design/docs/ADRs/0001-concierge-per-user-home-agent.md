@@ -1,4 +1,4 @@
-# ADR 0001: Concierge Entry + Per‑User Base Agent
+# ADR 0001: Concierge Entry + Per‑User Home Agent
 
 **Status:** Proposed\
 **Date:** 2025-08-28\
@@ -7,7 +7,7 @@ Update (2025-08-31): Removed Observability MCP; progress shown via faces (ADR 00
 ## Context
 
 - We want a clear first‑run experience: users authenticate via Clerk in a frontend web app.
-- Each user should have an isolated base agent in its own Fly app and Machine.
+- Each user should have an isolated Home Agent in its own Fly app and Machine.
 - Provisioning and routing should be automated and abstracted behind MCP servers.
 
 ## Decision
@@ -15,8 +15,8 @@ Update (2025-08-31): Removed Observability MCP; progress shown via faces (ADR 00
 - Use a web `Frontend` with Clerk for auth; it embeds an iframe that points to each agent’s TTYD
   endpoint.
 - On first login, Frontend/concierge provisions a per‑user Fly app + Machine using the standard
-  agent image, then routes the iframe to the base agent.
-- Concierge/base agents call MCP servers (provisioning, auth, registry, secrets; optional
+  agent image, then routes the iframe to the Home Agent.
+- Concierge/Home Agents call MCP servers (provisioning, auth, registry, secrets; optional
   policy/session). Observability MCP removed.
 
 ## Consequences

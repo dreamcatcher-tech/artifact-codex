@@ -202,7 +202,7 @@ Caption: Face start/attach lifecycle inside a single running agent.
 
 Hardware MCP (initial sketch)
 
-- Exposed by the Face Hardware Router as an MCP server to the agent. Tools:
+- Exposed by the Agent Router (Hardware Bridge) as an MCP server to the agent. Tools:
   - `hardware.enumerate(kind)` → `[device]` (mic|camera|screen|file|other)
   - `hardware.open(kind, opts)` → `{handle}`
   - `hardware.subscribe(handle, events)` → streaming events/frames
@@ -220,24 +220,24 @@ Notes
 sequenceDiagram
   autonumber
   participant A as Agent (server-side shell)
-  participant FR as Face Hardware Router
+  participant HB as Hardware Bridge
   participant FH as Face Hardware Connector
   participant C as Clerk
   participant D as Mic/Camera
-  A->>FR: io.open(kind="mic", opts)
-  FR->>FH: command io.open(mic, opts, face_id)
+  A->>HB: io.open(kind="mic", opts)
+  HB->>FH: command io.open(mic, opts, face_id)
   FH->>C: ensure session (Clerk)
   FH->>FH: prompt user for mic consent
   FH->>D: getUserMedia(audio)
   D-->>FH: MediaStream
-  FH-->>FR: {handle:h1, status:open}
-  FR-->>A: {handle:h1}
-  FH-->>FR: stream h1 audio frames
-  FR-->>A: frames → agent tools/pipeline
-  A->>FR: io.close(h1)
-  FR->>FH: close h1
-  FH-->>FR: {status:closed}
-  FR-->>A: ack closed
+  FH-->>HB: {handle:h1, status:open}
+  HB-->>A: {handle:h1}
+  FH-->>HB: stream h1 audio frames
+  HB-->>A: frames → agent tools/pipeline
+  A->>HB: io.close(h1)
+  HB->>FH: close h1
+  FH-->>HB: {status:closed}
+  HB-->>A: ack closed
 ```
 
 Caption: The agent asks the page to open the microphone; the connector authenticates, prompts for
@@ -245,13 +245,13 @@ consent, streams frames, and closes on command.
 
 ---
 
-**Face Router Proxies (proposed)**
+**Agent Router Proxies (proposed)**
 
-- Face View Router (terminal WS): The Face Viewer connects to the Face View Router; it connects to
-  the Agent’s TTYD and relays frames.
-- Face Hardware Router (MCP): The Agent calls the Face Hardware Router’s Hardware MCP; it mediates
-  auth/policy and dispatches to the Face Viewer’s Face Hardware Connector over its control channel.
-- Redirects: The Face Router may 302 to normalize host/path to the user’s app/agent path before
+- Terminal Proxy (WS): The Face Viewer connects to the Agent Router; it connects to the Agent’s
+  TTYD and relays frames.
+- Hardware Bridge (MCP): The Agent calls the Agent Router’s Hardware MCP; it mediates auth/policy
+  and dispatches to the Face Viewer’s Face Hardware Connector over its control channel.
+- Redirects: The Agent Router may 302 to normalize host/path to the user’s app/agent path before
   proxying.
 
 ---
@@ -304,15 +304,15 @@ face_idle_close_secs = 1800    # close faces after idle
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant FVR as Face View Router
+  participant AR as Agent Router
   participant A as Agent (codex)
   participant O as Observability
-  U->>FVR: GET /{agent_path}/ (no ?face)
-  FVR->>A: create_face()
-  A-->>FVR: {face_id}
-  FVR-->>U: 302 /{agent_path}/?face={face_id}
-  U->>FVR: GET /{agent_path}/?face={face_id}
-  FVR->>A: attach(face_id)
+  U->>AR: GET /{agent_path}/ (no ?face)
+  AR->>A: create_face()
+  A-->>AR: {face_id}
+  AR-->>U: 302 /{agent_path}/?face={face_id}
+  U->>AR: GET /{agent_path}/?face={face_id}
+  AR->>A: attach(face_id)
   A->>O: event face_attached{face_id}
   A-->>U: terminal connected
 ```

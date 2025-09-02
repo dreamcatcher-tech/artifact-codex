@@ -1,6 +1,6 @@
 **Public Root Flow (Open Access)**
 
-- **Entry Point:** User opens `/` (root). The app serves the default agent path as a regular
+- **Entry Point:** User opens `/` (root). The app serves the home agent path as a regular
   multi-face agent page. No login; access is public.
 - **Behavior:** If the URL lacks `?face=`, the app asks the agent to create a new face and redirects
   to `/?face={face_id}`. Each tab gets a distinct face.
@@ -16,19 +16,19 @@
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant FVR as Face View Router
-  participant A as Default Agent (multi-face)
-  U->>FVR: GET / (no ?face)
-  FVR->>A: create_face()
-  A-->>FVR: {face_id}
-  FVR-->>U: 302 Location /?face={face_id}
-  U->>FVR: GET /?face={face_id}
-  FVR->>A: attach(face_id)
+  participant AR as Agent Router
+  participant A as Home Agent (multi-face)
+  U->>AR: GET / (no ?face)
+  AR->>A: create_face()
+  A-->>AR: {face_id}
+  AR-->>U: 302 Location /?face={face_id}
+  U->>AR: GET /?face={face_id}
+  AR->>A: attach(face_id)
   A-->>U: terminal connected
-  Note over U,A: Interacting with Default Agent — face={face_id} (interactive)
+  Note over U,A: Interacting with Home Agent — face={face_id} (interactive)
 ```
 
-Caption: Public root attaches to a default multi-face agent with session redirect.
+Caption: Public root attaches to a home multi-face agent with session redirect.
 
 ---
 
@@ -36,8 +36,8 @@ Caption: Public root attaches to a default multi-face agent with session redirec
 
 - **Entry Point:** User opens the Frontend Web App, authenticates with Clerk, and lands on the
   workspace page. The terminal UI is an iframe rendering a TTYD endpoint.
-- **Goal:** If first-time, provision a dedicated “base agent” on Fly.io and point the iframe at that
-  agent’s terminal; otherwise, attach to the user’s existing base agent session.
+- **Goal:** If first-time, provision a dedicated Home Agent on Fly.io and point the iframe at that
+  agent’s terminal; otherwise, attach to the user’s existing Home Agent session.
 
 **Assumptions** (updated 2025-08-31)
 
@@ -45,8 +45,8 @@ Caption: Public root attaches to a default multi-face agent with session redirec
   customer.
 - **Artifact app (infra):** Central control-plane MCP host that provisions Machines inside any
   customer app.
-- **Base agent per user:** Each user gets a base agent Machine in their Customer App.
-- **Standard image:** Base agents use a common image configured at boot (no volumes initially).
+- **Home agent per user:** Each user gets a Home Agent Machine in their Customer App.
+- **Standard image:** Home Agents use a common image configured at boot (no volumes initially).
 - **MCP-backed ops:** Frontend/concierge calls MCP servers for provisioning, auth/registry, secrets,
   and runtime.
 - **Terminal transport:** Browser → Frontend page → iframe → agent’s TTYD (WebSocket). Sessions
@@ -79,12 +79,12 @@ journey
     Attach: Concierge Agent — face=current (interactive): 5: User, Concierge Agent
     Redirect: Artifact Provisioner — face=job/create-app (readonly): 3: Artifact
     Redirect: Artifact Provisioner — face=job/create-machine (readonly): 3: Artifact
-    Redirect: Base Agent — face=0 (readonly boot/provisioning): 3: Base Agent
-    Handoff: Base Agent — face=interactive (read/write): 5: User, Base Agent
+    Redirect: Home Agent — face=0 (readonly boot/provisioning): 3: Home Agent
+    Handoff: Home Agent — face=interactive (read/write): 5: User, Home Agent
 ```
 
 Caption: Progress is shown by attaching the browser to the live face doing the work. Faces may be
-readonly until the interactive base face is ready.
+readonly until the interactive home face is ready.
 
 **User Journey — Returning Login**
 
@@ -94,8 +94,8 @@ journey
   section Returning Login
     Lookup endpoint: 4: Registry MCP
     Start machine if autostopped: 3: Provisioning MCP
-    Attach: Base Agent — face=0 (readonly) if starting: 3: Frontend, Base Agent
-    Handoff: Base Agent — face=interactive (read/write): 5: Frontend, User, Base Agent
+    Attach: Home Agent — face=0 (readonly) if starting: 3: Frontend, Home Agent
+    Handoff: Home Agent — face=interactive (read/write): 5: Frontend, User, Home Agent
 ```
 
 Caption: Returning user attach flow with health gates and ratings.
@@ -104,11 +104,11 @@ Caption: Returning user attach flow with health gates and ratings.
 
 - **U1. Sign-in:** User authenticates with Clerk in the frontend.
 - **U2. Identify:** Frontend resolves `user_id` and `username` via Clerk; Registry MCP lookup for
-  existing base agent.
+  existing Home Agent.
 - **U3. Customer App:** Create a Customer App with friendly random name in the shared org.
 - **U4. Launch Machine:** Create one Machine in the Customer App with the standard image, CPU/RAM:
   `1 shared vCPU, 1GB RAM`; no volumes.
-- **U6. Face Chain:** Browser redirects to the provisioning job face (readonly), then to base
+- **U6. Face Chain:** Browser redirects to the provisioning job face (readonly), then to home
   machine face zero (readonly) while the agent starts.
 - **U7. Launch Agent:** Call `runtime.mcp.launch_agent` (see RUNTIME “Launch Sequence”) to write
   `config.toml`, set `CODEX_HOME`, and exec `codex`.
@@ -117,7 +117,7 @@ Caption: Returning user attach flow with health gates and ratings.
 
 **Repeat Login (Existing User)**
 
-- **R1. Lookup:** Frontend/Registry MCP finds the base agent endpoint.
+- **R1. Lookup:** Frontend/Registry MCP finds the Home Agent endpoint.
 - **R2. Ensure Up:** If autostopped/suspended, Provisioning MCP (or Fly Proxy autostart) brings it
   up. The browser attaches to the current job face as soon as it exists (readonly if still
   initializing).
@@ -137,11 +137,11 @@ Caption: Returning user attach flow with health gates and ratings.
 - In this model, “handoff” simply means routing the iframe to the per-user agent’s TTYD URL. No SSH
   jump or client command is involved.
 
-**Face Router Proxying** (added)
+**Agent Router Proxying** (added)
 
-- Terminal: The Face Viewer connects via WebSocket to the Face Router, which proxies to the target
-  Machine’s TTYD. Machines do not perform auth; the Face Router gates access.
-- Hardware: Agents call the Face Router’s `hardware.*` MCP tools; the Face Router enforces
+- Terminal: The Face Viewer connects via WebSocket to the Agent Router, which proxies to the target
+  Machine’s TTYD. Machines do not perform auth; the Agent Router gates access.
+- Hardware: Agents call the Agent Router’s `hardware.*` MCP tools; the Agent Router enforces
   capability policy and bridges to the Face Viewer’s Face Hardware Connector. Two-way: agents can
   request to open/close devices and receive streams; they can also trigger `page.redirect` to move
   the page to another agent/face.
@@ -192,7 +192,7 @@ Caption: Returning user attach flow with health gates and ratings.
 - **Agent path:** `/{agent_path}/` (supports hierarchy, e.g., `/agent1/child-agent-2/`).
 - **Face URL:** `/{agent_path}/?face={face_id}`. Exactly one face per browser page.
 - **Default page → Face URL:** Landing on a page without a `face` param creates a new face on the
-  target agent (Concierge or Base) and redirects to the Face URL.
+  target agent (Concierge or Home) and redirects to the Face URL.
 - **Resume with face:** Landing with a valid `face` reattaches; invalid/expired `face` yields a
   friendly error and an option to start a new face.
 - **No per-user container for Concierge:** Concierge operates as a shared agent container hosting
@@ -228,15 +228,15 @@ Caption: Returning user attach flow with health gates and ratings.
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant FVR as Face View Router
+  participant AR as Agent Router
   participant C as Concierge Agent
   participant R as Registry/Face Store
-  U->>FVR: GET /concierge (no session)
-  FVR->>R: create_face(agent=concierge)
-  R-->>FVR: {face}
-  FVR-->>U: 302 Location /concierge?face={face}
-  U->>FVR: GET /concierge?face={face}
-  FVR->>C: attach(face) via TTYD
+  U->>AR: GET /concierge (no session)
+  AR->>R: create_face(agent=concierge)
+  R-->>AR: {face}
+  AR-->>U: 302 Location /concierge?face={face}
+  U->>AR: GET /concierge?face={face}
+  AR->>C: attach(face) via TTYD
   C-->>U: terminal connected
   Note over U,C: Interacting with Concierge Agent — face={face} (interactive)
 ```
@@ -247,19 +247,19 @@ Caption: Default concierge page redirects to a Face URL and attaches that face.
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant FVR as Face View Router
-  participant B as Base Agent
+  participant AR as Agent Router
+  participant B as Home Agent
   participant R as Registry/Face Store
-  U->>FVR: GET /a/{user} (no session)
-  FVR->>R: ensure_base_agent(user)
-  R-->>FVR: {endpoint}
-  FVR->>R: create_face(agent=base@{user})
-  R-->>FVR: {face}
-  FVR-->>U: 302 Location /a/{user}?face={face}
-  U->>FVR: GET /a/{user}?face={face}
-  FVR->>B: attach(face) via TTYD
+  U->>AR: GET /a/{user} (no session)
+  AR->>R: ensure_home_agent(user)
+  R-->>AR: {endpoint}
+  AR->>R: create_face(agent=home@{user})
+  R-->>AR: {face}
+  AR-->>U: 302 Location /a/{user}?face={face}
+  U->>AR: GET /a/{user}?face={face}
+  AR->>B: attach(face) via TTYD
   B-->>U: terminal connected
-  Note over U,B: Interacting with Base Agent — face={face} (readonly until interactive)
+  Note over U,B: Interacting with Home Agent — face={face} (readonly until interactive)
 ```
 
-Caption: Base agent page ensures agent exists, then creates and attaches a session.
+Caption: Home Agent page ensures agent exists, then creates and attaches a session.

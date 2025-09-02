@@ -30,53 +30,53 @@ flowchart LR
     BM["Face Hardware Connector"]
     BA[Browser Auth]
   end
-  subgraph Face Router
-    FVR[Face View Router]
-    FR[Face Hardware Router]
+  subgraph Agent Router
+    AR[Agent Router]
+    HB[Hardware Bridge]
 
   end
   AG["Agent Container"]
   CL["Clerk (external oauth)"]
 
   DEV <--> BM
-  FV -->|WS| FVR
-  FVR -->|WS| AG
-  BM <-->|MCP| FR
-  FR <-->|MCP| AG
+  FV -->|WS| AR
+  AR -->|WS| AG
+  BM <-->|MCP| HB
+  HB <-->|MCP| AG
   BA -->|OAuth| CL
 ```
 
 Caption: The Face Viewer has two subcomponents: the Viewer and the Face Hardware Connector. The
 connector authenticates with Clerk and mediates device access in response to commands originating
-from the server-side shell via the Face Router.
+from the server-side shell via the Agent Router.
 
 Notes
 
-- Transport between Face Viewer ↔ Face Router ↔ Agent may be WebSocket; media MAY use WebRTC or
+- Transport between Face Viewer ↔ Agent Router ↔ Agent may be WebSocket; media MAY use WebRTC or
   WebSocket streams. Exact transports are implementation choices; command contract is the source of
   truth.
 - See `RUNTIME.md` → “Face Hardware Connector (proposed)” for the command surface.
 
 ---
 
-**Face Router (proposed)**
+**Agent Router (proposed)**
 
-- **Role:** Public entrypoint acting as a router and proxy. It can serve the static page or delegate
-  assets to a static host. It authenticates users (Clerk), resolves the target app/agent from
+- **Role:** Public entrypoint acting as a router and proxy. It may serve static assets or delegate
+  them to a static host. It authenticates users (Clerk), resolves the target app/agent from
   host/path, and attaches the Face Viewer to a specific Machine’s face.
 - **Routing:** Based on URL host + path + auth, map to `{app, agent_path, face}`. May issue 302
   redirects to move users to the correct subdomain/path that matches their auth context.
 - **Proxies:**
-  - Terminal WS proxy: Face Viewer ↔ Face Router ↔ Agent TTYD.
-  - Hardware MCP proxy: Agent ↔ Face Router (MCP) ↔ Face Hardware Connector.
+  - Terminal WS proxy: Face Viewer ↔ Agent Router ↔ Agent TTYD.
+  - Hardware MCP proxy: Agent ↔ Agent Router (MCP) ↔ Face Hardware Connector.
 - **Policy:** Enforces which hardware capabilities an agent may access for the current user/app.
-- **Assumption:** Agent Machines expose Faces (TTYD) without auth; the Face Router gates access.
+- **Assumption:** Agent Machines expose Faces (TTYD) without auth; the Agent Router gates access.
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant F as Face Router
+  participant F as Agent Router
   participant A as Agent (TTYD)
   participant R as Artifact (Registry)
   U->>F: GET wss://{host}/{agent_path}?face={id}
@@ -87,7 +87,7 @@ sequenceDiagram
   F-->>U: PTY stream
 ```
 
-Caption: Face Router resolves routing and proxies the terminal WebSocket to the target Machine.
+Caption: Agent Router resolves routing and proxies the terminal WebSocket to the target Machine.
 
 ---
 

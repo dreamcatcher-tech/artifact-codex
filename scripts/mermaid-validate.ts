@@ -93,7 +93,6 @@ async function main() {
   let blockCount = 0;
 
   for (const file of files) {
-    // Only process existing files with supported extensions
     try {
       const st = await Deno.stat(file);
       if (!st.isFile) continue;
@@ -137,3 +136,4 @@ async function main() {
 if (import.meta.main) {
   await main();
 }
+

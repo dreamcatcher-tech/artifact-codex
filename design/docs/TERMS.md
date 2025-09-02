@@ -15,12 +15,12 @@
   - Discouraged alias: Browser I/O Bridge (legacy wording).
   - Status: proposed (canonical name chosen; ADR 0010 records rationale).
 - **Browser Auth (proposed):** The authentication component running in the Face Viewer that performs
-  OAuth with Clerk and provides identity/claims to the Face Hardware Connector and Face Router
+  OAuth with Clerk and provides identity/claims to the Face Hardware Connector and Agent Router
   flows.
 - **Concierge Agent (proposed):** Shared control-plane agent callable by the frontend to handle
-  identity mapping, provisioning, and routing to a dedicated base agent.
-- **Base Agent (proposed):** Per-user agent running in its own Fly app + Machine. Primary long-lived
-  workspace for the user.
+  identity mapping, provisioning, and routing to the user's Home Agent.
+- **Home Agent (proposed):** Per-user agent running in its own Fly app + Machine. The agent the app
+  talks to by default; primary long‑lived workspace for the user. (Replaces the term “Base Agent”.)
 - **Agent (proposed):** Logical AI runtime exposed over SSH/TTYD. Backed by one container (Fly
   Machine) per agent, but capable of hosting multiple concurrent sessions.
 - **MCP Server (proposed):** Tool endpoint implementing Model Context Protocol, exposing callable
@@ -28,7 +28,7 @@
 - **Fly App (proposed):** Fly.io application that contains one or more Machines; we create one per
   customer.
 - **Machine (proposed):** Fly.io VM instance within an app that runs the agent container.
-- **Agent Image (proposed):** Standard container image used to launch base agents; configured at
+- **Agent Image (proposed):** Standard container image used to launch Home Agents; configured at
   boot.
 - **Handoff (proposed):** Routing the Face Viewer to the per-user agent’s TTYD endpoint.
 - **TTYD (proposed):** WebSocket terminal server exposed by each agent for browser access.
@@ -38,24 +38,24 @@
   authorization.
 - **Suspend/Resume (proposed):** Policy to stop idle Machines and wake them on demand.
 
-- **Face Router (proposed):** Public web/API entrypoint that (a) serves or coordinates the static
+- **Agent Router (proposed):** Public web/API entrypoint that (a) may serve or coordinate the static
   page, (b) authenticates users (Clerk), (c) routes the Face Viewer to the correct agent face based
-  on host/path/auth, and (d) proxies both terminal WS and hardware control streams between the Face
-  Viewer and the agent.
+  on host/path/auth, and (d) proxies both terminal WS and hardware control streams between the
+  Face Viewer and the agent.
   - Subcomponents:
-    - **Face View Router (proposed):** Routes and proxies terminal WebSocket sessions from the Face
+    - **Terminal Proxy (proposed):** Routes and proxies terminal WebSocket sessions from the Face
       Viewer to the target Agent (TTYD/PTTY).
-    - **Face Hardware Router (proposed):** Exposes Hardware MCP to Agents and bridges hardware and
+    - **Hardware Bridge (proposed):** Exposes Hardware MCP to Agents and bridges hardware and
       navigation commands to/from the Face Viewer’s Face Hardware Connector.
   - Routing keys:
     - Subdomain → Fly app that hosts the user’s agent containers.
     - Path → Agent path hierarchy (e.g., a proc tree-like structure).
     - Query `?face=` → Face ID for the target terminal session.
-  - Canonical name: Face Router. Synonyms: Front‑End Server, Terminal Router, Session Router.
+  - Canonical name: Agent Router. Synonyms: Front‑End Server, Terminal Router, Session Router.
   - Modes: Static-only host for assets plus API/proxy; or unified server serving both.
   - Policy: Enforces which hardware capabilities the agent may access for a given user/app/path.
 
-- **Hardware MCP (proposed):** MCP surface exposed by the Face Hardware Router to Agents to control
+- **Hardware MCP (proposed):** MCP surface exposed by the Agent Router (Hardware Bridge) to Agents to control
   browser/computer hardware via the Face Hardware Connector. Tools: `hardware.enumerate`,
   `hardware.open`, `hardware.subscribe`, `hardware.close`, `hardware.write`, and `page.redirect`.
 
@@ -64,8 +64,8 @@
 
 - **Read‑Only Face (proposed):** A face that displays progress/output and accepts no user input.
   Used during provisioning and boot until the interactive face is ready.
-- **Face Zero (proposed):** The initial readonly face presented by a newly created base machine to
-  show boot/provisioning progress before the agent’s interactive face is ready.
+- **Face Zero (proposed):** The initial readonly face presented by a newly created Home Agent
+  machine to show boot/provisioning progress before the agent’s interactive face is ready.
 
 —
 

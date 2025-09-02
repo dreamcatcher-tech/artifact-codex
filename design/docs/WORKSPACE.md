@@ -84,12 +84,12 @@ ref = "v1.0.0"
 
 ```mermaid
 flowchart TB
-  A[Agent (container)] --> W[/workspace/]
-  subgraph WRoot[/workspace/]
-    R1[{main repo}]:::repo
-    R2[{docs repo}]:::repo
-    S1[(.scratch/abc123)]:::scratch
-    S2[(.scratch/tmp45)]:::scratch
+  A["Agent (container)"] --> W["/workspace/"]
+  subgraph WRoot["/workspace/"]
+    R1["{main repo}"]:::repo
+    R2["{docs repo}"]:::repo
+    S1["(.scratch/abc123)"]:::scratch
+    S2["(.scratch/tmp45)"]:::scratch
   end
   classDef repo fill:#eef,stroke:#99f;
   classDef scratch fill:#efe,stroke:#6c6;

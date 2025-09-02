@@ -156,39 +156,39 @@ flowchart LR
     FH["Face Hardware Connector"]
     BA[Browser Auth]
   end
-  subgraph Face Router
-    FVR[Face View Router]
-    FR[Face Hardware Router]
+  subgraph Agent Router
+    AR[Agent Router]
+    HB[Hardware Bridge]
   end
   AG["Agent Container"]
   CL["Clerk (external oauth)"]
 
   DEV <--> FH
-  FV -->|WS| FVR
-  FVR -->|WS| AG
-  FH <-->|MCP| FR
-  FR <-->|MCP| AG
+  FV -->|WS| AR
+  AR -->|WS| AG
+  FH <-->|MCP| HB
+  HB <-->|MCP| AG
   BA -->|OAuth| CL
 ```
 
-Summary: Canonical split: Face Viewer (view + hardware + auth) and Face Router (view WS proxy +
-hardware MCP proxy).
+Summary: Canonical split: Face Viewer (view + hardware + auth) and Agent Router (terminal WS proxy +
+hardware MCP bridge).
 
-## Face View Router (proposed)
+## Agent Router — Terminal Proxy (proposed)
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant U as Face Viewer
-  participant FVR as Face View Router
+  participant AR as Agent Router
   participant A as Agent (TTYD)
   participant R as Artifact (Registry)
-  U->>FVR: GET wss://{host}/{agent_path}?face={id}
-  FVR->>R: resolve(host,path,user)
-  R-->>FVR: {app, machine_id, agent_path}
-  FVR->>A: WS attach TTYD (machine_id)
-  A-->>FVR: PTY stream
-  FVR-->>U: PTY stream
+  U->>AR: GET wss://{host}/{agent_path}?face={id}
+  AR->>R: resolve(host,path,user)
+  R-->>AR: {app, machine_id, agent_path}
+  AR->>A: WS attach TTYD (machine_id)
+  A-->>AR: PTY stream
+  AR-->>U: PTY stream
 ```
 
-Summary: The Face View Router resolves the mapping and proxies the terminal stream.
+Summary: The Agent Router resolves the mapping and proxies the terminal stream.
