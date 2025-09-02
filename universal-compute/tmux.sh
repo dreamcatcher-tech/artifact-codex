@@ -9,7 +9,8 @@ set -Eeuo pipefail
 #   PORT     – ttyd port          (default: 7681)
 #   SCROLL   – scrollback lines   (default: 200000)
 #               tip: set to "unlimited" for a huge buffer
-#   AUTOSTART_CMD – command to run (default: c 'hi there')
+#   AUTOSTART_CMD – command to run in a loop (default: unset → do nothing)
+#   PRE_CMD       – one-off command to run before first AUTOSTART_CMD (default: unset)
 #   RESTART_DELAY – seconds to wait before restart (default: 2)
 #   WINDOW_TITLE  – tmux window title/name (default: Dreamcatcher)
 #   MOUSE    – enable tmux mouse (on|off, default: on)
@@ -18,7 +19,8 @@ SESSION=${SESSION:-codex-demo}
 SOCKET=${SOCKET:-codex-sock}
 PORT=${PORT:-7681}
 SCROLL=${SCROLL:-200000}
-AUTOSTART_CMD=${AUTOSTART_CMD:-"c 'hi there'"}
+AUTOSTART_CMD=${AUTOSTART_CMD:-}
+PRE_CMD=${PRE_CMD:-}
 RESTART_DELAY=${RESTART_DELAY:-2}
 WINDOW_TITLE=${WINDOW_TITLE:-Dreamcatcher}
 MOUSE=${MOUSE:-on}
@@ -94,11 +96,36 @@ apply_ui_settings() {
   tmuxx bind-key -n M-c send-keys C-c >/dev/null
 }
 
+# Compose the command that the app window should run.
+# - Runs PRE_CMD once if set.
+# - Loops AUTOSTART_CMD if set; otherwise starts an interactive shell.
+app_cmd() {
+  local pre="" main=""
+
+  if [ -n "${PRE_CMD:-}" ]; then
+    pre="$PRE_CMD; "
+  fi
+
+  if [ -n "${AUTOSTART_CMD:-}" ]; then
+    main="while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done"
+    printf 'bash -ilc "%s%s"' "$pre" "$main"
+  else
+    if [ -n "${PRE_CMD:-}" ]; then
+      # Run PRE once, then drop into a login shell
+      printf 'bash -ilc "%sexec bash -il"' "$pre"
+    else
+      # Neither PRE nor AUTOSTART provided → do nothing (just a shell)
+      printf 'bash -il'
+    fi
+  fi
+}
+
 create_session() {
   info "Creating tmux session '$SESSION' on socket '$SOCKET'"
   # Start the app window first so attach focuses it.
-  tmuxx -f /dev/null new-session -Ad -s "$SESSION" -n "$WINDOW_TITLE" \
-    "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null
+  local CMD
+  CMD=$(app_cmd)
+  tmuxx -f /dev/null new-session -Ad -s "$SESSION" -n "$WINDOW_TITLE" "$CMD" >/dev/null
 
   apply_ui_settings
 }
@@ -111,9 +138,10 @@ ensure_app_window() {
       info "Renaming legacy 'app' window to '$WINDOW_TITLE'"
       tmuxx rename-window -t "$SESSION":app "$WINDOW_TITLE" >/dev/null || true
     else
-      info "Creating app window: $AUTOSTART_CMD"
-      tmuxx new-window -t "$SESSION" -n "$WINDOW_TITLE" \
-        "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null
+      local CMD
+      CMD=$(app_cmd)
+      info "Creating app window"
+      tmuxx new-window -t "$SESSION" -n "$WINDOW_TITLE" "$CMD" >/dev/null
     fi
   fi
 
@@ -121,9 +149,12 @@ ensure_app_window() {
   current_cmd=$(tmuxx display-message -p -t "$SESSION":"$WINDOW_TITLE" "#{pane_current_command}") || current_cmd=""
   case "$current_cmd" in
     bash|sh|zsh|fish)
-      info "Respawning existing app window to run: $AUTOSTART_CMD"
-      tmuxx respawn-window -k -t "$SESSION":"$WINDOW_TITLE" \
-        "bash -ilc \"while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done\"" >/dev/null || true
+      if [ -n "${AUTOSTART_CMD:-}" ]; then
+        info "Respawning existing app window to run AUTOSTART_CMD"
+        local CMD
+        CMD=$(app_cmd)
+        tmuxx respawn-window -k -t "$SESSION":"$WINDOW_TITLE" "$CMD" >/dev/null || true
+      fi
       ;;
     *) ;;
   esac

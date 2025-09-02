@@ -48,6 +48,7 @@ RUN apt-get update && \
       fzf \
       openssh-client \
       gh \
+      nano \
       tmux \
       ttyd && \
     rm -rf /var/lib/apt/lists/*
@@ -55,17 +56,11 @@ RUN apt-get update && \
 
 COPY --from=node /usr/local/ /usr/local/
 
-
-
-
 # Install latest Deno (stable) system-wide
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
-# Install Codex CLI from npm (latest)
-RUN npm i -g @openai/codex
-
-# codex config
-RUN codex --version
+RUN npm i -g npm
+RUN npx -y @openai/codex --version
 COPY codex.config.toml /root/.codex/config.toml
 
 # Copy only what's needed to run the MCP web server
@@ -82,7 +77,8 @@ WORKDIR /workspace
 EXPOSE 8080
 
 ENV PORT=8080
-ENV AUTOSTART_CMD="codex"
+ENV AUTOSTART_CMD="npx -y @openai/codex"
+ENV PRE_CMD="/fly-mcp/pre.ts"
 COPY tmux.sh /tmux.sh
 ENTRYPOINT ["/tmux.sh"]
 CMD []

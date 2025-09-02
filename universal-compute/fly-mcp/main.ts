@@ -1,10 +1,15 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-net
 
-import '@std/dotenv/load'
+import { load } from '@std/dotenv'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { createFlyMachine, listFlyMachines } from './fly.ts'
+
+await load({
+  envPath: new URL('./.env', import.meta.url).pathname,
+  export: true,
+})
 
 const server = new McpServer({ name: 'fly-mcp', version: '0.0.1' })
 
@@ -33,7 +38,7 @@ server.registerTool(
         content: [
           {
             type: 'text',
-            text: 'Missing app name. Set FLY_APP_NAME (or FLY_APP) in env.',
+            text: 'Missing app name. Set FLY_APP_NAME in env.',
           },
         ],
       }
@@ -43,8 +48,7 @@ server.registerTool(
         content: [
           {
             type: 'text',
-            text:
-              'Missing Fly API token. Set FLY_API_TOKEN (or FLY_ACCESS_TOKEN).',
+            text: 'Missing Fly API token. Set FLY_API_TOKEN in env.',
           },
         ],
       }
@@ -95,7 +99,7 @@ server.registerTool(
         content: [
           {
             type: 'text',
-            text: 'Missing app name. Set FLY_APP_NAME (or FLY_APP) in env.',
+            text: 'Missing app name. Set FLY_APP_NAME in env.',
           },
         ],
       }
@@ -105,8 +109,7 @@ server.registerTool(
         content: [
           {
             type: 'text',
-            text:
-              'Missing Fly API token. Set FLY_API_TOKEN (or FLY_ACCESS_TOKEN).',
+            text: 'Missing Fly API token. Set FLY_API_TOKEN in env.',
           },
         ],
       }
