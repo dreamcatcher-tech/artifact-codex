@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@hono/hono@^4.9.5": "4.9.5",
     "jsr:@std/assert@^1.0.14": "1.0.14",
+    "jsr:@std/dotenv@~0.225.5": "0.225.5",
     "jsr:@std/expect@^1.0.17": "1.0.17",
     "jsr:@std/fs@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.10": "1.0.10",
@@ -23,6 +24,9 @@
       "dependencies": [
         "jsr:@std/internal@^1.0.10"
       ]
+    },
+    "@std/dotenv@0.225.5": {
+      "integrity": "9ce6f9d0ec3311f74a32535aa1b8c62ed88b1ab91b7f0815797d77a6f60c922f"
     },
     "@std/expect@1.0.17": {
       "integrity": "316b47dd65c33e3151344eb3267bf42efba17d1415425f07ed96185d67fc04d9",
@@ -603,6 +607,7 @@
       },
       "universal-compute/fly-mcp": {
         "dependencies": [
+          "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/expect@^1.0.17",
           "npm:@modelcontextprotocol/sdk@^1.17.4",
           "npm:zod@^3.25.76"

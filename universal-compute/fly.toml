@@ -1,25 +1,29 @@
+# fly.toml app configuration file generated for universal-compute on 2025-09-02T09:25:30Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'universal-compute'
 primary_region = 'syd'
 
 [build]
-dockerfile = 'RouterDockerfile'
+  dockerfile = 'Dockerfile'
 
-# Default port your app listens on. Adjust if your server uses a different port.
 [env]
-PORT = "8080"
+  PORT = '8080'
 
 [processes]
-web = ""
+  web = ''
 
 [http_service]
-processes = ["web"]
-internal_port = 8080
-force_https = true
-auto_start_machines = true
-auto_stop_machines = "suspend"
-min_machines_running = 0
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['web']
 
 [[vm]]
-memory = '1gb'
-cpu_kind = 'shared'
-cpus = 1
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

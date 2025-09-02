@@ -6,6 +6,7 @@ approval_policy = "never"
 sandbox_mode = "danger-full-access"
 preferred_auth_method = "apikey"
 
+
 [projects."/workspace"]
 trust_level = "trusted"
 
@@ -19,3 +20,7 @@ network_access = true
 writable_roots = ["/root"]
 exclude_slash_tmp = false
 exclude_tmpdir_env_var = false
+
+[mcp_servers.fly-mcp]
+command = "/fly-mcp/main.ts"
+args = []

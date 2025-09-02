@@ -46,7 +46,7 @@ async function spawnServer() {
   ;(async () => {
     try {
       while (true) {
-        const { value, done } = await errReader.read()
+        const { value: _value, done } = await errReader.read()
         if (done) break
         // Uncomment to debug locally:
         // console.error(dec.decode(value));
@@ -85,6 +85,9 @@ async function spawnServer() {
     }
   })()
 
+  // Keep function async for call sites; satisfy require-await rule.
+  await Promise.resolve()
+
   async function request<T = unknown>(
     method: string,
     params?: unknown,
@@ -116,10 +119,10 @@ async function spawnServer() {
     await child.status
     try {
       outReader.releaseLock()
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
     try {
       errReader.releaseLock()
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }
 
   return { child, request, close } as const
@@ -131,10 +134,14 @@ Deno.test(
     sanitizeOps: false,
     sanitizeResources: false,
   },
-  async (t) => {
+  async (_t) => {
     const srv = await spawnServer()
     try {
-      const result = await srv.request<any>('initialize', {
+      type InitializeResult = {
+        serverInfo?: { name?: string; version?: string }
+        protocolVersion?: string
+      }
+      const result = await srv.request<InitializeResult>('initialize', {
         protocolVersion: '2024-11-05',
         capabilities: {},
         clientInfo: { name: 'test-client', version: '0.1.0' },
@@ -151,7 +158,7 @@ Deno.test(
 )
 
 Deno.test({
-  name: 'tools/list includes echo, add, list_agents',
+  name: 'tools/list includes list_agents and create_agent',
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
@@ -163,11 +170,11 @@ Deno.test({
       clientInfo: { name: 'test-client', version: '0.1.0' },
     }, 1)
 
-    const list = await srv.request<any>('tools/list', {}, 2)
-    const names = (list.tools ?? []).map((t: any) => t.name)
-    expect(names).toContain('echo')
-    expect(names).toContain('add')
+    type ToolsListResult = { tools?: { name: string }[] }
+    const list = await srv.request<ToolsListResult>('tools/list', {}, 2)
+    const names = (list.tools ?? []).map((t) => t.name)
     expect(names).toContain('list_agents')
+    expect(names).toContain('create_agent')
   } finally {
     await srv.close()
   }
@@ -175,9 +182,11 @@ Deno.test({
 
 // (moved unit tests that previously targeted fly.ts)
 
+// Removed echo/add tools and their tests.
+
 Deno.test(
   {
-    name: 'tools/call echo returns text',
+    name: 'create_agent rejects invalid names before env checks',
     sanitizeOps: false,
     sanitizeResources: false,
   },
@@ -190,41 +199,16 @@ Deno.test(
         clientInfo: { name: 'test-client', version: '0.1.0' },
       }, 1)
 
-      const res = await srv.request<any>('tools/call', {
-        name: 'echo',
-        arguments: { text: 'hello' },
-      }, 3)
+      type ToolsCallTextResult = {
+        content?: { type: string; text?: string }[]
+      }
+      const res = await srv.request<ToolsCallTextResult>('tools/call', {
+        name: 'create_agent',
+        arguments: { name: 'Bad_Name' },
+      }, 5)
       const content = res?.content?.[0]
       expect(content?.type).toBe('text')
-      expect(content?.text).toBe('hello')
-    } finally {
-      await srv.close()
-    }
-  },
-)
-
-Deno.test(
-  {
-    name: 'tools/call add returns sum',
-    sanitizeOps: false,
-    sanitizeResources: false,
-  },
-  async () => {
-    const srv = await spawnServer()
-    try {
-      await srv.request('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '0.1.0' },
-      }, 1)
-
-      const res = await srv.request<any>('tools/call', {
-        name: 'add',
-        arguments: { a: 2, b: 5 },
-      }, 4)
-      const content = res?.content?.[0]
-      expect(content?.type).toBe('text')
-      expect(content?.text).toBe('7')
+      expect(String(content?.text)).toContain('Invalid agent name')
     } finally {
       await srv.close()
     }

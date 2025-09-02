@@ -37,7 +37,6 @@ RUN apt-get update && \
       less \
       libssl-dev \
       lld \
-      man-db \
       musl-tools \
       pkg-config \
       procps \
@@ -49,8 +48,6 @@ RUN apt-get update && \
       fzf \
       openssh-client \
       gh \
-      rustc \
-      cargo \
       tmux \
       ttyd && \
     rm -rf /var/lib/apt/lists/*
@@ -69,14 +66,14 @@ RUN npm i -g @openai/codex
 
 # codex config
 RUN codex --version
-COPY fly.config.toml /root/.codex/config.toml
+COPY codex.config.toml /root/.codex/config.toml
 
 # Copy only what's needed to run the MCP web server
-COPY mcp-server /mcp-server
+COPY fly-mcp /fly-mcp
 
 # Pre-cache Deno deps for faster cold starts
-WORKDIR /mcp-server
-RUN deno cache --quiet start.ts
+WORKDIR /fly-mcp
+RUN deno cache --quiet main.ts
 
 WORKDIR /workspace
 
@@ -85,8 +82,7 @@ WORKDIR /workspace
 EXPOSE 8080
 
 ENV PORT=8080
-ENV AUTOSTART_CMD="codex 'ayo'"
+ENV AUTOSTART_CMD="codex"
 COPY tmux.sh /tmux.sh
 ENTRYPOINT ["/tmux.sh"]
-# ENTRYPOINT ["deno", "run", "-A", "/mcp-server/start.ts"]
 CMD []
