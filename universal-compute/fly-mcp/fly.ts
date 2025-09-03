@@ -328,3 +328,58 @@ export async function createMachine({
   const m: RawMachine = await res.json()
   return mapRawMachineToSummary(m)
 }
+
+export type DestroyMachineBag = {
+  appName: string
+  token: string
+  machineId: string
+  force?: boolean
+  fetchImpl?: typeof fetch
+}
+
+export async function destroyMachine({
+  appName,
+  token,
+  machineId,
+  force,
+  fetchImpl,
+}: DestroyMachineBag): Promise<{ ok: boolean }> {
+  const qs = force ? '?force=true' : ''
+  const res = await flyApiFetch(
+    `/v1/apps/${encodeURIComponent(appName)}/machines/${
+      encodeURIComponent(machineId)
+    }${qs}`,
+    token,
+    { method: 'DELETE' },
+    fetchImpl,
+  )
+  // API typically returns { ok: true } on 200; tolerate empty body
+  try {
+    const data = await res.json() as { ok?: boolean }
+    return { ok: Boolean(data?.ok ?? true) }
+  } catch {
+    return { ok: true }
+  }
+}
+
+export type DestroyAppBag = {
+  token: string
+  appName: string
+  force?: boolean
+  fetchImpl?: typeof fetch
+}
+
+export async function destroyFlyApp({
+  token,
+  appName,
+  force,
+  fetchImpl,
+}: DestroyAppBag): Promise<void> {
+  const qs = force ? '?force=true' : ''
+  await flyApiFetch(
+    `/v1/apps/${encodeURIComponent(appName)}${qs}`,
+    token,
+    { method: 'DELETE' },
+    fetchImpl,
+  )
+}

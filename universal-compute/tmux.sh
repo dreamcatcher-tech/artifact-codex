@@ -14,6 +14,7 @@ set -Eeuo pipefail
 #   RESTART_DELAY – seconds to wait before restart (default: 2)
 #   WINDOW_TITLE  – tmux window title/name (default: Dreamcatcher)
 #   MOUSE    – enable tmux mouse (on|off, default: on)
+#   SIXEL    – enable sixel graphics in browser+tmux (on|off, default: off)
 
 SESSION=${SESSION:-codex-demo}
 SOCKET=${SOCKET:-codex-sock}
@@ -27,6 +28,7 @@ WINDOW_TITLE=${WINDOW_TITLE:-Dreamcatcher}
 # text selection, context menu, and clipboard consistently.
 # Set MOUSE=on to restore tmux mouse interactions (pane resize/click).
 MOUSE=${MOUSE:-off}
+SIXEL=${SIXEL:-off}
 
 # Normalize special scroll values
 case "${SCROLL}" in
@@ -97,6 +99,12 @@ apply_ui_settings() {
   tmuxx bind-key -n M-t send-keys C-t >/dev/null
   tmuxx bind-key -n M-j send-keys C-j >/dev/null
   tmuxx bind-key -n M-c send-keys C-c >/dev/null
+
+  # If requested, tell tmux the client terminal supports sixel graphics.
+  # This helps apps inside tmux detect support. Safe to ignore if unsupported.
+  if [ "${SIXEL}" = "on" ]; then
+    tmuxx set -as terminal-features ",xterm*:sixel" >/dev/null 2>&1 || true
+  fi
 }
 
 # Compose the command that the app window should run.
@@ -176,6 +184,13 @@ ttyd_running() {
 
 start_ttyd() {
   info "Starting ttyd on http://localhost:${PORT}"
+  # Optional client flags for xterm.js via ttyd
+  local client_flags=()
+  if [ "${SIXEL}" = "on" ]; then
+    # Enable xterm.js Sixel addon in the browser terminal
+    client_flags+=( -t enableSixel=true )
+  fi
+
   exec ttyd -W -p "$PORT" \
     -t scrollback="$SCROLL" \
     -t scrollOnUserInput=false \
@@ -184,6 +199,7 @@ start_ttyd() {
     -t rightClickSelectsWord=false \
     -t macOptionClickForcesSelection=true \
     -t disableLeaveAlert=true \
+    "${client_flags[@]}" \
     tmux -L "$SOCKET" attach -t "$SESSION"
 }
 

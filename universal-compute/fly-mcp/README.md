@@ -27,6 +27,12 @@ tailored to our language:
   Computer and launching its first Agent using `FLY_IMAGE_REF`. The first agent
   name follows the same suffixing rule (base `agent`, so usually `agent-0`). The
   Computer name is `computer-user-<userId>`.
+- `destroy_agent`: Destroys an Agent (machine) in the current Computer. Accepts
+  an `id` or a `name` and optionally `force`.
+- `destroy_computer`: Destroys a Computer (Fly app) by deleting the app
+  directly. Refuses to delete the current Computer (returns "I cannot self
+  terminate"). Accepts `name` (defaults to `FLY_APP_NAME`) and optionally
+  `force`.
 
 The previous demo tools (`echo`, `add`) have been removed.
 
