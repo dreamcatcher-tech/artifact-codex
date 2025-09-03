@@ -249,7 +249,12 @@ export async function listFlyApps({
   orgSlug,
   fetchImpl,
 }: ListAppsBag): Promise<AppInfo[]> {
-  const qs = orgSlug ? `?org_slug=${encodeURIComponent(orgSlug)}` : ''
+  if (!orgSlug || !orgSlug.trim()) {
+    throw new Error(
+      "Fly Machines API requires 'org_slug' to list apps (GET /v1/apps?org_slug=...). Provide an org slug.",
+    )
+  }
+  const qs = `?org_slug=${encodeURIComponent(orgSlug)}`
   const res = await flyApiFetch(`/v1/apps${qs}`, token, {}, fetchImpl)
   type AppRow = {
     id: string

@@ -45,6 +45,7 @@ RUN apt-get update && \
       gh \
       nano \
       tmux \
+      htop \
       ttyd && \
     rm -rf /var/lib/apt/lists/*
 

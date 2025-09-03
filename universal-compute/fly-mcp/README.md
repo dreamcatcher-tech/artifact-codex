@@ -12,13 +12,21 @@ tailored to our language:
   `metadata` (from its config).
 - `create_agent`: Creates a new Agent (machine) for the current Computer. The
   Agent is created in the `worker` process group via metadata
-  (`fly_process_group=worker`).
-- `list_computers`: Lists Computers (Fly apps) accessible to the API token.
+  (`fly_process_group=worker`). Names are automatically suffixed with an
+  incrementing index: given a requested base name `foo`, the server lists
+  existing agents and chooses `foo-<n>` where `n` is one greater than the
+  largest existing numeric suffix for `foo` (starting at `0`). If you pass a
+  name that already ends with `-<number>`, the server uses the base before the
+  numeric suffix (e.g., `foo-9` still produces `foo-10`).
+- `list_computers`: Lists Computers (Fly apps) in the organization inferred from
+  the current app (`FLY_APP_NAME`). The server calls `GET /v1/apps/{name}` to
+  obtain the organization slug and then lists apps for that organization.
 - `computer_exists`: Given a `userId`, checks if the Computer named
   `computer-user-<userId>` exists.
 - `create_computer`: Creates a new Computer by copying config from the current
-  Computer and launching its first Agent using `FLY_IMAGE_REF`. The Computer
-  name is `computer-user-<userId>`.
+  Computer and launching its first Agent using `FLY_IMAGE_REF`. The first agent
+  name follows the same suffixing rule (base `agent`, so usually `agent-0`). The
+  Computer name is `computer-user-<userId>`.
 
 The previous demo tools (`echo`, `add`) have been removed.
 
@@ -26,7 +34,7 @@ API helpers
 
 - `listMachines(appName, token)`: returns array of Agent summaries.
 - `createMachine({ appName, token, name, config, region? })`: creates an Agent.
-- `listFlyApps({ token, orgSlug? })`: lists Computers (Fly apps).
+- `listFlyApps({ token, orgSlug })`: lists Computers (Fly apps).
 - `createFlyApp({ token, appName, orgSlug })`: creates a Computer (Fly app).
 - `appExists({ token, appName })`: boolean existence check for a Computer.
 

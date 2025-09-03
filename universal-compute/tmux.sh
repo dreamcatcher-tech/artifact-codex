@@ -23,7 +23,10 @@ AUTOSTART_CMD=${AUTOSTART_CMD:-}
 PRE_CMD=${PRE_CMD:-}
 RESTART_DELAY=${RESTART_DELAY:-2}
 WINDOW_TITLE=${WINDOW_TITLE:-Dreamcatcher}
-MOUSE=${MOUSE:-on}
+# Default to tmux mouse OFF so the browser/xterm.js handles
+# text selection, context menu, and clipboard consistently.
+# Set MOUSE=on to restore tmux mouse interactions (pane resize/click).
+MOUSE=${MOUSE:-off}
 
 # Normalize special scroll values
 case "${SCROLL}" in
