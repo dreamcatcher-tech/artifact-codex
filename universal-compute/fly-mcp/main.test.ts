@@ -33,7 +33,6 @@ async function spawnServer() {
   })
 
   const child = cmd.spawn()
-
   const enc = new TextEncoder()
   const dec = new TextDecoder()
 
@@ -111,21 +110,22 @@ async function spawnServer() {
   }
 
   async function close() {
-    try {
-      child.kill('SIGTERM')
-    } catch (_) {
-      // ignore
-    }
+    withSafety(() => child.kill('SIGTERM'))
     await child.status
-    try {
-      outReader.releaseLock()
-    } catch (_) { /* ignore */ }
-    try {
-      errReader.releaseLock()
-    } catch (_) { /* ignore */ }
+    withSafety(() => outReader.releaseLock())
+    withSafety(() => errReader.releaseLock())
+    withSafety(() => child.stdin.close())
   }
 
-  return { child, request, close } as const
+  return { child, request, close, [Symbol.asyncDispose]: close } as const
+}
+
+const withSafety = (fn: () => unknown) => {
+  try {
+    return fn()
+  } catch {
+    // ignore
+  }
 }
 
 Deno.test(
@@ -158,7 +158,8 @@ Deno.test(
 )
 
 Deno.test({
-  name: 'tools/list includes list_agents and create_agent',
+  name:
+    'tools/list includes list_agents, create_agent, create_computer and computer tooling',
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
@@ -175,6 +176,9 @@ Deno.test({
     const names = (list.tools ?? []).map((t) => t.name)
     expect(names).toContain('list_agents')
     expect(names).toContain('create_agent')
+    expect(names).toContain('create_computer')
+    expect(names).toContain('list_computers')
+    expect(names).toContain('computer_exists')
   } finally {
     await srv.close()
   }
@@ -214,3 +218,23 @@ Deno.test(
     }
   },
 )
+
+Deno.test('create_computer rejects invalid userId early', async () => {
+  await using srv = await spawnServer()
+  await srv.request('initialize', {
+    protocolVersion: '2024-11-05',
+    capabilities: {},
+    clientInfo: { name: 'test-client', version: '0.1.0' },
+  }, 1)
+
+  type ToolsCallTextResult = {
+    content?: { type: string; text?: string }[]
+  }
+  const res = await srv.request<ToolsCallTextResult>('tools/call', {
+    name: 'create_computer',
+    arguments: { userId: 'Bad_User' },
+  }, 6)
+  const content = res?.content?.[0]
+  expect(content?.type).toBe('text')
+  expect(String(content?.text)).toContain('Invalid computer name')
+})

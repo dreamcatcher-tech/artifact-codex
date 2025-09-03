@@ -10,6 +10,7 @@
     "jsr:@std/internal@^1.0.9": "1.0.10",
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/path@^1.1.2": "1.1.2",
+    "jsr:@std/ulid@1": "1.0.0",
     "npm:@modelcontextprotocol/sdk@^1.17.4": "1.17.4_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",
     "npm:ws@*": "8.18.3",
@@ -50,6 +51,9 @@
       "dependencies": [
         "jsr:@std/internal@^1.0.10"
       ]
+    },
+    "@std/ulid@1.0.0": {
+      "integrity": "d41c3d27a907714413649fee864b7cde8d42ee68437d22b79d5de4f81d808780"
     }
   },
   "npm": {
@@ -609,6 +613,7 @@
         "dependencies": [
           "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/expect@^1.0.17",
+          "jsr:@std/ulid@1",
           "npm:@modelcontextprotocol/sdk@^1.17.4",
           "npm:zod@^3.25.76"
         ]

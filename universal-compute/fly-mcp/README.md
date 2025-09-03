@@ -1,12 +1,34 @@
-This is a Stdio MCP server that provides tools to interact with Fly.io Machines
-for agent lifecycle operations.
+This is a Stdio MCP server that interacts with Fly.io and exposes a domain model
+tailored to our language:
+
+- Computer: a Fly.io app
+- Agent: a Fly.io machine
+- Agent Image: a Fly.io Docker image used by an Agent
 
 ## Tools
 
-- `list_agents`: Lists Machines for the current Fly app.
-- `create_agent`: Creates a new Machine (agent) for the current Fly app.
+- `list_agents`: Lists Agents (machines) for the current Computer (Fly app).
+  Returns id, name, state, region, image, ip, createdAt, and each agent's
+  `metadata` (from its config).
+- `create_agent`: Creates a new Agent (machine) for the current Computer. The
+  Agent is created in the `worker` process group via metadata
+  (`fly_process_group=worker`).
+- `list_computers`: Lists Computers (Fly apps) accessible to the API token.
+- `computer_exists`: Given a `userId`, checks if the Computer named
+  `computer-user-<userId>` exists.
+- `create_computer`: Creates a new Computer by copying config from the current
+  Computer and launching its first Agent using `FLY_IMAGE_REF`. The Computer
+  name is `computer-user-<userId>`.
 
 The previous demo tools (`echo`, `add`) have been removed.
+
+API helpers
+
+- `listMachines(appName, token)`: returns array of Agent summaries.
+- `createMachine({ appName, token, name, config, region? })`: creates an Agent.
+- `listFlyApps({ token, orgSlug? })`: lists Computers (Fly apps).
+- `createFlyApp({ token, appName, orgSlug })`: creates a Computer (Fly app).
+- `appExists({ token, appName })`: boolean existence check for a Computer.
 
 ## Environment Variables
 
@@ -15,14 +37,14 @@ that Fly.io injects into a Machine’s runtime environment, with one explicit
 exception noted below. See “The Machine Runtime Environment” in the Fly docs for
 authoritative definitions.
 
-- FLY_APP_NAME: App name. Used to scope API requests for listing and creating
-  Machines.
+- FLY_APP_NAME: Computer (Fly app) name. Used to scope API requests for listing
+  and creating Agents.
 - FLY_IMAGE_REF: Docker image reference for the current Machine. Used by
-  `create_agent` as the image to launch for the new Machine (i.e., to clone the
+  `create_agent` as the image to launch for the new Agent (i.e., to clone the
   current agent image).
 - FLY_REGION: Current region of this Machine. If set, `create_agent` uses this
-  as the region for the new Machine; otherwise region is omitted and Fly
-  schedules per its defaults.
+  as the region for the new Agent; otherwise region is omitted and Fly schedules
+  per its defaults.
 - FLY_API_TOKEN: API access token. Required to call the Machines API. This is
   not injected by Fly; set it yourself (for example with `fly secrets set` or
   via your process environment) for the MCP server process.

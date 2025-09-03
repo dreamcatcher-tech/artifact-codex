@@ -12,9 +12,9 @@
     "@std/path": "jsr:@std/path@^1.1.2"
   },
   "fmt": {
-    "lineWidth": 100,
-    "useTabs": false,
-    "singleQuote": true
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 80
   },
   "lint": {
     "rules": {

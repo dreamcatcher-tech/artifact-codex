@@ -1,8 +1,3 @@
-## Dockerfile to package the environment and install the Codex CLI from npm
-## Usage (local):
-##   docker build -t codex:latest .
-##   docker run --rm codex:latest codex --help
-
 ARG NODE_MAJOR=22
 FROM node:${NODE_MAJOR}-bookworm-slim AS node
 
@@ -17,14 +12,14 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
       ca-certificates \
-      build-essential \
-      clang \
+      # build-essential \
+      # clang \
       curl \
       wget \
       dnsutils \
       git \
-      git-lfs \
-      gnupg \
+      # git-lfs \
+      # gnupg \
       iproute2 \
       iputils-ping \
       traceroute \
@@ -35,9 +30,9 @@ RUN apt-get update && \
       netcat-openbsd \
       jq \
       less \
-      libssl-dev \
-      lld \
-      musl-tools \
+      # libssl-dev \
+      # lld \
+      # musl-tools \
       pkg-config \
       procps \
       ripgrep \
@@ -60,7 +55,7 @@ COPY --from=node /usr/local/ /usr/local/
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
 RUN npm i -g npm
-RUN npx -y @openai/codex --version
+RUN npm i -g @openai/codex
 COPY codex.config.toml /root/.codex/config.toml
 
 # Copy only what's needed to run the MCP web server
@@ -77,7 +72,7 @@ WORKDIR /workspace
 EXPOSE 8080
 
 ENV PORT=8080
-ENV AUTOSTART_CMD="npx -y @openai/codex"
+# ENV AUTOSTART_CMD="npx -y @openai/codex"
 ENV PRE_CMD="/fly-mcp/pre.ts"
 COPY tmux.sh /tmux.sh
 ENTRYPOINT ["/tmux.sh"]

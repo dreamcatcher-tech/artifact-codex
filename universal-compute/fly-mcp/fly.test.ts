@@ -1,8 +1,8 @@
 import { expect } from '@std/expect'
-import { createFlyMachine, listFlyMachines } from './fly.ts'
+import { createMachine, listMachines } from './fly.ts'
 
 Deno.test(
-  'listFlyMachines maps fields and builds URL without query params',
+  'listMachines maps fields and builds URL without query params',
   async () => {
     let calledUrl = ''
     let authHeader = ''
@@ -36,38 +36,38 @@ Deno.test(
       )
     }
 
-    const res = await listFlyMachines({
+    const res = await listMachines({
       appName: 'my-app',
       token: 'TEST_TOKEN',
-      baseUrl: 'https://example.test',
       fetchImpl: mockFetch,
     })
 
-    expect(calledUrl).toBe('https://example.test/v1/apps/my-app/machines')
+    expect(calledUrl).toBe('https://api.machines.dev/v1/apps/my-app/machines')
     expect(authHeader).toBe('Bearer TEST_TOKEN')
     expect(Array.isArray(res)).toBe(true)
     expect(res[0].id).toBe('m123')
     expect(res[0].image).toContain('owner/agent:1.2.3')
+    // metadata absent in payload => undefined
+    expect(res[0].metadata).toBeUndefined()
   },
 )
 
-Deno.test('listFlyMachines throws on non-OK', async () => {
+Deno.test('listMachines throws on non-OK', async () => {
   const mockFetch: typeof fetch = () =>
     Promise.resolve(
       new Response('nope', { status: 403, statusText: 'Forbidden' }),
     )
   await expect(
-    listFlyMachines({
+    listMachines({
       appName: 'x',
       token: 't',
-      baseUrl: 'https://example.test',
       fetchImpl: mockFetch,
     }),
   ).rejects.toThrow()
 })
 
 Deno.test(
-  'createFlyMachine posts correct URL with headers and body and returns summary',
+  'createMachine posts correct URL with headers and body and returns summary',
   async () => {
     let calledUrl = ''
     let method = ''
@@ -112,17 +112,16 @@ Deno.test(
       )
     }
 
-    const res = await createFlyMachine({
+    const res = await createMachine({
       appName: 'my-app',
       token: 'TEST_TOKEN',
       name: 'agent-77',
-      image: 'owner/agent:2.0.0',
+      config: { image: 'owner/agent:2.0.0' },
       region: 'iad',
-      baseUrl: 'https://example.test',
       fetchImpl: mockFetch,
     })
 
-    expect(calledUrl).toBe('https://example.test/v1/apps/my-app/machines')
+    expect(calledUrl).toBe('https://api.machines.dev/v1/apps/my-app/machines')
     expect(method).toBe('POST')
     expect(authHeader).toBe('Bearer TEST_TOKEN')
     expect(contentType).toBe('application/json')
@@ -137,18 +136,17 @@ Deno.test(
   },
 )
 
-Deno.test('createFlyMachine throws on non-OK', async () => {
+Deno.test('createMachine throws on non-OK', async () => {
   const mockFetch: typeof fetch = () =>
     Promise.resolve(
       new Response('nope', { status: 400, statusText: 'Bad Request' }),
     )
   await expect(
-    createFlyMachine({
+    createMachine({
       appName: 'a',
       token: 't',
       name: 'n',
-      image: 'img',
-      baseUrl: 'https://example.test',
+      config: { image: 'img' },
       fetchImpl: mockFetch,
     }),
   ).rejects.toThrow()
