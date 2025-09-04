@@ -2,8 +2,9 @@
   "workspace": [
     "design",
     "universal-compute/agent-router",
-    "universal-compute/fly-mcp",
-    "universal-compute/computer-mcp"
+    "universal-compute/mcp-agents",
+    "universal-compute/mcp-computers",
+    "universal-compute/mcp-shared"
   ],
   "tasks": {
     "fmt": "deno fmt design",

@@ -1,4 +1,6 @@
 {
+  "name": "@artifact/mcp-computers",
+  "exports": "./main.ts",
   "tasks": {
     "dev": "deno run --watch main.ts",
     "watch": "deno test -A --watch",
@@ -6,7 +8,6 @@
     "inspect": "npx -y @modelcontextprotocol/inspector main.ts",
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
-    "check": "deno check",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
   },
   "imports": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env
 
-// Dump current environment variables to fly-mcp/.env so the MCP server can
+// Dump current environment variables to computer-mcp/.env so the MCP server can
 // read them later even in an isolated environment.
 
 function serializeEnv(env: Record<string, string>): string {
@@ -28,7 +28,7 @@ function serializeEnv(env: Record<string, string>): string {
   return out.join('\n') + '\n'
 }
 
-const target = new URL('./.env', import.meta.url) // fly-mcp/.env
+const target = new URL('./.env', import.meta.url) // computer-mcp/.env
 const env = Deno.env.toObject()
 const body = serializeEnv(env)
 await Deno.writeTextFile(target, body)

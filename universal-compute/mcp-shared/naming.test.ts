@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { deriveBaseName, nextIndexForName } from './naming.ts'
+import { deriveBaseName, nextIndexForName } from '@artifact/mcp-shared'
 
 Deno.test('deriveBaseName strips trailing numeric suffix', () => {
   expect(deriveBaseName('agent')).toBe('agent')
@@ -8,7 +8,6 @@ Deno.test('deriveBaseName strips trailing numeric suffix', () => {
   expect(deriveBaseName('foo-bar-003')).toBe('foo-bar')
   expect(deriveBaseName('name-abc')).toBe('name-abc')
 })
-
 Deno.test('nextIndexForName finds next integer', () => {
   const names = [
     'agent-0',

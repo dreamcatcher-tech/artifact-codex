@@ -5,9 +5,15 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { deriveBaseName, nextIndexForName } from './naming.ts'
+import { nextIndexForName } from '@artifact/mcp-shared'
+import {
+  getEnv,
+  isValidFlyName,
+  toError,
+  toStructured,
+} from '@artifact/mcp-shared'
 
-// Schemas describing structuredContent for tool results
+// Schemas
 const machineSummarySchema = z.object({
   id: z.string(),
   name: z.string().optional(),
@@ -18,13 +24,10 @@ const machineSummarySchema = z.object({
   createdAt: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
 })
-const listAgentsOutput = z.object({ machines: z.array(machineSummarySchema) })
-const createAgentOutput = z.object({ machine: machineSummarySchema })
 const createComputerOutput = z.object({
   newComputer: z.object({ id: z.string(), name: z.string().optional() }),
   firstAgent: machineSummarySchema,
 })
-
 const listComputersOutput = z.object({
   computers: z.array(z.object({
     id: z.string(),
@@ -33,156 +36,30 @@ const listComputersOutput = z.object({
     organizationSlug: z.string().optional(),
   })),
 })
-
-const computerExistsOutput = z.object({
-  name: z.string(),
-  exists: z.boolean(),
-})
+const computerExistsOutput = z.object({ name: z.string(), exists: z.boolean() })
 
 import {
   appExists,
   createFlyApp,
   createMachine,
   destroyFlyApp,
-  destroyMachine,
   getFlyApp,
   getFlyMachine,
   listFlyApps,
   listMachines,
-} from './fly.ts'
+} from '@artifact/mcp-shared'
 
 await load({
   envPath: new URL('./.env', import.meta.url).pathname,
   export: true,
 })
 
-const server = new McpServer({ name: 'fly-mcp', version: '0.0.1' })
+const server = new McpServer({ name: 'computer-mcp', version: '0.0.1' })
 
-// Structured tool results helpers
-function toStructured(
-  structuredContent: Record<string, unknown>,
-): CallToolResult {
-  return {
-    content: [{
-      type: 'text',
-      text: JSON.stringify(structuredContent, null, 2),
-    }],
-    structuredContent,
-  }
-}
-function toError(err: unknown): CallToolResult {
-  const msg = err instanceof Error ? err.message : String(err)
-  return { content: [{ type: 'text', text: msg }], isError: true }
-}
-
-// Helper to lazily read env without crashing if --allow-env is omitted.
-function getEnv(name: string): string | undefined {
-  try {
-    return Deno.env.get(name)
-  } catch {
-    return undefined
-  }
-}
-
-// Shared naming validation for both agent names and computer names
-function isValidFlyName(name: string): boolean {
-  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name)
-}
-
+// Helpers (toStructured, toError, getEnv, isValidFlyName) moved to shared/util.ts
 function buildComputerNameFromUserId(userId: string): string {
-  // No mutation/normalization beyond concatenation; enforce same validation used for agents
   return `computer-user-${userId}`
 }
-
-server.registerTool(
-  'list_agents',
-  {
-    title: 'List Agents',
-    description: 'Lists Agents for the current Computer.',
-    inputSchema: {},
-    outputSchema: listAgentsOutput.shape,
-  },
-  async (_, extra): Promise<CallToolResult> => {
-    console.log('list_agents', { extra })
-    const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getEnv('FLY_API_TOKEN')
-
-    if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
-    }
-    try {
-      // Single request includes metadata (from config)
-      const machines = await listMachines({
-        appName,
-        token: flyToken,
-      })
-      return toStructured({ machines })
-    } catch (err) {
-      return toError(err)
-    }
-  },
-)
-
-server.registerTool(
-  'create_agent',
-  {
-    title: 'Create Agent',
-    description:
-      'Creates a new Agent for the current Computer using the image of the current Agent',
-    inputSchema: {
-      // Leave basic type validation here; enforce name pattern in handler for richer UX
-      name: z.string(),
-    },
-    outputSchema: createAgentOutput.shape,
-  },
-  async ({ name }, extra): Promise<CallToolResult> => {
-    console.log('create_agent', { name, extra })
-    // Additional runtime validation for friendly error in result payloads
-    const valid = isValidFlyName(name)
-    if (!valid) {
-      return toError(
-        'Invalid agent name. Allowed: lowercase letters, digits, hyphens only; 1–63 chars; must start/end with a letter or digit. Not allowed: slashes (/), spaces, underscores (_), dots (.), or other punctuation.',
-      )
-    }
-
-    const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getEnv('FLY_API_TOKEN')
-    const image = getEnv('FLY_IMAGE_REF')
-    const region = getEnv('FLY_REGION')
-
-    if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
-    }
-    if (!image) return toError('Missing agent image. Set FLY_IMAGE_REF in env.')
-
-    try {
-      // Determine next indexed name: <base>-<n>
-      const base = deriveBaseName(name)
-      const existing = await listMachines({ appName, token: flyToken })
-      const next = nextIndexForName(existing.map((m) => m.name), base)
-      const indexedName = `${base}-${next}`
-      if (!isValidFlyName(indexedName)) {
-        return toError(
-          `Computed agent name '${indexedName}' is invalid or too long; choose a shorter base name.`,
-        )
-      }
-
-      // Ensure agents are launched in the 'worker' process group
-      const created = await createMachine({
-        appName,
-        token: flyToken,
-        name: indexedName,
-        config: { image, metadata: { 'fly_process_group': 'worker' } },
-        region,
-      })
-      return toStructured({ machine: created })
-    } catch (err) {
-      return toError(err)
-    }
-  },
-)
 
 server.registerTool(
   'create_computer',
@@ -195,7 +72,6 @@ server.registerTool(
   },
   async ({ userId }, extra): Promise<CallToolResult> => {
     console.log('create_computer', { userId, extra })
-    // Perform name validation first for a friendlier UX
     const desiredName = buildComputerNameFromUserId(userId)
     if (!isValidFlyName(desiredName)) {
       return toError(
@@ -244,7 +120,7 @@ server.registerTool(
         })
         const cfg = base.config && JSON.parse(JSON.stringify(base.config))
         if (cfg && typeof cfg === 'object') {
-          ;(cfg as Record<string, unknown>).image = image // ensure we launch desired agent image
+          ;(cfg as Record<string, unknown>).image = image
           machineConfig = cfg as Record<string, unknown>
         }
         if (!machineRegion) machineRegion = base.region
@@ -257,12 +133,9 @@ server.registerTool(
           appName: currentApp,
           token: flyToken,
         })
-        if (machines.length > 0) {
-          await resolveConfigFromMachine(machines[0].id)
-        }
+        if (machines.length > 0) await resolveConfigFromMachine(machines[0].id)
       }
 
-      // Compute first agent name for the new app: 'agent-<n>'
       const targetAppName = createdApp.name ?? newAppName
       const existingInNewApp = await listMachines({
         appName: targetAppName,
@@ -301,13 +174,11 @@ server.registerTool(
   'list_computers',
   {
     title: 'List Computers',
-    description:
-      'Lists Computers reachable from the computer that this agent is running on.  This agent is the context of the current tool call.',
+    description: 'Lists Computers reachable from the current app context.',
     inputSchema: {},
     outputSchema: listComputersOutput.shape,
   },
-  async (_, extra): Promise<CallToolResult> => {
-    console.log('list_computers', { extra })
+  async (): Promise<CallToolResult> => {
     const flyToken = getEnv('FLY_API_TOKEN')
     if (!flyToken) {
       return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
@@ -326,7 +197,6 @@ server.registerTool(
           'Unable to infer organization from current app. Ensure FLY_APP_NAME points to an existing app your token can access.',
         )
       }
-
       const apps = await listFlyApps({ token: flyToken, orgSlug })
       return toStructured({
         computers: apps.map((a) => ({
@@ -351,72 +221,16 @@ server.registerTool(
     inputSchema: { userId: z.string() },
     outputSchema: computerExistsOutput.shape,
   },
-  async ({ userId }, extra): Promise<CallToolResult> => {
-    console.log('computer_exists', { userId, extra })
+  async ({ userId }): Promise<CallToolResult> => {
     const flyToken = getEnv('FLY_API_TOKEN')
     if (!flyToken) {
       return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
     }
     try {
       const name = buildComputerNameFromUserId(userId)
-      if (!isValidFlyName(name)) {
-        return toStructured({ name, exists: false })
-      }
+      if (!isValidFlyName(name)) return toStructured({ name, exists: false })
       const exists = await appExists({ token: flyToken, appName: name })
       return toStructured({ name, exists })
-    } catch (err) {
-      return toError(err)
-    }
-  },
-)
-
-server.registerTool(
-  'destroy_agent',
-  {
-    title: 'Destroy Agent',
-    description:
-      'Destroys a Machine (Agent) in the current Computer. Provide id or name.',
-    inputSchema: {
-      id: z.string().optional(),
-      name: z.string().optional(),
-      force: z.boolean().optional(),
-    },
-    outputSchema: z.object({
-      destroyed: z.boolean(),
-      id: z.string(),
-      name: z.string().optional(),
-    }).shape,
-  },
-  async ({ id, name, force }): Promise<CallToolResult> => {
-    const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getEnv('FLY_API_TOKEN')
-    if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
-    }
-    if (!id && !name) return toError('Provide agent id or name.')
-    try {
-      let targetId = id ?? ''
-      let resolvedName = name
-      if (!targetId) {
-        const list = await listMachines({ appName, token: flyToken })
-        const matches = list.filter((m) => m.name === name)
-        if (matches.length === 0) {
-          return toError(`Agent named '${name}' not found.`)
-        }
-        if (matches.length > 1) {
-          return toError(`Multiple agents named '${name}'. Please use id.`)
-        }
-        targetId = matches[0].id
-        resolvedName = matches[0].name
-      }
-      await destroyMachine({
-        appName,
-        token: flyToken,
-        machineId: targetId,
-        force,
-      })
-      return toStructured({ destroyed: true, id: targetId, name: resolvedName })
     } catch (err) {
       return toError(err)
     }
@@ -428,7 +242,7 @@ server.registerTool(
   {
     title: 'Destroy Computer',
     description:
-      'Destroys a Computer, which will automatically destroy all of its Agents. Refuses to delete the current Computer.',
+      'Destroys a Computer, which will also remove its Agents. Refuses to delete the current Computer.',
     inputSchema: { name: z.string().optional(), force: z.boolean().optional() },
     outputSchema: z.object({ destroyed: z.boolean(), name: z.string() }).shape,
   },

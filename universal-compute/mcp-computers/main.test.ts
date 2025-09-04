@@ -1,5 +1,4 @@
 import { expect } from '@std/expect'
-// fly unit tests are in fly.test.ts
 
 type JsonRpcRequest = {
   jsonrpc: '2.0'
@@ -7,7 +6,6 @@ type JsonRpcRequest = {
   method: string
   params?: unknown
 }
-
 type JsonRpcResponse = {
   jsonrpc: '2.0'
   id: number | string | null
@@ -31,29 +29,23 @@ async function spawnServer() {
     stdout: 'piped',
     stderr: 'piped',
   })
-
   const child = cmd.spawn()
   const enc = new TextEncoder()
   const dec = new TextDecoder()
-
-  // Stream readers
   const outReader = child.stdout.getReader()
   const errReader = child.stderr.getReader()
-
   let outBuf = ''
-  const pending: Map<number | string, (r: JsonRpcResponse) => void> = new Map() // Drain stderr for easier debugging if something goes wrong
+  const pending: Map<number | string, (r: JsonRpcResponse) => void> = new Map()
   ;(async () => {
     try {
       while (true) {
-        const { value: _value, done } = await errReader.read()
+        const { done } = await errReader.read()
         if (done) break
-        // Uncomment to debug locally:
-        // console.error(dec.decode(value));
       }
     } catch (_) {
-      // ignore
+      /* ignore */
     }
-  })() // Basic line-delimited JSON-RPC reader
+  })()
   ;(async () => {
     try {
       while (true) {
@@ -67,26 +59,23 @@ async function spawnServer() {
           if (!line) continue
           try {
             const msg = JSON.parse(line) as JsonRpcResponse
-            if (msg && Object.prototype.hasOwnProperty.call(msg, 'id')) {
-              const resolver = pending.get(msg.id ?? '')
-              if (resolver) {
+            if (Object.prototype.hasOwnProperty.call(msg, 'id')) {
+              const r = pending.get(msg.id ?? '')
+              if (r) {
                 pending.delete(msg.id ?? '')
-                resolver(msg)
+                r(msg)
               }
             }
           } catch (_) {
-            // Ignore non-JSON lines (e.g., logs if any make it to stdout)
+            /* ignore */
           }
         }
       }
     } catch (_) {
-      // ignore
+      /* ignore */
     }
   })()
-
-  // Keep function async for call sites; satisfy require-await rule.
   await Promise.resolve()
-
   async function request<T = unknown>(
     method: string,
     params?: unknown,
@@ -96,11 +85,11 @@ async function spawnServer() {
     const promise = new Promise<JsonRpcResponse>((resolve) => {
       pending.set(id, resolve)
     })
-    const writer = child.stdin.getWriter()
+    const w = child.stdin.getWriter()
     try {
-      await writer.write(enc.encode(JSON.stringify(req) + '\n'))
+      await w.write(enc.encode(JSON.stringify(req) + '\n'))
     } finally {
-      writer.releaseLock()
+      w.releaseLock()
     }
     const res = await promise
     if (res.error) {
@@ -108,58 +97,58 @@ async function spawnServer() {
     }
     return res.result as T
   }
-
   async function close() {
-    withSafety(() => child.kill('SIGTERM'))
+    try {
+      child.kill('SIGTERM')
+    } catch (_) {
+      /* ignore */
+    }
     await child.status
-    withSafety(() => outReader.releaseLock())
-    withSafety(() => errReader.releaseLock())
-    withSafety(() => child.stdin.close())
+    try {
+      outReader.releaseLock()
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      errReader.releaseLock()
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      child.stdin.close()
+    } catch (_) {
+      /* ignore */
+    }
   }
-
   return { child, request, close, [Symbol.asyncDispose]: close } as const
 }
 
-const withSafety = (fn: () => unknown) => {
+Deno.test({
+  name: 'MCP initialize handshake',
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, async () => {
+  const srv = await spawnServer()
   try {
-    return fn()
-  } catch {
-    // ignore
-  }
-}
-
-Deno.test(
-  {
-    name: 'MCP initialize handshake',
-    sanitizeOps: false,
-    sanitizeResources: false,
-  },
-  async (_t) => {
-    const srv = await spawnServer()
-    try {
-      type InitializeResult = {
-        serverInfo?: { name?: string; version?: string }
-        protocolVersion?: string
-      }
-      const result = await srv.request<InitializeResult>('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '0.1.0' },
-      }, 1)
-
-      expect(result).toBeDefined()
-      expect(typeof result.serverInfo?.name).toBe('string')
-      expect(result.serverInfo?.name).toBe('fly-mcp')
-      expect(typeof result.protocolVersion).toBe('string')
-    } finally {
-      await srv.close()
+    type InitializeResult = {
+      serverInfo?: { name?: string; version?: string }
+      protocolVersion?: string
     }
-  },
-)
+    const result = await srv.request<InitializeResult>('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'test-client', version: '0.1.0' },
+    }, 1)
+    expect(result).toBeDefined()
+    expect(result.serverInfo?.name).toBe('computer-mcp')
+    expect(typeof result.protocolVersion).toBe('string')
+  } finally {
+    await srv.close()
+  }
+})
 
 Deno.test({
-  name:
-    'tools/list includes list_agents, create_agent, create_computer and computer tooling',
+  name: 'tools/list includes only computer tools',
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
@@ -170,54 +159,20 @@ Deno.test({
       capabilities: {},
       clientInfo: { name: 'test-client', version: '0.1.0' },
     }, 1)
-
     type ToolsListResult = { tools?: { name: string }[] }
     const list = await srv.request<ToolsListResult>('tools/list', {}, 2)
     const names = (list.tools ?? []).map((t) => t.name)
-    expect(names).toContain('list_agents')
-    expect(names).toContain('create_agent')
     expect(names).toContain('create_computer')
     expect(names).toContain('list_computers')
     expect(names).toContain('computer_exists')
+    expect(names).toContain('destroy_computer')
+    expect(names).not.toContain('list_agents')
+    expect(names).not.toContain('create_agent')
+    expect(names).not.toContain('destroy_agent')
   } finally {
     await srv.close()
   }
 })
-
-// (moved unit tests that previously targeted fly.ts)
-
-// Removed echo/add tools and their tests.
-
-Deno.test(
-  {
-    name: 'create_agent rejects invalid names before env checks',
-    sanitizeOps: false,
-    sanitizeResources: false,
-  },
-  async () => {
-    const srv = await spawnServer()
-    try {
-      await srv.request('initialize', {
-        protocolVersion: '2024-11-05',
-        capabilities: {},
-        clientInfo: { name: 'test-client', version: '0.1.0' },
-      }, 1)
-
-      type ToolsCallTextResult = {
-        content?: { type: string; text?: string }[]
-      }
-      const res = await srv.request<ToolsCallTextResult>('tools/call', {
-        name: 'create_agent',
-        arguments: { name: 'Bad_Name' },
-      }, 5)
-      const content = res?.content?.[0]
-      expect(content?.type).toBe('text')
-      expect(String(content?.text)).toContain('Invalid agent name')
-    } finally {
-      await srv.close()
-    }
-  },
-)
 
 Deno.test('create_computer rejects invalid userId early', async () => {
   await using srv = await spawnServer()
@@ -226,10 +181,7 @@ Deno.test('create_computer rejects invalid userId early', async () => {
     capabilities: {},
     clientInfo: { name: 'test-client', version: '0.1.0' },
   }, 1)
-
-  type ToolsCallTextResult = {
-    content?: { type: string; text?: string }[]
-  }
+  type ToolsCallTextResult = { content?: { type: string; text?: string }[] }
   const res = await srv.request<ToolsCallTextResult>('tools/call', {
     name: 'create_computer',
     arguments: { userId: 'Bad_User' },

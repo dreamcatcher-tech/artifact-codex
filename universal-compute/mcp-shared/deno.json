@@ -1,0 +1,13 @@
+{
+  "name": "@artifact/mcp-shared",
+  "tasks": {
+    "test": "deno test -A",
+    "lint": "deno lint --fix",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+  },
+  "imports": {
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.4",
+    "@std/expect": "jsr:@std/expect@^1.0.17"
+  },
+  "exports": "./mod.ts"
+}

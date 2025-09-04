@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { createMachine, listMachines } from './fly.ts'
+import { createMachine, listMachines } from '@artifact/mcp-shared'
 
 Deno.test(
   'listMachines maps fields and builds URL without query params',
@@ -65,7 +65,6 @@ Deno.test('listMachines throws on non-OK', async () => {
     }),
   ).rejects.toThrow()
 })
-
 Deno.test(
   'createMachine posts correct URL with headers and body and returns summary',
   async () => {

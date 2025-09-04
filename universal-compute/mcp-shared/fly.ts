@@ -26,8 +26,6 @@ type RawMachine = {
   config?: Record<string, unknown> | null
 }
 
-// legacy create bag removed; use CreateMachineBagUnified below
-
 export type GetMachineBag = {
   appName: string
   token: string
@@ -71,20 +69,11 @@ export type AppExistsBag = {
   fetchImpl?: typeof fetch
 }
 
-// legacy create-with-config bag removed; use CreateMachineBagUnified below
-
-// Single list API surface that also surfaces metadata (if present)
-
 const API_BASE = 'https://api.machines.dev'
 
-function mergeHeaders(
-  base: HeadersInit,
-  extra?: HeadersInit,
-): Headers {
+function mergeHeaders(base: HeadersInit, extra?: HeadersInit): Headers {
   const h = new Headers(base)
-  if (extra) {
-    new Headers(extra).forEach((v, k) => h.set(k, v))
-  }
+  if (extra) new Headers(extra).forEach((v, k) => h.set(k, v))
   return h
 }
 
@@ -113,26 +102,15 @@ async function flyApiFetch(
 }
 
 function mapRawMachineToSummary(m: RawMachine): MachineSummary {
-  // Prefer the canonical config.image when present; it’s deployable as-is.
   const cfgImage = (m.config as { image?: string } | null | undefined)?.image
-
   let resolvedImage: string | undefined = cfgImage && cfgImage.trim()
     ? cfgImage
     : undefined
-
   if (!resolvedImage && m.image_ref) {
     const repository = m.image_ref.repository
-    // Some API variants place a fully-qualified value in repository. If it
-    // already includes a tag or registry, use it as-is.
-    if (repository && /[:@]/.test(repository)) {
-      resolvedImage = repository
-    } else if (repository) {
-      // If only repository is present without tag, still surface it — callers
-      // may pair it with a tag/digest they track elsewhere.
-      resolvedImage = repository
-    }
+    if (repository && /[:@]/.test(repository)) resolvedImage = repository
+    else if (repository) resolvedImage = repository
   }
-
   return {
     id: m.id,
     name: m.name,
@@ -147,11 +125,9 @@ function mapRawMachineToSummary(m: RawMachine): MachineSummary {
   }
 }
 
-export async function listMachines({
-  appName,
-  token,
-  fetchImpl,
-}: ListMachinesBag): Promise<MachineSummary[]> {
+export async function listMachines(
+  { appName, token, fetchImpl }: ListMachinesBag,
+): Promise<MachineSummary[]> {
   const res = await flyApiFetch(
     `/v1/apps/${encodeURIComponent(appName)}/machines`,
     token,
@@ -165,14 +141,9 @@ export async function listMachines({
   return machines.map(mapRawMachineToSummary)
 }
 
-// legacy createFlyMachine removed; use createMachine
-
-export async function getFlyMachine({
-  appName,
-  token,
-  machineId,
-  fetchImpl,
-}: GetMachineBag): Promise<MachineDetail> {
+export async function getFlyMachine(
+  { appName, token, machineId, fetchImpl }: GetMachineBag,
+): Promise<MachineDetail> {
   const res = await flyApiFetch(
     `/v1/apps/${encodeURIComponent(appName)}/machines/${
       encodeURIComponent(machineId)
@@ -186,18 +157,16 @@ export async function getFlyMachine({
   return { ...summary, config: m.config ?? undefined }
 }
 
-export async function getFlyApp({
-  appName,
-  token,
-  fetchImpl,
-}: GetAppBag): Promise<AppInfo> {
+export async function getFlyApp(
+  { appName, token, fetchImpl }: GetAppBag,
+): Promise<AppInfo> {
   const res = await flyApiFetch(
     `/v1/apps/${encodeURIComponent(appName)}`,
     token,
     {},
     fetchImpl,
   )
-  const data = await res.json() as
+  const data = (await res.json()) as
     | {
       id: string
       name?: string
@@ -214,23 +183,14 @@ export async function getFlyApp({
   }
 }
 
-export async function createFlyApp({
-  token,
-  appName,
-  orgSlug,
-  fetchImpl,
-}: CreateAppBag): Promise<AppInfo> {
-  const body = {
-    'app_name': appName,
-    'org_slug': orgSlug,
-  }
-  const res = await flyApiFetch(
-    `/v1/apps`,
-    token,
-    { method: 'POST', body: JSON.stringify(body) },
-    fetchImpl,
-  )
-  const data = await res.json() as {
+export async function createFlyApp(
+  { token, appName, orgSlug, fetchImpl }: CreateAppBag,
+): Promise<AppInfo> {
+  const res = await flyApiFetch(`/v1/apps`, token, {
+    method: 'POST',
+    body: JSON.stringify({ app_name: appName, org_slug: orgSlug }),
+  }, fetchImpl)
+  const data = (await res.json()) as {
     id: string
     name?: string
     organization?: { slug?: string }
@@ -244,34 +204,34 @@ export async function createFlyApp({
   }
 }
 
-export async function listFlyApps({
-  token,
-  orgSlug,
-  fetchImpl,
-}: ListAppsBag): Promise<AppInfo[]> {
+export async function listFlyApps(
+  { token, orgSlug, fetchImpl }: ListAppsBag,
+): Promise<AppInfo[]> {
   if (!orgSlug || !orgSlug.trim()) {
     throw new Error(
       "Fly Machines API requires 'org_slug' to list apps (GET /v1/apps?org_slug=...). Provide an org slug.",
     )
   }
-  const qs = `?org_slug=${encodeURIComponent(orgSlug)}`
-  const res = await flyApiFetch(`/v1/apps${qs}`, token, {}, fetchImpl)
+  const res = await flyApiFetch(
+    `/v1/apps?org_slug=${encodeURIComponent(orgSlug)}`,
+    token,
+    {},
+    fetchImpl,
+  )
   type AppRow = {
     id: string
     name?: string
     organization?: { slug?: string }
-    'created_at'?: string
+    created_at?: string
   }
   const data = (await res.json()) as
     | { apps?: AppRow[] }
     | AppRow[]
     | null
     | undefined
-
   const appsArr: AppRow[] = Array.isArray(data)
     ? (data as AppRow[])
     : ((data?.apps ?? []) as AppRow[])
-
   return appsArr.map((a) => ({
     id: a.id,
     name: a.name,
@@ -283,7 +243,6 @@ export async function listFlyApps({
 export async function appExists(
   { token, appName, fetchImpl }: AppExistsBag,
 ): Promise<boolean> {
-  // Use a direct fetch to distinguish 404 from other errors cleanly
   const fx = fetchImpl ?? fetch
   const url = `${API_BASE}/v1/apps/${encodeURIComponent(appName)}`
   const headers = new Headers({
@@ -309,14 +268,9 @@ export type CreateMachineBagUnified = {
   fetchImpl?: typeof fetch
 }
 
-export async function createMachine({
-  appName,
-  token,
-  name,
-  config,
-  region,
-  fetchImpl,
-}: CreateMachineBagUnified): Promise<MachineSummary> {
+export async function createMachine(
+  { appName, token, name, config, region, fetchImpl }: CreateMachineBagUnified,
+): Promise<MachineSummary> {
   const body: Record<string, unknown> = { name, config }
   if (region) body.region = region
   const res = await flyApiFetch(
@@ -337,13 +291,9 @@ export type DestroyMachineBag = {
   fetchImpl?: typeof fetch
 }
 
-export async function destroyMachine({
-  appName,
-  token,
-  machineId,
-  force,
-  fetchImpl,
-}: DestroyMachineBag): Promise<{ ok: boolean }> {
+export async function destroyMachine(
+  { appName, token, machineId, force, fetchImpl }: DestroyMachineBag,
+): Promise<{ ok: boolean }> {
   const qs = force ? '?force=true' : ''
   const res = await flyApiFetch(
     `/v1/apps/${encodeURIComponent(appName)}/machines/${
@@ -353,9 +303,8 @@ export async function destroyMachine({
     { method: 'DELETE' },
     fetchImpl,
   )
-  // API typically returns { ok: true } on 200; tolerate empty body
   try {
-    const data = await res.json() as { ok?: boolean }
+    const data = (await res.json()) as { ok?: boolean }
     return { ok: Boolean(data?.ok ?? true) }
   } catch {
     return { ok: true }
@@ -369,17 +318,11 @@ export type DestroyAppBag = {
   fetchImpl?: typeof fetch
 }
 
-export async function destroyFlyApp({
-  token,
-  appName,
-  force,
-  fetchImpl,
-}: DestroyAppBag): Promise<void> {
+export async function destroyFlyApp(
+  { token, appName, force, fetchImpl }: DestroyAppBag,
+): Promise<void> {
   const qs = force ? '?force=true' : ''
-  await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}${qs}`,
-    token,
-    { method: 'DELETE' },
-    fetchImpl,
-  )
+  await flyApiFetch(`/v1/apps/${encodeURIComponent(appName)}${qs}`, token, {
+    method: 'DELETE',
+  }, fetchImpl)
 }
