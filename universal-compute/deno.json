@@ -1,0 +1,26 @@
+{
+  "workspace": [
+    "agent-router",
+    "mcp-agents",
+    "mcp-computers",
+    "mcp-shared"
+  ],
+  "tasks": {
+    "ok": "deno task --filter='@artifact/' ok"
+  },
+  "imports": {
+  },
+  "fmt": {
+    "semiColons": false,
+    "singleQuote": true,
+    "lineWidth": 80
+  },
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended"
+      ]
+    }
+  },
+  "nodeModulesDir": "auto"
+}

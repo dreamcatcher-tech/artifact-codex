@@ -36,8 +36,10 @@ Endpoints (high level)
 Static UI
 
 - Files under `public/` are standalone pages and modules:
-  - `public/agent.html` → loads `/assets/agent.js` and reads `agentPath` from `location.pathname` and `face` from `?face`.
-  - `public/maintenance.html` → shows maintenance message (reads subdomain from `location.hostname`).
+  - `public/agent.html` → loads `/assets/agent.js` and reads `agentPath` from `location.pathname`
+    and `face` from `?face`.
+  - `public/maintenance.html` → shows maintenance message (reads subdomain from
+    `location.hostname`).
 - Assets are served from `/assets/*`.
 
 Notes
@@ -55,8 +57,10 @@ MCP: This router no longer embeds an HTTP MCP app; we’ll run the MCP server vi
 
 Browser MCP Server (demo)
 
-- Route `/mcp` serves a minimal MCP server running inside the browser using `@modelcontextprotocol/sdk` over a `MessageChannel`.
-- The server waits for the parent window to post a `MessagePort` via `postMessage({ type: 'mcp:connect' }, '*', [port])`.
+- Route `/mcp` serves a minimal MCP server running inside the browser using
+  `@modelcontextprotocol/sdk` over a `MessageChannel`.
+- The server waits for the parent window to post a `MessagePort` via
+  `postMessage({ type: 'mcp:connect' }, '*', [port])`.
 - Exposes simple tools: `ping` and `info`.
 
 Parent connect example:

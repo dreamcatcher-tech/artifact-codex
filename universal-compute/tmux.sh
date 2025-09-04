@@ -30,6 +30,9 @@ WINDOW_TITLE=${WINDOW_TITLE:-Dreamcatcher}
 MOUSE=${MOUSE:-off}
 SIXEL=${SIXEL:-off}
 
+# Preferred interactive shell inside tmux
+ZSH_BIN=${ZSH_BIN:-/usr/bin/zsh}
+
 # Normalize special scroll values
 case "${SCROLL}" in
   unlimited|inf|INF)
@@ -82,6 +85,8 @@ apply_ui_settings() {
         set -g bell-action none \; \
         set -g visual-activity off \; \
         set -g monitor-activity off \; \
+        set -g default-shell "$ZSH_BIN" \; \
+        set -g default-command "${ZSH_BIN} -il" \; \
         setw -g allow-rename off \; \
         setw -g automatic-rename off >/dev/null
 
@@ -119,14 +124,14 @@ app_cmd() {
 
   if [ -n "${AUTOSTART_CMD:-}" ]; then
     main="while :; do $AUTOSTART_CMD; echo; echo '[app] restarting in ${RESTART_DELAY}s...'; sleep ${RESTART_DELAY}; done"
-    printf 'bash -ilc "%s%s"' "$pre" "$main"
+    printf '%s -ilc "%s%s"' "$ZSH_BIN" "$pre" "$main"
   else
     if [ -n "${PRE_CMD:-}" ]; then
       # Run PRE once, then drop into a login shell
-      printf 'bash -ilc "%sexec bash -il"' "$pre"
+      printf '%s -ilc "%sexec %s -il"' "$ZSH_BIN" "$pre" "$ZSH_BIN"
     else
       # Neither PRE nor AUTOSTART provided → do nothing (just a shell)
-      printf 'bash -il'
+      printf '%s -il' "$ZSH_BIN"
     fi
   fi
 }
@@ -190,6 +195,8 @@ start_ttyd() {
     # Enable xterm.js Sixel addon in the browser terminal
     client_flags+=( -t enableSixel=true )
   fi
+  # Prefer MesloLGS NF if present on client, with sensible fallbacks.
+  client_flags+=( -t fontFamily="MesloLGS NF,DejaVu Sans Mono,monospace" )
 
   # Ensure a fresh session is created on reconnect if the user exited the shell.
   # This prevents ttyd from rapidly reconnecting with "no sessions" when
@@ -208,6 +215,8 @@ start_ttyd() {
        tmux -L \"$SOCKET\" set -g status off >/dev/null;
        tmux -L \"$SOCKET\" set -g set-titles off >/dev/null;
        tmux -L \"$SOCKET\" set -g mouse \"$MOUSE\" >/dev/null;
+       tmux -L \"$SOCKET\" set -g default-shell \"$ZSH_BIN\" >/dev/null;
+       tmux -L \"$SOCKET\" set -g default-command \"$ZSH_BIN -il\" >/dev/null;
        tmux -L \"$SOCKET\" setw -g allow-rename off >/dev/null;
        tmux -L \"$SOCKET\" setw -g automatic-rename off >/dev/null
      );
