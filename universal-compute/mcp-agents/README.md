@@ -7,11 +7,11 @@ tailored to our language:
 
 ## Tools
 
-- `read_agent`: Returns structured info about the current Agent (the Machine
-  running this MCP server). If the current agent cannot be found, returns an
-  object with `exists: false`. When available, it uses `FLY_MACHINE_ID`,
-  `FLY_APP_NAME`, and `FLY_API_TOKEN` to fetch full machine details; otherwise
-  it returns best-effort information from the environment.
+- `read_agent`: Returns structured info for an Agent (Fly Machine) by a provided
+  `id` string, where the id is the Machine name. The tool looks up the machine
+  by name within the current app and returns full details including `metadata`
+  (from the machine config). If no machine is found, it returns
+  `{ exists: false }`.
 - `list_agents`: Lists Agents (machines) for the current Computer (Fly app).
   Returns id, name, state, region, image, ip, createdAt, and each agent's
   `metadata` (from its config).
@@ -40,8 +40,8 @@ that Fly.io injects into a Machine’s runtime environment, with one explicit
 exception noted below. See “The Machine Runtime Environment” in the Fly docs for
 authoritative definitions.
 
-- FLY_APP_NAME: Computer (Fly app) name. Used to scope API requests for listing
-  and creating Agents.
+- FLY_APP_NAME: Computer (Fly app) name. Used to scope API requests for reading
+  and listing/creating Agents.
 - FLY_IMAGE_REF: Docker image reference for the current Machine. Used by
   `create_agent` as the image to launch for the new Agent (i.e., to clone the
   current agent image).

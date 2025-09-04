@@ -3,11 +3,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { deriveBaseName, nextIndexForName } from '@artifact/shared'
+import {
+  deriveBaseName,
+  type MachineDetail,
+  type MachineSummary,
+  nextIndexForName,
+} from '@artifact/shared'
 import { loadEnvFromShared } from '@artifact/shared'
 import { getEnv, isValidFlyName, toError, toStructured } from '@artifact/shared'
 
-// Schemas describing structuredContent for tool results
+// Schemas describing structuredContent for tool results (typed from shared)
 const machineSummarySchema = z.object({
   id: z.string(),
   name: z.string().optional(),
@@ -53,57 +58,51 @@ server.registerTool(
   {
     title: 'Read Agent',
     description:
-      'Returns structured info about the current Agent. If the agent cannot be found, returns { exists: false }. Uses env FLY_MACHINE_ID to identify the current agent.',
-    inputSchema: {},
+      'Return structured info for an Agent (Machine) by agent id string, where id equals the Machine name. Looks up by name and returns full details, including metadata from config.',
+    inputSchema: { id: z.string() },
     outputSchema: readAgentOutput.shape,
   },
-  async (_, extra): Promise<CallToolResult> => {
-    console.log('read_agent', { extra })
+  async ({ id }, extra): Promise<CallToolResult> => {
+    console.log('read_agent', { id, extra })
     const appName = getEnv('FLY_APP_NAME')
     const flyToken = getEnv('FLY_API_TOKEN')
-    const machineId = getEnv('FLY_MACHINE_ID')
 
-    if (!machineId) {
-      return toStructured({
-        exists: false,
-        reason: 'Missing FLY_MACHINE_ID in env.',
+    if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
+    if (!flyToken) {
+      return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
+    }
+    try {
+      const machines: MachineSummary[] = await listMachines({
+        appName,
+        token: flyToken,
       })
-    }
-
-    // If we have token + app, fetch full details; otherwise return best-effort from env
-    if (appName && flyToken) {
-      try {
-        const detail = await getFlyMachine({
-          appName,
-          token: flyToken,
-          machineId,
+      const matches = machines.filter((m) => m.name === id)
+      if (matches.length === 0) {
+        return toStructured({
+          exists: false,
+          reason: `Agent named '${id}' not found.`,
         })
-        return toStructured({ exists: true, agent: detail })
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        // If API says not found, report exists: false instead of an MCP error
-        if (/Fly API error\s+404/.test(msg)) {
-          return toStructured({
-            exists: false,
-            reason: 'Agent not found via API (404).',
-          })
-        }
-        return toError(err)
       }
+      if (matches.length > 1) {
+        return toError(`Multiple agents named '${id}'. Please disambiguate.`)
+      }
+      const machineId = matches[0].id
+      const detail: MachineDetail = await getFlyMachine({
+        appName,
+        token: flyToken,
+        machineId,
+      })
+      return toStructured({ exists: true, agent: detail })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/Fly API error\s+404/.test(msg)) {
+        return toStructured({
+          exists: false,
+          reason: 'Agent not found via API (404).',
+        })
+      }
+      return toError(err)
     }
-
-    // Best-effort: construct minimal shape from env
-    const agent = {
-      id: machineId,
-      image: getEnv('FLY_IMAGE_REF') ?? undefined,
-      region: getEnv('FLY_REGION') ?? undefined,
-      name: undefined,
-      state: undefined,
-      ip: undefined,
-      createdAt: undefined,
-      metadata: undefined,
-    }
-    return toStructured({ exists: true, agent })
   },
 )
 
