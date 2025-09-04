@@ -69,6 +69,28 @@ export type AppExistsBag = {
   fetchImpl?: typeof fetch
 }
 
+export type ProbeTokenScopeBag = {
+  token: string
+  /** Optional: app name to derive organization from; if omitted, tries env FLY_APP_NAME */
+  appName?: string
+  /** Optional: known organization slug; if provided, appName/env not required */
+  orgSlug?: string
+  fetchImpl?: typeof fetch
+}
+
+export type ProbeTokenScopeResult = {
+  /** 'org' means org-wide (or personal access) token; 'app' means app-scoped deploy token; 'unknown' if inconclusive. */
+  classification: 'org' | 'app' | 'unknown'
+  orgSlug?: string
+  appName?: string
+  /** HTTP evidence for debugging/UI */
+  evidence: {
+    getApp?: { ok: boolean; status: number }
+    listApps?: { ok: boolean; status: number }
+  }
+  message?: string
+}
+
 const API_BASE = 'https://api.machines.dev'
 
 function mergeHeaders(base: HeadersInit, extra?: HeadersInit): Headers {
@@ -238,6 +260,93 @@ export async function listFlyApps(
     organizationSlug: a.organization?.slug,
     createdAt: a.created_at,
   }))
+}
+
+/**
+ * Probe whether a Fly API token is app-scoped (deploy token) or org-wide by
+ * attempting an organization apps listing. Requires either an org slug or an
+ * app name (to derive org from GET /v1/apps/{app}).
+ */
+export async function probeTokenScope(
+  { token, appName, orgSlug, fetchImpl }: ProbeTokenScopeBag,
+): Promise<ProbeTokenScopeResult> {
+  let derivedApp = (appName ?? '').trim()
+  if (!derivedApp) {
+    try {
+      // lazy env access avoids crashing without --allow-env
+      // deno-lint-ignore no-explicit-any
+      const D = (globalThis as any).Deno as typeof Deno | undefined
+      derivedApp = D?.env?.get?.('FLY_APP_NAME')?.trim?.() ?? ''
+    } catch {
+      /* ignore */
+    }
+  }
+
+  let org = (orgSlug ?? '').trim()
+  const evidence: ProbeTokenScopeResult['evidence'] = {}
+
+  // If we don't have an org, try to derive from the app
+  if (!org && derivedApp) {
+    try {
+      const app = await getFlyApp({ appName: derivedApp, token, fetchImpl })
+      evidence.getApp = { ok: true, status: 200 }
+      if (app.organizationSlug) org = app.organizationSlug
+    } catch (err) {
+      // capture status if possible
+      const status =
+        err instanceof Error && /Fly API error (\d+)/.test(err.message)
+          ? Number(/Fly API error (\d+)/.exec(err.message)?.[1])
+          : 0
+      evidence.getApp = { ok: false, status }
+    }
+  }
+
+  if (!org) {
+    return {
+      classification: 'unknown',
+      appName: derivedApp || undefined,
+      evidence,
+      message:
+        'Provide orgSlug or an appName/FLY_APP_NAME so org can be derived for probing.',
+    }
+  }
+
+  // Attempt to list apps in the org. If this succeeds, token is org-wide
+  // (or a personal access token). If it fails with 401/403, it is likely
+  // app-scoped (deploy token) tied to a single app.
+  try {
+    await listFlyApps({ token, orgSlug: org, fetchImpl })
+    evidence.listApps = { ok: true, status: 200 }
+    return {
+      classification: 'org',
+      orgSlug: org,
+      appName: derivedApp || undefined,
+      evidence,
+    }
+  } catch (err) {
+    const status =
+      err instanceof Error && /Fly API error (\d+)/.test(err.message)
+        ? Number(/Fly API error (\d+)/.exec(err.message)?.[1])
+        : 0
+    evidence.listApps = { ok: false, status }
+    if (status === 401 || status === 403) {
+      return {
+        classification: 'app',
+        orgSlug: org,
+        appName: derivedApp || undefined,
+        evidence,
+        message:
+          'Token cannot list apps for the organization; likely an app deploy token.',
+      }
+    }
+    return {
+      classification: 'unknown',
+      orgSlug: org,
+      appName: derivedApp || undefined,
+      evidence,
+      message: 'Unexpected error probing organization apps.',
+    }
+  }
 }
 
 export async function appExists(

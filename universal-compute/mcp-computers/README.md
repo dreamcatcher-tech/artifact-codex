@@ -40,7 +40,8 @@ Run with Deno permissions `--allow-env --allow-net`.
 
 ## Tests
 
-- Unit tests for the shared Fly Machines helpers and naming live in `mcp-shared`:
+- Unit tests for the shared Fly Machines helpers and naming live in
+  `mcp-shared`:
   - `mcp-shared/fly.test.ts`
   - `mcp-shared/naming.test.ts`
 - This package contains integration tests for the MCP server (`main.test.ts`).
