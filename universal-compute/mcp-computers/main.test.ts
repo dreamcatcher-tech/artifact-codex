@@ -193,7 +193,7 @@ Deno.test({
     const names = (list.tools ?? []).map((t) => t.name)
     expect(names).toContain('create_computer')
     expect(names).toContain('list_computers')
-    expect(names).toContain('computer_exists')
+    expect(names).toContain('read_computer')
     expect(names).toContain('destroy_computer')
     expect(names).not.toContain('list_agents')
   } finally {

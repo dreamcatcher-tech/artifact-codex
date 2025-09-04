@@ -7,8 +7,10 @@ This is a Stdio MCP server focused on Computer management in Fly.io.
 
 - `list_computers`: Lists Computers (Fly apps) in the organization inferred from
   the current app (`FLY_APP_NAME`).
-- `computer_exists`: Given a `userId`, checks if the Computer named
-  `computer-user-<userId>` exists.
+- `read_computer`: Given a `userId`, reads the Computer named
+  `computer-user-<userId>`. Returns
+  `{ exists: true, computer: { id, name, organizationSlug, createdAt } }` if
+  found, otherwise `{ exists: false }`.
 - `create_computer`: Creates a new Computer by copying config from the current
   Computer and launching its first Agent using `FLY_IMAGE_REF`. The first agent
   name follows an incrementing suffix (base `agent`, e.g. `agent-0`). The

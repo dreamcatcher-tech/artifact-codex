@@ -61,7 +61,7 @@ RUN npm i -g @openai/codex
 COPY codex.config.toml /root/.codex/config.toml
 
 # Copy only what's needed to run the MCP web server
-COPY . .
+COPY . /headers
 
 # Pre-cache Deno deps for faster cold starts
 RUN deno install --quiet
@@ -80,8 +80,8 @@ RUN bash /usr/local/bin/setup-powerlevel.sh
 EXPOSE 8080
 
 ENV PORT=8080
+ENV PRE_CMD="/headers/shared/pre.ts"
 # ENV AUTOSTART_CMD="npx -y @openai/codex"
-ENV PRE_CMD="/mcp-shared/pre.ts"
 ENV SIXEL="on"
 COPY tmux.sh /tmux.sh
 ENTRYPOINT ["/tmux.sh"]

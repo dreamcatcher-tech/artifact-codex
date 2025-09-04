@@ -7,6 +7,11 @@ tailored to our language:
 
 ## Tools
 
+- `read_agent`: Returns structured info about the current Agent (the Machine
+  running this MCP server). If the current agent cannot be found, returns an
+  object with `exists: false`. When available, it uses `FLY_MACHINE_ID`,
+  `FLY_APP_NAME`, and `FLY_API_TOKEN` to fetch full machine details; otherwise
+  it returns best-effort information from the environment.
 - `list_agents`: Lists Agents (machines) for the current Computer (Fly app).
   Returns id, name, state, region, image, ip, createdAt, and each agent's
   `metadata` (from its config).

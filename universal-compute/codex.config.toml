@@ -22,9 +22,17 @@ exclude_slash_tmp = false
 exclude_tmpdir_env_var = false
 
 [mcp_servers.mcp-computers]
-command = "/mcp-computers/main.ts"
+command = "/headers/mcp-computers/main.ts"
 args = []
 
 [mcp_servers.mcp-agents]
-command = "/mcp-agents/main.ts"
+command = "/headers/mcp-agents/main.ts"
+args = []
+
+[mcp_servers.mcp-faces]
+command = "/headers/mcp-faces/main.ts"
+args = []
+
+[mcp_servers.mcp-interactions]
+command = "/headers/mcp-interactions/main.ts"
 args = []

@@ -551,8 +551,10 @@
       },
       "shared": {
         "dependencies": [
+          "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/expect@^1.0.17",
-          "npm:@modelcontextprotocol/sdk@^1.17.4"
+          "npm:@modelcontextprotocol/sdk@^1.17.4",
+          "npm:zod@^3.25.76"
         ]
       }
     }

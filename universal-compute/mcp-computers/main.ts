@@ -1,6 +1,4 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-net
-
-import { load } from '@std/dotenv'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
@@ -21,6 +19,8 @@ import {
   toError,
   toStructured,
 } from '@artifact/shared'
+import { loadEnvFromShared } from '@artifact/shared'
+import { readComputerOutputSchema } from '@artifact/shared'
 
 // Schemas
 const machineSummarySchema = z.object({
@@ -45,12 +45,10 @@ const listComputersOutput = z.object({
     organizationSlug: z.string().optional(),
   })),
 })
-const computerExistsOutput = z.object({ name: z.string(), exists: z.boolean() })
+// Use shared schema for read_computer output to keep shape consistent across projects
+const readComputerOutput = readComputerOutputSchema
 
-await load({
-  envPath: new URL('./.env', import.meta.url).pathname,
-  export: true,
-})
+await loadEnvFromShared()
 
 // Helpers (toStructured, toError, getEnv, isValidFlyName) moved to shared/util.ts
 function buildComputerNameFromUserId(userId: string): string {
@@ -228,13 +226,13 @@ async function createServer(): Promise<McpServer> {
     },
   )
   server.registerTool(
-    'computer_exists',
+    'read_computer',
     {
-      title: 'Computer Exists',
+      title: 'Read Computer',
       description:
-        "Checks if the Computer named 'computer-user-<userId>' exists.",
+        "Reads the Computer named 'computer-user-<userId>'. Returns { exists: true, computer: {...} } if found, otherwise { exists: false }.",
       inputSchema: { userId: z.string() },
-      outputSchema: computerExistsOutput.shape,
+      outputSchema: readComputerOutput.shape,
     },
     async ({ userId }): Promise<CallToolResult> => {
       const flyToken = getEnv('FLY_API_TOKEN')
@@ -243,9 +241,11 @@ async function createServer(): Promise<McpServer> {
       }
       try {
         const name = buildComputerNameFromUserId(userId)
-        if (!isValidFlyName(name)) return toStructured({ name, exists: false })
+        if (!isValidFlyName(name)) return toStructured({ exists: false })
         const exists = await appExists({ token: flyToken, appName: name })
-        return toStructured({ name, exists })
+        if (!exists) return toStructured({ exists: false })
+        const info = await getFlyApp({ appName: name, token: flyToken })
+        return toStructured({ exists: true, computer: info })
       } catch (err) {
         return toError(err)
       }

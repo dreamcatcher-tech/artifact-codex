@@ -1,11 +1,10 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-net
-
-import { load } from '@std/dotenv'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { deriveBaseName, nextIndexForName } from '@artifact/shared'
+import { loadEnvFromShared } from '@artifact/shared'
 import { getEnv, isValidFlyName, toError, toStructured } from '@artifact/shared'
 
 // Schemas describing structuredContent for tool results
@@ -23,18 +22,90 @@ const listAgentsOutput = z.object({ machines: z.array(machineSummarySchema) })
 const createAgentOutput = z.object({ machine: machineSummarySchema })
 // (Computer management schemas removed in fly-mcp)
 
-import { createMachine, destroyMachine, listMachines } from '@artifact/shared'
+import {
+  createMachine,
+  destroyMachine,
+  getFlyMachine,
+  listMachines,
+} from '@artifact/shared'
 
-await load({
-  envPath: new URL('./.env', import.meta.url).pathname,
-  export: true,
-})
+await loadEnvFromShared()
 
 const server = new McpServer({ name: 'fly-mcp', version: '0.0.1' })
 
 // Helpers moved to shared/util.ts
 
 // (Computer name helper removed in fly-mcp)
+
+// Detailed machine schema (summary + optional config)
+const machineDetailSchema = machineSummarySchema.extend({
+  config: z.record(z.unknown()).optional(),
+})
+
+const readAgentOutput = z.object({
+  exists: z.boolean(),
+  agent: machineDetailSchema.optional(),
+  reason: z.string().optional(),
+})
+
+server.registerTool(
+  'read_agent',
+  {
+    title: 'Read Agent',
+    description:
+      'Returns structured info about the current Agent. If the agent cannot be found, returns { exists: false }. Uses env FLY_MACHINE_ID to identify the current agent.',
+    inputSchema: {},
+    outputSchema: readAgentOutput.shape,
+  },
+  async (_, extra): Promise<CallToolResult> => {
+    console.log('read_agent', { extra })
+    const appName = getEnv('FLY_APP_NAME')
+    const flyToken = getEnv('FLY_API_TOKEN')
+    const machineId = getEnv('FLY_MACHINE_ID')
+
+    if (!machineId) {
+      return toStructured({
+        exists: false,
+        reason: 'Missing FLY_MACHINE_ID in env.',
+      })
+    }
+
+    // If we have token + app, fetch full details; otherwise return best-effort from env
+    if (appName && flyToken) {
+      try {
+        const detail = await getFlyMachine({
+          appName,
+          token: flyToken,
+          machineId,
+        })
+        return toStructured({ exists: true, agent: detail })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        // If API says not found, report exists: false instead of an MCP error
+        if (/Fly API error\s+404/.test(msg)) {
+          return toStructured({
+            exists: false,
+            reason: 'Agent not found via API (404).',
+          })
+        }
+        return toError(err)
+      }
+    }
+
+    // Best-effort: construct minimal shape from env
+    const agent = {
+      id: machineId,
+      image: getEnv('FLY_IMAGE_REF') ?? undefined,
+      region: getEnv('FLY_REGION') ?? undefined,
+      name: undefined,
+      state: undefined,
+      ip: undefined,
+      createdAt: undefined,
+      metadata: undefined,
+    }
+    return toStructured({ exists: true, agent })
+  },
+)
 
 server.registerTool(
   'list_agents',
