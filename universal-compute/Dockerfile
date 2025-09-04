@@ -7,47 +7,47 @@ FROM ubuntu:24.04
 
 # Enable universe and install core tooling (includes ttyd from Ubuntu repos)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository --yes universe && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-      ca-certificates \
-      # build-essential \
-      # clang \
-      curl \
-      wget \
-      dnsutils \
-      git \
-      # git-lfs \
-      # gnupg \
-      iproute2 \
-      iputils-ping \
-      traceroute \
-      mtr-tiny \
-      ipset \
-      iptables \
-      net-tools \
-      netcat-openbsd \
-      jq \
-      less \
-      # libssl-dev \
-      # lld \
-      # musl-tools \
-      pkg-config \
-      procps \
-      ripgrep \
-      sudo \
-      unzip \
-      zsh \
-      bash-completion \
-      fzf \
-      openssh-client \
-      gh \
-      nano \
-      tmux \
-      htop \
-      ttyd && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get install -y --no-install-recommends software-properties-common && \
+  add-apt-repository --yes universe && \
+  apt-get update && \
+  apt-get install -y --no-install-recommends \
+  ca-certificates \
+  # build-essential \
+  # clang \
+  curl \
+  wget \
+  dnsutils \
+  git \
+  # git-lfs \
+  # gnupg \
+  iproute2 \
+  iputils-ping \
+  traceroute \
+  mtr-tiny \
+  ipset \
+  iptables \
+  net-tools \
+  netcat-openbsd \
+  jq \
+  less \
+  # libssl-dev \
+  # lld \
+  # musl-tools \
+  pkg-config \
+  procps \
+  ripgrep \
+  sudo \
+  unzip \
+  zsh \
+  bash-completion \
+  fzf \
+  openssh-client \
+  gh \
+  nano \
+  tmux \
+  htop \
+  ttyd && \
+  rm -rf /var/lib/apt/lists/*
 
 
 COPY --from=node /usr/local/ /usr/local/
@@ -75,6 +75,7 @@ EXPOSE 8080
 ENV PORT=8080
 # ENV AUTOSTART_CMD="npx -y @openai/codex"
 ENV PRE_CMD="/fly-mcp/pre.ts"
+ENV SIXEL="on"
 COPY tmux.sh /tmux.sh
 ENTRYPOINT ["/tmux.sh"]
 CMD []

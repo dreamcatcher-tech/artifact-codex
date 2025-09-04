@@ -191,6 +191,29 @@ start_ttyd() {
     client_flags+=( -t enableSixel=true )
   fi
 
+  # Ensure a fresh session is created on reconnect if the user exited the shell.
+  # This prevents ttyd from rapidly reconnecting with "no sessions" when
+  # AUTOSTART_CMD is not set and the interactive shell is exited.
+  local CMD
+  CMD=$(app_cmd)
+  export TMUX_APP_CMD="$CMD"
+
+  # Build an attach wrapper that creates the session if missing, applies
+  # minimal UI settings, and then attaches. This runs per client connect.
+  local -a attach_wrapper=(
+    bash -lc
+    "tmux -L \"$SOCKET\" has-session -t \"$SESSION\" 2>/dev/null || (
+       tmux -L \"$SOCKET\" -f /dev/null new-session -Ad -s \"$SESSION\" -n \"$WINDOW_TITLE\" \"\$TMUX_APP_CMD\" >/dev/null;
+       tmux -L \"$SOCKET\" set -g history-limit \"$SCROLL\" >/dev/null;
+       tmux -L \"$SOCKET\" set -g status off >/dev/null;
+       tmux -L \"$SOCKET\" set -g set-titles off >/dev/null;
+       tmux -L \"$SOCKET\" set -g mouse \"$MOUSE\" >/dev/null;
+       tmux -L \"$SOCKET\" setw -g allow-rename off >/dev/null;
+       tmux -L \"$SOCKET\" setw -g automatic-rename off >/dev/null
+     );
+     exec tmux -L \"$SOCKET\" attach -t \"$SESSION\""
+  )
+
   exec ttyd -W -p "$PORT" \
     -t scrollback="$SCROLL" \
     -t scrollOnUserInput=false \
@@ -200,7 +223,7 @@ start_ttyd() {
     -t macOptionClickForcesSelection=true \
     -t disableLeaveAlert=true \
     "${client_flags[@]}" \
-    tmux -L "$SOCKET" attach -t "$SESSION"
+    "${attach_wrapper[@]}"
 }
 
 # --- main ------------------------------------------------------------------

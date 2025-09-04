@@ -1,5 +1,10 @@
 {
-  "workspace": ["design", "universal-compute/agent-router", "universal-compute/fly-mcp"],
+  "workspace": [
+    "design",
+    "universal-compute/agent-router",
+    "universal-compute/fly-mcp",
+    "universal-compute/computer-mcp"
+  ],
   "tasks": {
     "fmt": "deno fmt design",
     "fmt:check": "deno fmt --check design",
@@ -18,7 +23,9 @@
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   },
   "nodeModulesDir": "auto"

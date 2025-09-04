@@ -609,6 +609,15 @@
           "npm:@modelcontextprotocol/sdk@^1.17.4"
         ]
       },
+      "universal-compute/computer-mcp": {
+        "dependencies": [
+          "jsr:@std/dotenv@~0.225.5",
+          "jsr:@std/expect@^1.0.17",
+          "jsr:@std/ulid@1",
+          "npm:@modelcontextprotocol/sdk@^1.17.4",
+          "npm:zod@^3.25.76"
+        ]
+      },
       "universal-compute/fly-mcp": {
         "dependencies": [
           "jsr:@std/dotenv@~0.225.5",
