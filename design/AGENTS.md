@@ -9,9 +9,11 @@ section to freeze it; fundamental changes go through an ADR.
 - All documentation lives under `docs/`.
 - Architecture Decision Records live under `docs/ADRs/` (one decision per file, numbered).
 - The doc agent edits only within `docs/` (and `docs/ADRs/`) unless explicitly asked to modify
-  tooling (e.g., `scripts/`, `deno.json`).
+  tooling (e.g., `scripts/`).
 - Cross‑doc links use relative paths within `docs/` (e.g., `TERMS.md`, `ADRs/0004-…md`).
-- Validation: run `deno task ok` before PRs; failures block merges.
+- Validation: run Mermaid checks before PRs; failures block merges.
+   Command: `deno run -q --allow-read ../scripts/mermaid-validate.ts` (from this directory) or
+   `deno run -q --allow-read scripts/mermaid-validate.ts` (from repo root).
 
 ## 
 
@@ -84,8 +86,10 @@ section to freeze it; fundamental changes go through an ADR.
 - Mermaid: use in-line fenced `mermaid` blocks for architecture, flows, state/sequence diagrams;
   store shared versions in `DIAGRAMS.md`.
 - Accessibility: include brief text captions and avoid color-only distinctions.
-- Validation: after any edit to Markdown files, run `deno task check:mermaid`. Treat any failures as
-  blockers and fix before commit/PR. Validation must pass before the task is considered done.
+- Validation: after any edit to Markdown files, run
+  `deno run -q --allow-read ../scripts/mermaid-validate.ts` to validate Mermaid blocks. Treat any
+  failures as blockers and fix before commit/PR. Validation must pass before the task is considered
+  done.
 
 ### Mermaid Syntax Guardrails (accepted — 2025-08-30)
 
@@ -96,7 +100,8 @@ section to freeze it; fundamental changes go through an ADR.
 - Use the safe subset of shapes: default rectangles with `["..."]`. Avoid mixing shorthand shape
   markers inside labels (e.g., `[(text)]`).
 - Subgraphs: `subgraph Name` … `end`. Keep titles simple (no punctuation) to reduce ambiguity.
-- Always validate locally: run `deno task check:mermaid` before PRs.
+- Always validate locally: run the Mermaid validator before PRs:
+  `deno run -q --allow-read ../scripts/mermaid-validate.ts`.
 
 Common error
 

@@ -72,7 +72,7 @@ WORKDIR /workspace
 # Set default runtime shell env to zsh (tmux will also be configured below).
 ENV SHELL=/usr/bin/zsh
 
-COPY scripts/setup-powerlevel.sh /usr/local/bin/setup-powerlevel.sh
+COPY setup-powerlevel.sh /usr/local/bin/setup-powerlevel.sh
 RUN bash /usr/local/bin/setup-powerlevel.sh
 
 # Default entrypoint runs the MCP web server

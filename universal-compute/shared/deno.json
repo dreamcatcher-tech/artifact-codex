@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/mcp-shared",
+  "name": "@artifact/shared",
   "tasks": {
     "test": "deno test -A",
     "lint": "deno lint --fix",
