@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { probeTokenScope } from '@artifact/mcp-shared'
+import { probeTokenScope } from '@artifact/shared'
 
 Deno.test('probeTokenScope -> org when listFlyApps succeeds', async () => {
   // Mock fetch: getFlyApp (derive org) then listFlyApps ok

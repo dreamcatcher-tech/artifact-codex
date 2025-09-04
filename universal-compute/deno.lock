@@ -549,7 +549,7 @@
           "npm:zod@^3.25.76"
         ]
       },
-      "mcp-shared": {
+      "shared": {
         "dependencies": [
           "jsr:@std/expect@^1.0.17",
           "npm:@modelcontextprotocol/sdk@^1.17.4"

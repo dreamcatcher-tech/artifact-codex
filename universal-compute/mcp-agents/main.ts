@@ -5,13 +5,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { deriveBaseName, nextIndexForName } from '@artifact/mcp-shared'
-import {
-  getEnv,
-  isValidFlyName,
-  toError,
-  toStructured,
-} from '@artifact/mcp-shared'
+import { deriveBaseName, nextIndexForName } from '@artifact/shared'
+import { getEnv, isValidFlyName, toError, toStructured } from '@artifact/shared'
 
 // Schemas describing structuredContent for tool results
 const machineSummarySchema = z.object({
@@ -28,11 +23,7 @@ const listAgentsOutput = z.object({ machines: z.array(machineSummarySchema) })
 const createAgentOutput = z.object({ machine: machineSummarySchema })
 // (Computer management schemas removed in fly-mcp)
 
-import {
-  createMachine,
-  destroyMachine,
-  listMachines,
-} from '@artifact/mcp-shared'
+import { createMachine, destroyMachine, listMachines } from '@artifact/shared'
 
 await load({
   envPath: new URL('./.env', import.meta.url).pathname,

@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { deriveBaseName, nextIndexForName } from '@artifact/mcp-shared'
+import { deriveBaseName, nextIndexForName } from '@artifact/shared'
 
 Deno.test('deriveBaseName strips trailing numeric suffix', () => {
   expect(deriveBaseName('agent')).toBe('agent')

@@ -3,7 +3,7 @@
     "agent-router",
     "mcp-agents",
     "mcp-computers",
-    "mcp-shared"
+    "shared"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok"

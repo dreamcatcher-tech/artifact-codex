@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { createMachine, listMachines } from '@artifact/mcp-shared'
+import { createMachine, listMachines } from '@artifact/shared'
 
 Deno.test(
   'listMachines maps fields and builds URL without query params',

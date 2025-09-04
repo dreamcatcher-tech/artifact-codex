@@ -5,14 +5,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { nextIndexForName } from '@artifact/mcp-shared'
+import { nextIndexForName } from '@artifact/shared'
 import {
+  appExists,
+  createFlyApp,
+  createMachine,
+  destroyFlyApp,
   getEnv,
+  getFlyApp,
+  getFlyMachine,
   isValidFlyName,
+  listFlyApps,
+  listMachines,
+  probeTokenScope,
   toError,
   toStructured,
-} from '@artifact/mcp-shared'
-import { probeTokenScope } from '@artifact/mcp-shared'
+} from '@artifact/shared'
 
 // Schemas
 const machineSummarySchema = z.object({
@@ -38,17 +46,6 @@ const listComputersOutput = z.object({
   })),
 })
 const computerExistsOutput = z.object({ name: z.string(), exists: z.boolean() })
-
-import {
-  appExists,
-  createFlyApp,
-  createMachine,
-  destroyFlyApp,
-  getFlyApp,
-  getFlyMachine,
-  listFlyApps,
-  listMachines,
-} from '@artifact/mcp-shared'
 
 await load({
   envPath: new URL('./.env', import.meta.url).pathname,
