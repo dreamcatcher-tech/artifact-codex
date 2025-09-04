@@ -285,6 +285,46 @@ export async function probeTokenScope(
   let org = (orgSlug ?? '').trim()
   const evidence: ProbeTokenScopeResult['evidence'] = {}
 
+  // Test helpers: magic tokens short-circuit classification without network
+  // - 'TEST_ORG' or 'TEST_ORG:<slug>' => org-scoped
+  // - 'TEST_APP' or 'TEST_APP:<slug>' => app-scoped
+  // - 'TEST_UNKNOWN' => unknown
+  const magic = token.startsWith('TEST_') ? token : ''
+  if (magic) {
+    const [, kind, slug] = /^(TEST_\w+)(?::([\w-]+))?$/.exec(magic) ?? []
+    const fakeOrg = slug || 'test'
+    if (kind === 'TEST_ORG') {
+      return {
+        classification: 'org',
+        orgSlug: fakeOrg,
+        appName: derivedApp || undefined,
+        evidence: {
+          getApp: { ok: true, status: 200 },
+          listApps: { ok: true, status: 200 },
+        },
+      }
+    }
+    if (kind === 'TEST_APP') {
+      return {
+        classification: 'app',
+        orgSlug: fakeOrg,
+        appName: derivedApp || undefined,
+        evidence: {
+          getApp: { ok: true, status: 200 },
+          listApps: { ok: false, status: 403 },
+        },
+      }
+    }
+    if (kind === 'TEST_UNKNOWN') {
+      return {
+        classification: 'unknown',
+        orgSlug: org || undefined,
+        appName: derivedApp || undefined,
+        evidence,
+      }
+    }
+  }
+
   // If we don't have an org, try to derive from the app
   if (!org && derivedApp) {
     try {

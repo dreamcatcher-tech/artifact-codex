@@ -21,6 +21,10 @@ writable_roots = ["/root"]
 exclude_slash_tmp = false
 exclude_tmpdir_env_var = false
 
-[mcp_servers.fly-mcp]
-command = "/fly-mcp/main.ts"
+[mcp_servers.mcp-computers]
+command = "/mcp-computers/main.ts"
+args = []
+
+[mcp_servers.mcp-agents]
+command = "/mcp-agents/main.ts"
 args = []

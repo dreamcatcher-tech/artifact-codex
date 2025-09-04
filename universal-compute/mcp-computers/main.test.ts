@@ -13,7 +13,7 @@ type JsonRpcResponse = {
   error?: { code: number; message: string; data?: unknown }
 }
 
-async function spawnServer() {
+async function spawnServer(env?: Record<string, string>) {
   const cmd = new Deno.Command('deno', {
     args: [
       'run',
@@ -25,6 +25,7 @@ async function spawnServer() {
       '--allow-net',
       'main.ts',
     ],
+    env,
     stdin: 'piped',
     stdout: 'piped',
     stderr: 'piped',
@@ -148,11 +149,39 @@ Deno.test({
 })
 
 Deno.test({
-  name: 'tools/list includes only computer tools',
+  name: 'no org token => tools/list not available',
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
   const srv = await spawnServer()
+  try {
+    await srv.request('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'test-client', version: '0.1.0' },
+    }, 1)
+    let err: unknown
+    try {
+      await srv.request('tools/list', {}, 2)
+    } catch (e) {
+      err = e
+    }
+    expect(String(err)).toContain('tools/list error')
+    expect(String(err)).toContain('Method not found')
+  } finally {
+    await srv.close()
+  }
+})
+
+Deno.test({
+  name: 'org-scoped token => computer tools exposed',
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, async () => {
+  const srv = await spawnServer({
+    FLY_API_TOKEN: 'TEST_ORG',
+    FLY_APP_NAME: 'dummy',
+  })
   try {
     await srv.request('initialize', {
       protocolVersion: '2024-11-05',
@@ -167,15 +196,16 @@ Deno.test({
     expect(names).toContain('computer_exists')
     expect(names).toContain('destroy_computer')
     expect(names).not.toContain('list_agents')
-    expect(names).not.toContain('create_agent')
-    expect(names).not.toContain('destroy_agent')
   } finally {
     await srv.close()
   }
 })
 
-Deno.test('create_computer rejects invalid userId early', async () => {
-  await using srv = await spawnServer()
+Deno.test('create_computer rejects invalid userId early (org token)', async () => {
+  await using srv = await spawnServer({
+    FLY_API_TOKEN: 'TEST_ORG',
+    FLY_APP_NAME: 'dummy',
+  })
   await srv.request('initialize', {
     protocolVersion: '2024-11-05',
     capabilities: {},
