@@ -1,6 +1,8 @@
 import { Hono } from 'jsr:@hono/hono'
 
-export type LocalResolver = (port: number) => ((req: Request) => Promise<Response>) | undefined
+export type LocalResolver = (
+  port: number,
+) => ((req: Request) => Promise<Response>) | undefined
 
 export interface ProxyOptions {
   resolveLocal?: LocalResolver
@@ -89,15 +91,21 @@ function proxyWS(req: Request): Response {
     if (upstream.readyState === WebSocket.OPEN) upstream.send(ev.data)
   }
   const pumpDown = (ev: MessageEvent) => {
-    if ((socket as WebSocket).readyState === WebSocket.OPEN) (socket as WebSocket).send(ev.data)
+    if ((socket as WebSocket).readyState === WebSocket.OPEN) {
+      ;(socket as WebSocket).send(ev.data)
+    }
   }
 
   socket.onmessage = pumpUp
   upstream.onmessage = pumpDown
 
   const close = () => {
-    try { socket.close() } catch (_) {}
-    try { upstream.close() } catch (_) {}
+    try {
+      socket.close()
+    } catch (_) {}
+    try {
+      upstream.close()
+    } catch (_) {}
   }
   socket.onerror = close
   upstream.onerror = close
@@ -120,4 +128,3 @@ export function createApp(opts: ProxyOptions = {}) {
 }
 
 export type App = ReturnType<typeof createApp>
-

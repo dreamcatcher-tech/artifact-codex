@@ -1,5 +1,5 @@
 import { Hono } from 'jsr:@hono/hono'
-import { assertEquals, assert } from 'jsr:@std/assert'
+import { assert, assertEquals } from 'jsr:@std/assert'
 import { createApp, type LocalResolver } from '../src/app.ts'
 
 function upstreamEcho(label: string) {
@@ -35,7 +35,9 @@ Deno.test('proxies GET and strips port param', async () => {
   registry.set(23423, upstreamEcho('u1'))
   const app = createApp({ resolveLocal: makeResolver(registry) })
 
-  const res = await app.request('http://proxy.local/hello/world?port=23423&x=1&y=2')
+  const res = await app.request(
+    'http://proxy.local/hello/world?port=23423&x=1&y=2',
+  )
   assertEquals(res.status, 200)
   const json = await res.json()
 
@@ -78,4 +80,3 @@ Deno.test('400 on missing or invalid port', async () => {
   res = await app.request('http://proxy.local/nope?port=abc')
   assertEquals(res.status, 400)
 })
-

@@ -1,6 +1,8 @@
 # Deno + Hono Port Param Proxy
 
-A tiny Deno project that uses Hono (from JSR) to proxy requests to a local port selected by a `port` query parameter. The proxy strips the `port` parameter before forwarding so the upstream never sees it.
+A tiny Deno project that uses Hono (from JSR) to proxy requests to a local port
+selected by a `port` query parameter. The proxy strips the `port` parameter
+before forwarding so the upstream never sees it.
 
 - HTTP pass‑through with streaming bodies
 - Optional WebSocket bridge
@@ -30,6 +32,8 @@ deno test -A
 ```
 
 ## Notes
+
 - The proxy strips hop‑by‑hop headers (Connection, TE, Upgrade, etc.).
 - For WebSockets, upgrade is handled and bridged to `ws://127.0.0.1:<port>...`.
-- In production you’ll use real ports; in tests we inject a resolver that maps port numbers to in‑memory Hono apps.
+- In production you’ll use real ports; in tests we inject a resolver that maps
+  port numbers to in‑memory Hono apps.

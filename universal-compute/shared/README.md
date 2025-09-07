@@ -1,4 +1,4 @@
-@artifact/mcp-shared
+@artifact/shared
 
 Shared helpers and utilities used by the MCP servers in this repo.
 
@@ -21,5 +21,5 @@ Shared helpers and utilities used by the MCP servers in this repo.
 
 ## Usage
 
-- Import via the local package name: `@artifact/mcp-shared` (exported from
+- Import via the local package name: `@artifact/shared` (exported from
   `mod.ts`).
