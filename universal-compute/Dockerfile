@@ -45,8 +45,9 @@ RUN apt-get update && \
   openssh-client \
   gh \
   nano \
-  tmux \
   htop \
+  nnn \
+  tmux \
   ttyd && \
   rm -rf /var/lib/apt/lists/*
 

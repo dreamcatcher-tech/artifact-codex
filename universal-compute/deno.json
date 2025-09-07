@@ -3,6 +3,9 @@
     "agent-router",
     "mcp-agents",
     "mcp-computers",
+    "mcp-faces",
+    "mcp-interactions",
+    "codex-notify",
     "shared"
   ],
   "tasks": {
