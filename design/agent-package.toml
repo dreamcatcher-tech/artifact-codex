@@ -1,0 +1,160 @@
+name = "agent-name"
+# just use whole numbers since semver fails for natural language
+version = "5"
+format = "v1"
+
+description = "This is a description of the agent"
+
+# the path to the docker file that will be used to run the agent
+dockerfile = "path/to/Dockerfile"
+
+# asset files assosciated with the agent, like profile pic, etc
+branding = "path/to/branding/"
+
+[stucks]
+napp = "@artifact/stucks"
+tool = "create"
+
+[stucks.parameters]
+title = "This is the title of the stuck"
+description = "This is the description of the stuck"
+snapshotId = "snapshot-id"
+crypto = "crypto-id"
+branch = "main"
+expectations = ["Mrs Miggins should have two pies, not one"]
+
+[agent]
+napp = "@artifact/openai"
+tool = "some-exported-function"
+
+[agent.parameters]
+model = "gpt-4o"
+parallel_tool_calls = false
+stop_on_tools = ["tool1", "tool3"]
+tools = ["some-function"]
+instructions = "instructions.md"
+
+main = "some-tool-name"
+
+# module is used if all the tools come from the same package
+[module]
+package = "npm:lodash"
+export = "some-exported-object"
+path = ["some", "path", "within", "the", "object"]
+
+
+[tools]
+
+[tools.some-function]
+description = "This function does something"
+
+[tools.some-function.parameters]
+type = "object"
+required = ["location"]
+additionalProperties = false
+
+[tools.some-function.parameters.properties.location]
+type = "string"
+description = "City and country e.g. Bogotá, Colombia"
+
+[tools.some-function.returns]
+description = "This is what the function returns"
+type = "string"
+
+[tools.some-function.throws]
+
+[tools.some-function.throws.FileNotFoundError]
+
+[tools.some-function.module]
+package = "npm:lodash"
+export = "some-exported-object"
+path = ["some", "path", "within", "the", "object"]
+
+# by referring to a napp directly, it will be called as an agent
+tools.some-other-function = "@napps/dependent-napp-name"
+
+[tools.modified-passthru]
+parameters = {}
+
+[tools.modified-passthru.napp]
+name = "@napps/dependent-napp-name"
+tool = "some-exported-function"
+
+[tools.side-effect-function]
+description = "This function has side effects"
+parameters = {}
+
+[tools.side-effect-function.effects]
+type = "object"
+
+[tools.side-effect-function.effects.properties.db]
+description = "This is the database"
+type = "object"
+
+[tools."@mount"]
+description = "This function mounts the side effect context"
+
+[tools."@unmount"]
+description = "This function unmounts the side effect context"
+
+[tools."@init"]
+description = "An action that is always available to side effect napps, that will do everything but execute the action.  This is used when some other napp requires that this napp be mounted, but does not need to execute any actions."
+
+[tools.streaming-function]
+description = "This function streams data"
+
+[tools.streaming-function.parameters]
+type = "object"
+required = ["param1"]
+additionalProperties = false
+
+[tools.streaming-function.parameters.properties.param1]
+description = "This is the first parameter"
+type = "string"
+
+[tools.streaming-function.stream]
+type = "string"
+
+[tools."empty-function"]
+
+[evals]
+napp = "napp-test-runner-name"
+
+[evals.parameters]
+files = []
+
+[dependencies]
+
+[dependencies.dependent-napp-name]
+version = "0.0.1"
+
+[dependencies.napp-test-runner-name]
+name = "@artifact/evals"
+version = "0.0.1"
+
+[frames]
+truckRoutes = "@artifact/truck-routes"
+
+[frames.googleMapsViewer]
+type = "react"
+parameters = {}
+
+[frames.googleMapsViewer.module]
+package = "npm:google-maps-react"
+export = "GoogleMaps"
+path = ["components", "GoogleMaps"]
+
+[frames.weatherDisplay]
+napp = "@artifact/weather"
+frame = "weatherDisplayInCelsius"
+
+[effects]
+type = "object"
+
+[effects.properties.db]
+description = "This is the database"
+type = "object"
+
+[effects.properties.fetch]
+description = "This is the fetch function"
+type = "object"
