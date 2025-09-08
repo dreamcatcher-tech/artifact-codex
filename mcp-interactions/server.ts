@@ -49,19 +49,16 @@ export type InteractionsHandlers = {
   destroy_interaction: ToolHandler<{ agentPath: string; interactionId: string }>
 }
 
-export interface CreateInteractionsServerOptions {
-  serverInfo?: { name?: string; version?: string }
-}
+export type CreateInteractionsServerOptions = Record<string, never>
 
+/**
+ * Register Interactions tools on an existing MCP server and return it.
+ */
 export function createInteractionsServer(
+  server: McpServer,
   impls: InteractionsHandlers,
-  opts: CreateInteractionsServerOptions = {},
+  _opts: CreateInteractionsServerOptions = {},
 ): McpServer {
-  const server = new McpServer({
-    name: opts.serverInfo?.name ?? 'interactions-mcp',
-    version: opts.serverInfo?.version ?? '0.0.1',
-  })
-
   server.registerTool(
     'list_interactions',
     {

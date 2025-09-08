@@ -44,19 +44,16 @@ export type FacesHandlers = {
   destroy_face: ToolHandler<{ agentPath: string; faceId: string }>
 }
 
-export interface CreateFacesServerOptions {
-  serverInfo?: { name?: string; version?: string }
-}
+export type CreateFacesServerOptions = Record<string, never>
 
+/**
+ * Register Faces tools on an existing MCP server and return it.
+ */
 export function createFacesServer(
+  server: McpServer,
   impls: FacesHandlers,
-  opts: CreateFacesServerOptions = {},
+  _opts: CreateFacesServerOptions = {},
 ): McpServer {
-  const server = new McpServer({
-    name: opts.serverInfo?.name ?? 'faces-mcp',
-    version: opts.serverInfo?.version ?? '0.0.1',
-  })
-
   server.registerTool(
     'list_faces',
     {

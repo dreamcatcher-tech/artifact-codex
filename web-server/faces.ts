@@ -1,16 +1,8 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-net
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
-import { createFacesServer } from './server.ts'
 
-// Export the factory for library consumers
-export { createFacesServer } from './server.ts'
-
-// Default stub implementations used when running as a CLI stdio server
-const base = new McpServer({ name: 'faces-mcp', version: '0.0.1' })
-const server = createFacesServer(base, {
+export const facesImpls: FacesHandlers = {
   list_faces: ({ agentPath }, extra): Promise<CallToolResult> => {
     console.log('list_faces', { agentPath, extra })
     try {
@@ -49,7 +41,4 @@ const server = createFacesServer(base, {
       return Promise.resolve(toError(err))
     }
   },
-})
-
-const transport = new StdioServerTransport()
-await server.connect(transport)
+}

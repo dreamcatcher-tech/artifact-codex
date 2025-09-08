@@ -1,14 +1,8 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-net
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
-import { createInteractionsServer } from './server.ts'
 
-export { createInteractionsServer } from './server.ts'
-
-const base = new McpServer({ name: 'interactions-mcp', version: '0.0.1' })
-const server = createInteractionsServer(base, {
+export const interactionsImpls: InteractionsHandlers = {
   list_interactions: ({ agentPath }, extra): Promise<CallToolResult> => {
     console.log('list_interactions', { agentPath, extra })
     try {
@@ -56,7 +50,4 @@ const server = createInteractionsServer(base, {
       return Promise.resolve(toError(err))
     }
   },
-})
-
-const transport = new StdioServerTransport()
-await server.connect(transport)
+}

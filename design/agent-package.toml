@@ -1,16 +1,20 @@
-name = "agent-name"
-# just use whole numbers since semver fails for natural language
-version = "5"
+
 format = "v1"
+
+name = "agent-name"
+
+# whole numbers since semver fails for natural language
+version = "5"
 
 description = "This is a description of the agent"
 
-# the path to the docker file that will be used to run the agent
+# Here we indicate runtime via a Dockerfile that builds/executes the agent.
 dockerfile = "path/to/Dockerfile"
 
-# asset files assosciated with the agent, like profile pic, etc
+# Folder containing the branding assets of the agent (e.g., profile image).
 branding = "path/to/branding/"
 
+# Configuration for creating a "stuck" record via the `@artifact/stucks` agent.
 [stucks]
 napp = "@artifact/stucks"
 tool = "create"
@@ -19,37 +23,57 @@ tool = "create"
 title = "This is the title of the stuck"
 description = "This is the description of the stuck"
 snapshotId = "snapshot-id"
+# universally and securely id the repo
 crypto = "crypto-id"
 branch = "main"
 expectations = ["Mrs Miggins should have two pies, not one"]
 
+# Agent entrypoint
+# Takes plain text in; returns text plus modified files
 [agent]
 napp = "@artifact/openai"
 tool = "some-exported-function"
 
 [agent.parameters]
+# Parameters for the chat runner (same shape as a tool call).
 model = "gpt-4o"
 parallel_tool_calls = false
+# If any of these tool calls are made, the agent will stop.
 stop_on_tools = ["tool1", "tool3"]
+# "tools" is special: if not given, it is resolved back to the calling agent.
 tools = ["some-function"]
+# Content is reserved as the input; do not specify it here.
+# Default instructions file is "instructions.md" but can be overridden.
 instructions = "instructions.md"
 
+# Default function to run.
+# If not set and only one tool is exported, that tool is the default.
+# If not set and there is a tool named "main", that tool is the default.
 main = "some-tool-name"
 
 # module is used if all the tools come from the same package
 [module]
+# If tool exports are not in the default module export, use `export` and `path`.
+# Each tool can also specify its own module, which overrides this top-level one.
+# If omitted, a module named the same as the agent can be assumed.
+# Only publicly exported functions are accessible.
 package = "npm:lodash"
 export = "some-exported-object"
 path = ["some", "path", "within", "the", "object"]
 
 
 [tools]
+## Tools notes
+# - If no `parameters` object is given, an empty object is assumed.
+# - If no `returns` object is given, the function must return `undefined`.
+# - If no `description` is given, an empty string is assumed.
 
 [tools.some-function]
 description = "This function does something"
 
 [tools.some-function.parameters]
 type = "object"
+# If extra properties are included, they are stripped when parsing.
 required = ["location"]
 additionalProperties = false
 
@@ -62,10 +86,14 @@ description = "This is what the function returns"
 type = "string"
 
 [tools.some-function.throws]
+# Optionally include a list of errors and how to handle them.
 
 [tools.some-function.throws.FileNotFoundError]
 
 [tools.some-function.module]
+# If `path` is not given, the default export must include a function that
+# satisfies this signature and matches the tool name. If `path` is given, the
+# function name will be searched for; if not found, the default export is used.
 package = "npm:lodash"
 export = "some-exported-object"
 path = ["some", "path", "within", "the", "object"]
@@ -74,10 +102,15 @@ path = ["some", "path", "within", "the", "object"]
 tools.some-other-function = "@napps/dependent-napp-name"
 
 [tools.modified-passthru]
+## Passthrough tool
+# Passes through to a tool of the same name.
+# Optionally can modify parameters so long as the change narrows, not expands.
 parameters = {}
 
 [tools.modified-passthru.napp]
 name = "@napps/dependent-napp-name"
+# If `tool` is omitted, it is assumed to be the same as the containing tool.
+# This key could be "agent" to allow rewriting of agent parameters instead.
 tool = "some-exported-function"
 
 [tools.side-effect-function]
@@ -86,15 +119,19 @@ parameters = {}
 
 [tools.side-effect-function.effects]
 type = "object"
+# If this were `true/false`, it would indicate a side-effecting function that may
+# rely on agent-level effects context.
 
 [tools.side-effect-function.effects.properties.db]
 description = "This is the database"
 type = "object"
 
 [tools."@mount"]
+# Mounts the side-effect context; no parameters allowed.
 description = "This function mounts the side effect context"
 
 [tools."@unmount"]
+# Unmounts the side-effect context; no parameters allowed.
 description = "This function unmounts the side effect context"
 
 [tools."@init"]
@@ -113,17 +150,22 @@ description = "This is the first parameter"
 type = "string"
 
 [tools.streaming-function.stream]
+# If a stream schema is given, the function must return an AsyncIterable.
 type = "string"
 
 [tools."empty-function"]
 
 [evals]
+# Config for the test runner (depends on the runner implementation).
 napp = "napp-test-runner-name"
 
 [evals.parameters]
+# List of eval files that verify the agent is working correctly.
 files = []
 
 [dependencies]
+# List of napps this agent depends on; pin versions/commits so references can be
+# made by simple name.
 
 [dependencies.dependent-napp-name]
 version = "0.0.1"
@@ -133,22 +175,28 @@ name = "@artifact/evals"
 version = "0.0.1"
 
 [frames]
+# Exported frames that can be displayed on the stateboard.
 truckRoutes = "@artifact/truck-routes"
 
 [frames.googleMapsViewer]
 type = "react"
+## React props that can be configured by the LLM (same format as tool call parameters)
 parameters = {}
 
 [frames.googleMapsViewer.module]
+# Uses the same rules as tools for importing graphics components.
 package = "npm:google-maps-react"
 export = "GoogleMaps"
 path = ["components", "GoogleMaps"]
 
 [frames.weatherDisplay]
+# Allows renaming the graphics component during passthrough.
+# Could also modify the React props here.
 napp = "@artifact/weather"
 frame = "weatherDisplayInCelsius"
 
 [effects]
+# Side effects context shape for the whole agent (can also be set per-tool).
 type = "object"
 
 [effects.properties.db]

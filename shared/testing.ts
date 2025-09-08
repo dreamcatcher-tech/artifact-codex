@@ -1,17 +1,3 @@
-export type JsonRpcRequest = {
-  jsonrpc: '2.0'
-  id: number | string
-  method: string
-  params?: unknown
-}
-
-export type JsonRpcResponse = {
-  jsonrpc: '2.0'
-  id: number | string | null
-  result?: unknown
-  error?: { code: number; message: string; data?: unknown }
-}
-
 export type SpawnOptions = {
   /**
    * Command to run. Defaults to `deno`.
@@ -34,13 +20,14 @@ export type SpawnOptions = {
 }
 
 export type StdioMcpServer = {
-  child: Deno.ChildProcess
+  /** Child process pid if available (SDK client). */
+  pid: number | null
   request: <T = unknown>(
     method: string,
     params?: unknown,
     id?: number | string,
   ) => Promise<T>
-  close: () => Promise<void>
+  close: () => void
   [Symbol.asyncDispose]: () => Promise<void>
 }
 
@@ -51,6 +38,22 @@ export type StdioMcpServer = {
  * --allow-env --allow-net main.ts` in the current working directory (each
  * `mcp-*` package tests run from their own folder).
  */
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import type { ClientRequest as MCPClientRequest } from '@modelcontextprotocol/sdk/types.js'
+import { z } from 'zod'
+import process from 'node:process'
+
+function pidIsAlive(id: number): boolean {
+  try {
+    // Signal 0: probe for existence (no-op if alive; throws if dead)
+    process.kill(id, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function spawnStdioMcpServer(
   opts: SpawnOptions = {},
 ): Promise<StdioMcpServer> {
@@ -66,125 +69,56 @@ export async function spawnStdioMcpServer(
     'main.ts',
   ]
 
-  const command = new Deno.Command(cmd, {
+  const transport = new StdioClientTransport({
+    command: cmd,
     args,
     env: opts.env,
-    stdin: 'piped',
-    stdout: 'piped',
-    stderr: 'piped',
+    cwd: Deno.cwd(),
   })
 
-  const child = command.spawn()
-  const enc = new TextEncoder()
-  const dec = new TextDecoder()
+  const client = new Client({ name: 'test-client', version: '0.1.0' })
+  await client.connect(transport)
 
-  const outReader = child.stdout.getReader()
-  const errReader = child.stderr.getReader()
-
-  let outBuf = ''
-  const pending: Map<number | string, (r: JsonRpcResponse) => void> = new Map() // Drain stderr (optionally print for debugging)
-  ;(async () => {
-    try {
-      while (true) {
-        const { value, done } = await errReader.read()
-        if (done) break
-        if (opts.passthroughStderr && value) {
-          // best-effort forwarding (avoid throwing if closed)
-          try {
-            Deno.stderr.writeSync(value)
-          } catch (_) {
-            // ignore
-          }
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-  })() // Read newline-delimited JSON from stdout
-  ;(async () => {
-    try {
-      while (true) {
-        const { value, done } = await outReader.read()
-        if (done) break
-        if (!value) continue
-        outBuf += dec.decode(value)
-        let idx: number
-        while ((idx = outBuf.indexOf('\n')) >= 0) {
-          const line = outBuf.slice(0, idx).trim()
-          outBuf = outBuf.slice(idx + 1)
-          if (!line) continue
-          try {
-            const msg = JSON.parse(line) as JsonRpcResponse
-            if (Object.prototype.hasOwnProperty.call(msg, 'id')) {
-              const resolver = pending.get(msg.id ?? '')
-              if (resolver) {
-                pending.delete(msg.id ?? '')
-                resolver(msg)
-              }
-            }
-          } catch (_) {
-            // ignore non-JSON lines
-          }
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-  })()
-
-  // Keep function async
-  await Promise.resolve()
+  // No additional stderr piping; 'inherit' avoids open resource tracking.
 
   async function request<T = unknown>(
     method: string,
     params?: unknown,
-    id: number | string = crypto.randomUUID(),
+    _id?: number | string,
   ): Promise<T> {
-    const req: JsonRpcRequest = { jsonrpc: '2.0', id, method, params }
-    const promise = new Promise<JsonRpcResponse>((resolve) => {
-      pending.set(id, resolve)
-    })
-    const writer = child.stdin.getWriter()
+    // Use a permissive schema to avoid per-method wiring in tests
+    const Any = z.any()
     try {
-      await writer.write(enc.encode(JSON.stringify(req) + '\n'))
-    } finally {
-      writer.releaseLock()
+      const req = (params === undefined)
+        ? { method }
+        : { method, params: params as Record<string, unknown> }
+      // Cast to the SDK's ClientRequest type to satisfy typing
+      const result = await client.request(req as MCPClientRequest, Any)
+      return result as T
+    } catch (err) {
+      // Normalize error message to match previous tests expectations
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(`${method} error: ${msg}`)
     }
-    const res = await promise
-    if (res.error) {
-      throw new Error(`${method} error ${res.error.code}: ${res.error.message}`)
-    }
-    return res.result as T
   }
 
   async function close() {
-    // Try to terminate cleanly; swallow errors from races
-    try {
-      child.kill('SIGTERM')
-    } catch (_) {
-      // ignore
-    }
-    try {
-      await child.status
-    } catch (_) {
-      // ignore
-    }
-    try {
-      outReader.releaseLock()
-    } catch (_) {
-      // ignore
-    }
-    try {
-      errReader.releaseLock()
-    } catch (_) {
-      // ignore
-    }
-    try {
-      child.stdin.close()
-    } catch (_) {
-      // ignore
+    const { pid } = transport
+
+    // Ask the transport to abort/close its child process.
+    await transport.close()
+
+    if (pid) {
+      while (pidIsAlive(pid)) {
+        await new Promise((r) => setTimeout(r))
+      }
     }
   }
 
-  return { child, request, close, [Symbol.asyncDispose]: close }
+  return {
+    pid: transport.pid,
+    request,
+    close,
+    [Symbol.asyncDispose]: close,
+  }
 }

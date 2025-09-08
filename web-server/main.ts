@@ -2,54 +2,16 @@
 import { Hono } from '@hono/hono'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { z } from 'zod'
+import { createInteractionsServer } from '@artifact/mcp-interactions'
+import { createFacesServer } from '@artifact/mcp-faces'
+import { interactionsImpls } from './interactions.ts'
+import { facesImpls } from './faces.ts'
 
 function createMcpServer() {
   const server = new McpServer({ name: 'web-server', version: '0.0.1' })
-
-  server.registerTool(
-    'echo',
-    {
-      description: 'Echo back provided text.',
-      inputSchema: { text: z.string() },
-      outputSchema: { echoed: z.string() },
-    },
-    ({ text }): CallToolResult => ({
-      content: [{ type: 'text', text }],
-      structuredContent: { echoed: text },
-    }),
-  )
-
-  server.registerTool(
-    'time',
-    {
-      description: 'Return current server time.',
-      inputSchema: {},
-      outputSchema: { iso: z.string(), epochMs: z.number() },
-    },
-    (): CallToolResult => {
-      const now = new Date()
-      return {
-        content: [{ type: 'text', text: now.toISOString() }],
-        structuredContent: { iso: now.toISOString(), epochMs: now.getTime() },
-      }
-    },
-  )
-
-  server.registerTool(
-    'ping',
-    {
-      description: 'Simple liveness check.',
-      inputSchema: {},
-      outputSchema: { pong: z.boolean() },
-    },
-    (): CallToolResult => ({
-      content: [{ type: 'text', text: 'pong' }],
-      structuredContent: { pong: true },
-    }),
-  )
-
+  // Register tools from package servers onto this instance
+  createInteractionsServer(server, interactionsImpls)
+  createFacesServer(server, facesImpls)
   return server
 }
 
