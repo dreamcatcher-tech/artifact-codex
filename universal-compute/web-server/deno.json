@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/web-mcp",
+  "name": "@artifact/web-server",
   "exports": "./main.ts",
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",

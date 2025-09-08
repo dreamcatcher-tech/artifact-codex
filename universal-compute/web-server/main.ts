@@ -6,7 +6,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 
 function createMcpServer() {
-  const server = new McpServer({ name: 'web-mcp', version: '0.0.1' })
+  const server = new McpServer({ name: 'web-server', version: '0.0.1' })
 
   server.registerTool(
     'echo',

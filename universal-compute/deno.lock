@@ -723,7 +723,7 @@
           "npm:zod@^3.25.76"
         ]
       },
-      "web-mcp": {
+      "web-server": {
         "dependencies": [
           "jsr:@dreamcatcher/artifact-mcp@~0.1.3",
           "jsr:@hono/hono@^4.9.6",

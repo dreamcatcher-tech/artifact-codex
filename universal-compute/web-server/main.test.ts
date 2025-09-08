@@ -29,7 +29,7 @@ Deno.test('MCP initialize handshake via SDK client', async () => {
   using fixtures = await withApp()
   const { client } = fixtures
   const info = client.getServerVersion()
-  expect(info?.name).toBe('web-mcp')
+  expect(info?.name).toBe('web-server')
   const caps = client.getServerCapabilities()
   expect(typeof caps).toBe('object')
 })
