@@ -2,7 +2,7 @@ import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
 
-export const interactionsImpls: InteractionsHandlers = {
+export const interactions: InteractionsHandlers = {
   list_interactions: ({ agentPath }, extra): Promise<CallToolResult> => {
     console.log('list_interactions', { agentPath, extra })
     try {

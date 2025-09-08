@@ -2,7 +2,7 @@ import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
 
-export const facesImpls: FacesHandlers = {
+export const faces: FacesHandlers = {
   list_faces: ({ agentPath }, extra): Promise<CallToolResult> => {
     console.log('list_faces', { agentPath, extra })
     try {

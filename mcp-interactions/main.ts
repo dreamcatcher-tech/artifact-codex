@@ -5,8 +5,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
 import { createInteractionsServer } from './server.ts'
 
-export { createInteractionsServer } from './server.ts'
-
 const base = new McpServer({ name: 'interactions-mcp', version: '0.0.1' })
 const server = createInteractionsServer(base, {
   list_interactions: ({ agentPath }, extra): Promise<CallToolResult> => {

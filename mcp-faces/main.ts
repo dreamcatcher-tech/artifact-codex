@@ -5,9 +5,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toError, toStructured } from '@artifact/shared'
 import { createFacesServer } from './server.ts'
 
-// Export the factory for library consumers
-export { createFacesServer } from './server.ts'
-
 // Default stub implementations used when running as a CLI stdio server
 const base = new McpServer({ name: 'faces-mcp', version: '0.0.1' })
 const server = createFacesServer(base, {

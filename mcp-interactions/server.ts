@@ -56,8 +56,7 @@ export type CreateInteractionsServerOptions = Record<string, never>
  */
 export function createInteractionsServer(
   server: McpServer,
-  impls: InteractionsHandlers,
-  _opts: CreateInteractionsServerOptions = {},
+  handlers: InteractionsHandlers,
 ): McpServer {
   server.registerTool(
     'list_interactions',
@@ -68,7 +67,7 @@ export function createInteractionsServer(
       inputSchema: { agentPath: z.string() },
       outputSchema: listInteractionsOutput.shape,
     },
-    (args, extra) => impls.list_interactions(args, extra),
+    (args, extra) => handlers.list_interactions(args, extra),
   )
 
   server.registerTool(
@@ -80,7 +79,7 @@ export function createInteractionsServer(
       inputSchema: { agentPath: z.string(), interactionKind: z.string() },
       outputSchema: createInteractionOutput.shape,
     },
-    (args, extra) => impls.create_interaction(args, extra),
+    (args, extra) => handlers.create_interaction(args, extra),
   )
 
   server.registerTool(
@@ -92,7 +91,7 @@ export function createInteractionsServer(
       inputSchema: { agentPath: z.string(), interactionId: z.string() },
       outputSchema: readInteractionOutput.shape,
     },
-    (args, extra) => impls.read_interaction(args, extra),
+    (args, extra) => handlers.read_interaction(args, extra),
   )
 
   server.registerTool(
@@ -104,7 +103,7 @@ export function createInteractionsServer(
       inputSchema: { agentPath: z.string(), interactionId: z.string() },
       outputSchema: destroyInteractionOutput.shape,
     },
-    (args, extra) => impls.destroy_interaction(args, extra),
+    (args, extra) => handlers.destroy_interaction(args, extra),
   )
 
   return server

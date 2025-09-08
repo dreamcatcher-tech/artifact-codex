@@ -4,14 +4,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
-import { interactionsImpls } from './interactions.ts'
-import { facesImpls } from './faces.ts'
+import { interactions } from './interactions.ts'
+import { faces } from './faces.ts'
 
 function createMcpServer() {
   const server = new McpServer({ name: 'web-server', version: '0.0.1' })
   // Register tools from package servers onto this instance
-  createInteractionsServer(server, interactionsImpls)
-  createFacesServer(server, facesImpls)
+  createInteractionsServer(server, interactions)
+  createFacesServer(server, faces)
   return server
 }
 
@@ -20,7 +20,6 @@ export function createApp() {
 
   const servers = new Set<McpServer>()
 
-  // Stateless handler: create fresh server+transport for every request.
   app.all('/mcp', async (c) => {
     const server = createMcpServer()
     servers.add(server)

@@ -51,8 +51,7 @@ export type CreateFacesServerOptions = Record<string, never>
  */
 export function createFacesServer(
   server: McpServer,
-  impls: FacesHandlers,
-  _opts: CreateFacesServerOptions = {},
+  handlers: FacesHandlers,
 ): McpServer {
   server.registerTool(
     'list_faces',
@@ -63,7 +62,7 @@ export function createFacesServer(
       inputSchema: { agentPath: z.string() },
       outputSchema: listFacesOutput.shape,
     },
-    (args, extra) => impls.list_faces(args, extra),
+    (args, extra) => handlers.list_faces(args, extra),
   )
 
   server.registerTool(
@@ -75,7 +74,7 @@ export function createFacesServer(
       inputSchema: { agentPath: z.string(), faceKind: z.string() },
       outputSchema: createFaceOutput.shape,
     },
-    (args, extra) => impls.create_face(args, extra),
+    (args, extra) => handlers.create_face(args, extra),
   )
 
   server.registerTool(
@@ -87,7 +86,7 @@ export function createFacesServer(
       inputSchema: { agentPath: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },
-    (args, extra) => impls.read_face(args, extra),
+    (args, extra) => handlers.read_face(args, extra),
   )
 
   server.registerTool(
@@ -99,7 +98,7 @@ export function createFacesServer(
       inputSchema: { agentPath: z.string(), faceId: z.string() },
       outputSchema: destroyFaceOutput.shape,
     },
-    (args, extra) => impls.destroy_face(args, extra),
+    (args, extra) => handlers.destroy_face(args, extra),
   )
 
   return server

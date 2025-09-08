@@ -1,6 +1,6 @@
 {
   "name": "@artifact/mcp-faces",
-  "exports": "./main.ts",
+  "exports": "./server.ts",
   "tasks": {
     "watch": "deno test -A --watch",
     "test": "deno test -A",
