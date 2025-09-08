@@ -4,14 +4,17 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
-import { interactions } from './interactions.ts'
-import { faces } from './faces.ts'
+import { createInteractions } from './interactions.ts'
+import { createFaces } from './faces.ts'
 
 function createMcpServer() {
   const server = new McpServer({ name: 'web-server', version: '0.0.1' })
   // Register tools from package servers onto this instance
-  createInteractionsServer(server, interactions)
+  const faces = createFaces()
   createFacesServer(server, faces)
+
+  const interactions = createInteractions()
+  createInteractionsServer(server, interactions)
   return server
 }
 
