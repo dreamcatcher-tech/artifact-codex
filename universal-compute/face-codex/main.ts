@@ -1,11 +1,11 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import { type Face, type StartFaceOptions } from '../shared/mod.ts'
+import { type Face, type FaceOptions } from '../shared/mod.ts'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
  */
-export function startFaceCodex(opts: StartFaceOptions = {}): Face {
+export function startFaceCodex(opts: FaceOptions = {}): Face {
   const startedAt = new Date()
   let closed = false
   let count = 0
@@ -20,6 +20,9 @@ export function startFaceCodex(opts: StartFaceOptions = {}): Face {
   let pid: number | undefined
   let configDir: string | undefined
   let workspaceDir: string | undefined
+  let lastNotificationRaw: string | undefined
+  let notifications = 0
+  let pendingNotifyWatcher: Promise<void> | null = null
 
   async function ensureConfigIfNeeded() {
     // Only act when both directories are provided (implies launch)
@@ -52,6 +55,23 @@ export function startFaceCodex(opts: StartFaceOptions = {}): Face {
     }
     for (const [needle, value] of Object.entries(replacements)) {
       template = template.split(needle).join(value)
+    }
+
+    // Inject notify command to call our notify script with required permissions.
+    const notifyScript = join(thisDir, 'notify.ts')
+    const notifyArr = [
+      'deno',
+      'run',
+      `--allow-write=${configDir}`,
+      notifyScript,
+      '--dir',
+      String(configDir),
+    ]
+    if (!/\nnotify\s*=/.test(template)) {
+      const notifyListStr = notifyArr
+        .map((s) => JSON.stringify(s))
+        .join(', ')
+      template += `\nnotify = [${notifyListStr}]\n`
     }
 
     const outPath = join(configDir, 'codex.config.toml')
@@ -107,6 +127,70 @@ export function startFaceCodex(opts: StartFaceOptions = {}): Face {
     const id = idPrefix + crypto.randomUUID()
     lastId = id
     count += 1
+    // Start a single-use watcher for notify.json on first interaction after idle
+    if (configDir && !pendingNotifyWatcher) {
+      const filePath = join(configDir, 'notify.json')
+      pendingNotifyWatcher = (async () => {
+        const watcher = Deno.watchFs(configDir!)
+        try {
+          // Race: if file appeared between interaction call and watcher start
+          let created = false
+          try {
+            const s = await Deno.stat(filePath)
+            created = s.isFile
+          } catch (_) {
+            // not exists yet
+          }
+          if (created) {
+            const raw = await Deno.readTextFile(filePath)
+            lastNotificationRaw = raw
+            notifications += 1
+            try {
+              await Deno.remove(filePath)
+            } catch (_) {
+              /* ignore */
+            }
+            return
+          }
+          for await (const ev of watcher) {
+            if (
+              (ev.kind === 'create' || ev.kind === 'modify') &&
+              ev.paths.some((p) => p === filePath)
+            ) {
+              try {
+                const raw = await Deno.readTextFile(filePath)
+                lastNotificationRaw = raw
+                notifications += 1
+              } catch (_) {
+                // try once more after a tiny delay in case of write timing
+                await new Promise((r) => setTimeout(r, 10))
+                try {
+                  const raw = await Deno.readTextFile(filePath)
+                  lastNotificationRaw = raw
+                  notifications += 1
+                } catch (_) {
+                  // give up; keep silent
+                }
+              } finally {
+                try {
+                  await Deno.remove(filePath)
+                } catch (_) {
+                  /* ignore */
+                }
+              }
+              break
+            }
+          }
+        } finally {
+          watcher.close()
+          pendingNotifyWatcher = null
+        }
+      })()
+      // fire-and-forget
+      pendingNotifyWatcher.catch(() => {
+        // swallow errors; status will not reflect an update
+      })
+    }
     return { id, value: transform(input) }
   }
 
@@ -146,20 +230,10 @@ export function startFaceCodex(opts: StartFaceOptions = {}): Face {
       workspace: workspaceDir,
       processExited: child ? childExited : undefined,
       exitCode: child ? exitCode : undefined,
+      notifications,
+      lastNotificationRaw,
     }
   }
 
   return { interaction, close, status }
-}
-
-// When executed directly, provide a tiny demo: read a single arg and echo.
-if (import.meta.main) {
-  const face = startFaceCodex()
-  const input = Deno.args[0] ?? ''
-  try {
-    const res = face.interaction(input)
-    console.log(JSON.stringify(res))
-  } finally {
-    await face.close()
-  }
 }

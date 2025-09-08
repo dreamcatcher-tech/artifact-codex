@@ -9,6 +9,9 @@ export type FaceStatus = {
   workspace?: string
   processExited?: boolean
   exitCode?: number | null
+  // Optional notification info (file-based IPC)
+  notifications?: number
+  lastNotificationRaw?: string
 }
 
 export type Face = {
@@ -17,7 +20,7 @@ export type Face = {
   status: () => Promise<FaceStatus>
 }
 
-export type StartFaceOptions = {
+export type FaceOptions = {
   /** Absolute path to a workspace directory (CWD for child processes). */
   workspace?: string
   /** Absolute path to a config directory used for app config/cache/scratch. */

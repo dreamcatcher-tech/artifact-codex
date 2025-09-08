@@ -1,4 +1,5 @@
 #!/usr/bin/env -S deno run
+import { join } from '@std/path'
 
 /**
 ```json
@@ -22,7 +23,10 @@ export const AgentTurnCompleteSchema = z.object({
 
 export type AgentTurnComplete = z.infer<typeof AgentTurnCompleteSchema>
 
-export function handleNotification(raw: string): void {
+export async function handleNotification(
+  raw: string,
+  opts: { dir: string },
+): Promise<void> {
   let data: unknown
   try {
     data = JSON.parse(raw)
@@ -35,18 +39,48 @@ export function handleNotification(raw: string): void {
     throw new Error(`Invalid notification: ${parsed.error.message}`)
   }
 
-  // Log the validated, parsed object
-  console.log(parsed.data)
+  const outPath = join(opts.dir, 'notify.json')
+
+  const payload = new TextEncoder().encode(JSON.stringify(parsed.data))
+  let file: Deno.FsFile | undefined
+  try {
+    file = Deno.openSync(outPath, { createNew: true, write: true })
+    await file.write(payload)
+  } catch (err) {
+    if (err instanceof Deno.errors.AlreadyExists) {
+      throw new Error(`notify.json already exists at ${outPath}`)
+    }
+    throw err
+  } finally {
+    try {
+      file?.close()
+    } catch {
+      // ignore
+    }
+  }
 }
 
 if (import.meta.main) {
-  if (Deno.args.length !== 1) {
-    console.error('Usage: codex-notify <NOTIFICATION_JSON>')
+  let payload: string | undefined
+  let dir: string | undefined
+  for (let i = 0; i < Deno.args.length; i++) {
+    const a = Deno.args[i]
+    if (a === '--dir' || a === '-d') {
+      dir = Deno.args[++i]
+    } else if (a.startsWith('--dir=')) {
+      dir = a.slice('--dir='.length)
+    } else if (!payload) {
+      payload = a
+    } else {
+      // Ignore unknown extras for forward-compat
+    }
+  }
+  if (!payload || !dir) {
+    console.error('Usage: codex-notify  [--dir <PATH>] <NOTIFICATION_JSON>')
     Deno.exit(1)
   }
-  const [payload] = Deno.args
   try {
-    handleNotification(payload)
+    await handleNotification(payload, { dir })
   } catch (err) {
     console.error(String(err instanceof Error ? err.message : err))
     Deno.exit(2)

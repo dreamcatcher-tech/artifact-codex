@@ -6,9 +6,6 @@ approval_policy = "never"
 sandbox_mode = "danger-full-access"
 preferred_auth_method = "apikey"
 
-[projects."/workspace"]
-trust_level = "trusted"
-
 [tools]
 web_search = true
 view_image = true
