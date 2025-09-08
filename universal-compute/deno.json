@@ -5,7 +5,8 @@
     "mcp-computers",
     "mcp-faces",
     "mcp-interactions",
-    "codex-notify",
+    "face-codex",
+    "web-mcp",
     "shared"
   ],
   "tasks": {

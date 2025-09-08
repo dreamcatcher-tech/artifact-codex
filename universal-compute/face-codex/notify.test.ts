@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { handleNotification } from './main.ts'
+import { handleNotification } from './notify.ts'
 
 Deno.test('logs parsed notification object', () => {
   const input =

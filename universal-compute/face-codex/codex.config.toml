@@ -1,0 +1,30 @@
+model = "gpt-5"
+model_provider = "openai"
+model_reasoning_effort = "high"
+model_verbosity = "low"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+preferred_auth_method = "apikey"
+
+[projects."/workspace"]
+trust_level = "trusted"
+
+[tools]
+web_search = true
+view_image = true
+
+[mcp_servers.mcp-computers]
+command = "/headers/mcp-computers/main.ts"
+args = []
+
+[mcp_servers.mcp-agents]
+command = "/headers/mcp-agents/main.ts"
+args = []
+
+[mcp_servers.mcp-faces]
+command = "/headers/mcp-faces/main.ts"
+args = []
+
+[mcp_servers.mcp-interactions]
+command = "/headers/mcp-interactions/main.ts"
+args = []

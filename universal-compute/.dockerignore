@@ -16,5 +16,3 @@ node_modules
 **/.pytest_cache
 **/.venv
 
-napps
-codex-universal

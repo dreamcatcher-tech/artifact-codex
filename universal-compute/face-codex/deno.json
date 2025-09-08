@@ -1,15 +1,16 @@
 {
-  "name": "@artifact/codex-notify",
+  "name": "@artifact/face-codex",
   "exports": "./main.ts",
   "tasks": {
     "watch": "deno test -A --watch",
     "test": "deno test -A",
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
-    "ok": "deno check &&deno task test && deno fmt --check && deno lint"
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
   },
   "imports": {
     "@std/expect": "jsr:@std/expect@^1.0.17",
+    "@std/path": "jsr:@std/path@^1.1.2",
     "zod": "npm:zod@^3.25.76"
   }
 }

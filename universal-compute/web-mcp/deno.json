@@ -1,0 +1,18 @@
+{
+  "name": "@artifact/web-mcp",
+  "exports": "./main.ts",
+  "tasks": {
+    "watch": "deno test -A --trace-leaks --watch",
+    "test": "deno test -A",
+    "lint": "deno lint --fix",
+    "fmt": "deno fmt",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+  },
+  "imports": {
+    "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",
+    "@hono/hono": "jsr:@hono/hono@^4.9.6",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.5",
+    "@std/expect": "jsr:@std/expect@^1.0.17",
+    "zod": "npm:zod@^3.25.76"
+  }
+}
