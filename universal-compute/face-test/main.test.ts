@@ -1,8 +1,8 @@
 import { expect } from '@std/expect'
-import { startFaceCodex } from './main.ts'
+import { startFaceTest } from './main.ts'
 
-Deno.test('start returns object with required methods', async () => {
-  const face = startFaceCodex()
+Deno.test('start returns Face with basic methods', async () => {
+  const face = startFaceTest()
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.waitFor).toBe('function')
@@ -17,14 +17,16 @@ Deno.test('start returns object with required methods', async () => {
   }
 })
 
-Deno.test('interaction returns id; outcome via waitFor, updates status', async () => {
-  const face = startFaceCodex()
+Deno.test('interaction returns id; waitFor returns result', async () => {
+  const face = startFaceTest()
   try {
-    const out = face.interaction('hello')
+    const out = face.interaction('hello world')
     expect(typeof out.id).toBe('string')
-    expect(out.id.length).toBeGreaterThan(8)
     const res = await face.waitFor(out.id)
+    expect('error' in res).toBe(false)
     expect('result' in res).toBe(true)
+    // @ts-ignore narrow result branch
+    expect(res.result.message).toBe('hello world')
     const s = await face.status()
     expect(s.interactions).toBe(1)
     expect(s.lastInteractionId).toBe(out.id)
@@ -33,13 +35,24 @@ Deno.test('interaction returns id; outcome via waitFor, updates status', async (
   }
 })
 
-Deno.test('close makes face reject new interactions and sets closed', async () => {
-  const face = startFaceCodex()
+Deno.test('error path: waitFor returns { error: true }', async () => {
+  const face = startFaceTest()
+  try {
+    const out = face.interaction('error')
+    const res = await face.waitFor(out.id)
+    expect('error' in res).toBe(true)
+  } finally {
+    await face.close()
+  }
+})
+
+Deno.test('close marks closed and prevents interactions', async () => {
+  const face = startFaceTest()
   await face.close()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)
-  expect(() => face.interaction('x')).toThrow()
-  // idempotent
+  expect(() => face.interaction('ping')).toThrow()
+  // idempotent close
   await face.close()
   const s2 = await face.status()
   expect(s2.closed).toBe(true)

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import { type Face, type FaceOptions } from '../shared/mod.ts'
+import type { Face, FaceOptions, FaceWaitResult } from '@artifact/shared'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
@@ -12,6 +12,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   let lastId: string | undefined
   const idPrefix = 'fcx_'
   const transform = (s: string) => s
+  const active = new Map<string, Promise<FaceWaitResult>>()
 
   // Child process state (when opts.launch === true)
   let child: Deno.ChildProcess | undefined
@@ -26,16 +27,16 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
 
   async function ensureConfigIfNeeded() {
     // Only act when both directories are provided (implies launch)
-    if (!opts.workspace || !opts.config) return
-    configDir = opts.config
+    if (!opts.workspace || !opts.home) return
+    configDir = opts.home
     // Must not create directories; error if missing
     try {
       const st = await Deno.stat(configDir)
       if (!st.isDirectory) {
-        throw new Error(`config is not a directory: ${configDir}`)
+        throw new Error(`home is not a directory: ${configDir}`)
       }
     } catch {
-      throw new Error(`config directory not found: ${configDir}`)
+      throw new Error(`home directory not found: ${configDir}`)
     }
 
     // Compute repo root and load template
@@ -79,8 +80,8 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   }
 
   async function maybeLaunch() {
-    // Launch only if both workspace and config are provided
-    if (!opts.workspace || !opts.config) return
+    // Launch only if both workspace and home are provided
+    if (!opts.workspace || !opts.home) return
     await ensureConfigIfNeeded()
     workspaceDir = opts.workspace
     // Must not create directories; error if missing
@@ -93,11 +94,32 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       throw new Error(`workspace directory not found: ${workspaceDir}`)
     }
 
-    const cmd = new Deno.Command('npx', {
-      args: ['-y', 'openai/codex'],
+    // Build command: support custom runnerApp from opts.config; default to heavy app
+    const configMap = opts.config as Record<string, unknown> | undefined
+    const runnerApp = Array.isArray(configMap?.['runnerApp'])
+      ? (configMap!['runnerApp'] as string[])
+      : undefined
+    const useCustom = Array.isArray(runnerApp) && runnerApp.length > 0
+    let command = 'npx'
+    let args: string[] = ['-y', 'openai/codex']
+    if (useCustom) {
+      command = runnerApp![0]
+      args = runnerApp!.slice(1)
+      // Provide notify script and config dir to mock runner
+      const cfg = configDir!
+      args = args.concat([
+        '--notify',
+        join(dirname(fromFileUrl(import.meta.url)), 'notify.ts'),
+        '--dir',
+        cfg,
+      ])
+    }
+
+    const cmd = new Deno.Command(command, {
+      args,
       cwd: workspaceDir,
       env: { ...Deno.env.toObject(), CODEX_HOME: configDir! },
-      stdin: 'inherit',
+      stdin: useCustom ? 'piped' : 'inherit',
       stdout: 'inherit',
       stderr: 'inherit',
     })
@@ -127,6 +149,21 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     const id = idPrefix + crypto.randomUUID()
     lastId = id
     count += 1
+    // record a settled result for waiters (echo)
+    active.set(id, Promise.resolve({ result: transform(input) }))
+    // If a custom runner is active, push input to its stdin
+    if (child?.stdin) {
+      const bytes = new TextEncoder().encode(String(input) + '\n')
+      ;(async () => {
+        try {
+          const w = child!.stdin!.getWriter()
+          await w.write(bytes)
+          w.releaseLock()
+        } catch (_) {
+          // ignore write errors (process may have exited)
+        }
+      })()
+    }
     // Start a single-use watcher for notify.json on first interaction after idle
     if (configDir && !pendingNotifyWatcher) {
       const filePath = join(configDir, 'notify.json')
@@ -191,13 +228,23 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
         // swallow errors; status will not reflect an update
       })
     }
-    return { id, value: transform(input) }
+    return { id }
   }
 
   async function close() {
     closed = true
     if (child) {
       try {
+        // Close stdin if we piped it (prevents test leak warning)
+        try {
+          if (child.stdin) {
+            const w = child.stdin.getWriter()
+            await w.close()
+            w.releaseLock()
+          }
+        } catch (_) {
+          // ignore
+        }
         // Try graceful SIGTERM, then force kill after a short delay
         child.kill('SIGTERM')
       } catch (_) {
@@ -235,5 +282,15 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     }
   }
 
-  return { interaction, close, status }
+  async function waitFor(id: string): Promise<FaceWaitResult> {
+    const rec = active.get(id)
+    if (!rec) throw new Error(`unknown interaction id: ${id}`)
+    try {
+      return await rec
+    } finally {
+      active.delete(id)
+    }
+  }
+
+  return { interaction, waitFor, close, status }
 }

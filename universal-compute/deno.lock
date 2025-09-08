@@ -678,6 +678,11 @@
           "npm:zod@^3.25.76"
         ]
       },
+      "face-test": {
+        "dependencies": [
+          "jsr:@std/expect@^1.0.17"
+        ]
+      },
       "mcp-agents": {
         "dependencies": [
           "jsr:@std/dotenv@~0.225.5",
