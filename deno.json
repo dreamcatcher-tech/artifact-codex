@@ -18,7 +18,8 @@
   "fmt": {
     "semiColons": false,
     "singleQuote": true,
-    "lineWidth": 80
+    "lineWidth": 80,
+    "exclude": [".refs/"]
   },
   "lint": {
     "rules": {

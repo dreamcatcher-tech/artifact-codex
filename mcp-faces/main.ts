@@ -4,32 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { createFacesServer } from './server.ts'
 import type { FacesHandlers } from './server.ts'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
-
-/**
- * Resolve an agent id to a base HTTP origin.
- * Stubbed: http://<agentId>.internal
- */
-export function resolveAgentToOrigin(agentId: string): URL {
-  return new URL(`http://${agentId}.internal`)
-}
-
-/**
- * Ensure the URL targets the MCP endpoint at /mcp.
- */
-function withMcpPath(origin: URL): URL {
-  const url = new URL(origin.toString())
-  // Always point to /mcp (ignore existing pathname)
-  url.pathname = '/mcp'
-  return url
-}
-
-export type RemoteClientOptions = {
-  /** Optional fetch implementation override (used in tests). */
-  fetch?: FetchLike
-}
+import { callRemoteTool, type RemoteClientOptions } from '@artifact/shared'
 
 /**
  * Create Faces tool handlers that proxy to a remote MCP server resolved
@@ -43,13 +18,11 @@ export function createRemoteFacesHandlers(
     tool: string,
     args: Record<string, unknown>,
   ): Promise<CallToolResult> {
-    const origin = resolveAgentToOrigin(agentId)
-    const endpoint = withMcpPath(origin)
-    const client = new Client({ name: 'faces-proxy', version: '0.0.1' })
-    const transport = new StreamableHTTPClientTransport(endpoint, opts)
-    await client.connect(transport)
-    const result = await client.callTool({ name: tool, arguments: args })
-    return result as CallToolResult
+    // keep local function name but delegate to shared
+    return await callRemoteTool(agentId, tool, args, {
+      ...opts,
+      clientName: 'faces-proxy',
+    })
   }
 
   return {
