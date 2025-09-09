@@ -16,10 +16,10 @@ const server = createInteractionsServer(base, {
     }
   },
   create_interaction: (
-    { agentPath, interactionKind },
+    { agentPath, faceId, input },
     extra,
   ): Promise<CallToolResult> => {
-    console.log('create_interaction', { agentPath, interactionKind, extra })
+    console.log('create_interaction', { agentPath, faceId, input, extra })
     try {
       return Promise.resolve(
         toStructured({ interaction_id: `stub-${crypto.randomUUID()}` }),

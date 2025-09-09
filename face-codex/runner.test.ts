@@ -41,6 +41,6 @@ Deno.test('custom mock runner receives stdin and triggers notify', async () => {
     expect(obj['input-messages']).toEqual(['do-thing'])
     expect(String(obj['turn-id']).startsWith('mock-')).toBe(true)
   } finally {
-    await face.close()
+    await face.destroy()
   }
 })

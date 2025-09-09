@@ -41,9 +41,9 @@ type ToolHandler<I> = (
 ) => Promise<CallToolResult> | CallToolResult
 
 export type InteractionsHandlers = {
-  list_interactions: ToolHandler<{ agentPath: string }>
+  list_interactions: ToolHandler<{ agentPath: string; faceId: string }>
   create_interaction: ToolHandler<
-    { agentPath: string; interactionKind: string }
+    { agentPath: string; faceId: string; input: string }
   >
   read_interaction: ToolHandler<{ agentPath: string; interactionId: string }>
   destroy_interaction: ToolHandler<{ agentPath: string; interactionId: string }>
@@ -64,7 +64,7 @@ export function createInteractionsServer(
       title: 'List Interactions',
       description:
         'Lists available interaction kinds for a given Agent path. Returns kind identifier, command, and description.',
-      inputSchema: { agentPath: z.string() },
+      inputSchema: { agentPath: z.string(), faceId: z.string() },
       outputSchema: listInteractionsOutput.shape,
     },
     (args, extra) => handlers.list_interactions(args, extra),
@@ -76,7 +76,11 @@ export function createInteractionsServer(
       title: 'Create Interaction',
       description:
         'Creates an Interaction of the specified kind for the given Agent path. Returns an interaction id.',
-      inputSchema: { agentPath: z.string(), interactionKind: z.string() },
+      inputSchema: {
+        agentPath: z.string(),
+        faceId: z.string(),
+        input: z.string(),
+      },
       outputSchema: createInteractionOutput.shape,
     },
     (args, extra) => handlers.create_interaction(args, extra),
@@ -100,7 +104,10 @@ export function createInteractionsServer(
       title: 'Destroy Interaction',
       description:
         'Destroys an Interaction by id for the given Agent path. Returns ok boolean.',
-      inputSchema: { agentPath: z.string(), interactionId: z.string() },
+      inputSchema: {
+        agentPath: z.string(),
+        interactionId: z.string(),
+      },
       outputSchema: destroyInteractionOutput.shape,
     },
     (args, extra) => handlers.destroy_interaction(args, extra),

@@ -1,55 +1,62 @@
 import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { toError, toStructured } from '@artifact/shared'
+import { toStructured } from '@artifact/shared'
+import { Face } from '@artifact/shared'
+type FaceId = string
+type InteractionId = string
+type InteractionRecord = { faceId: FaceId; id: string }
 
-export const createInteractions = (): InteractionsHandlers => {
+export const createInteractions = (
+  faces: Map<FaceId, Face>,
+): InteractionsHandlers => {
+  const interactions = new Map<InteractionId, InteractionRecord>()
+
   return {
-    list_interactions: ({ agentPath }, extra): Promise<CallToolResult> => {
-      console.log('list_interactions', { agentPath, extra })
-      try {
-        return Promise.resolve(toStructured({ interaction_kinds: [] }))
-      } catch (err) {
-        return Promise.resolve(toError(err))
+    list_interactions: ({ faceId }): Promise<CallToolResult> => {
+      const face = faces.get(faceId)
+      if (!face) {
+        throw new Error(`Face not found: ${faceId}`)
       }
+      const interactionIds = Array.from(interactions.keys()).filter(
+        (interactionId) => interactions.get(interactionId)?.faceId === faceId,
+      )
+      return Promise.resolve(toStructured({ interactionIds }))
     },
-    create_interaction: (
-      { agentPath, interactionKind },
-      extra,
-    ): Promise<CallToolResult> => {
-      console.log('create_interaction', { agentPath, interactionKind, extra })
-      try {
-        return Promise.resolve(
-          toStructured({ interaction_id: `stub-${crypto.randomUUID()}` }),
-        )
-      } catch (err) {
-        return Promise.resolve(toError(err))
+    create_interaction: ({ faceId, input }): Promise<CallToolResult> => {
+      const face = faces.get(faceId)
+      if (!face) {
+        throw new Error(`Face not found: ${faceId}`)
       }
+      const { id } = face.interaction(input)
+      const interactionId = `f-${faceId}_i-${id}`
+      interactions.set(interactionId, { faceId, id })
+      return Promise.resolve(toStructured({ interactionId }))
     },
-    read_interaction: (
-      { agentPath, interactionId },
-      extra,
-    ): Promise<CallToolResult> => {
-      console.log('read_interaction', { agentPath, interactionId, extra })
-      try {
-        return Promise.resolve(
-          toStructured({ exists: false, reason: 'Not implemented' }),
-        )
-      } catch (err) {
-        return Promise.resolve(toError(err))
+    read_interaction: async ({ interactionId }): Promise<CallToolResult> => {
+      const interaction = interactions.get(interactionId)
+      if (!interaction) {
+        throw new Error(`Interaction not found: ${interactionId}`)
       }
+      const face = faces.get(interaction.faceId)
+      if (!face) {
+        throw new Error(`Face not found: ${interaction.faceId}`)
+      }
+      const result = await face.waitFor(interaction.id)
+      interactions.delete(interactionId)
+      return toStructured({ result })
     },
-    destroy_interaction: (
-      { agentPath, interactionId },
-      extra,
-    ): Promise<CallToolResult> => {
-      console.log('destroy_interaction', { agentPath, interactionId, extra })
-      try {
-        return Promise.resolve(
-          toStructured({ ok: false, reason: 'Not implemented' }),
-        )
-      } catch (err) {
-        return Promise.resolve(toError(err))
+    destroy_interaction: async ({ interactionId }): Promise<CallToolResult> => {
+      const interaction = interactions.get(interactionId)
+      if (!interaction) {
+        throw new Error(`Interaction not found: ${interactionId}`)
       }
+      const face = faces.get(interaction.faceId)
+      if (!face) {
+        throw new Error(`Face not found: ${interaction.faceId}`)
+      }
+      await face.cancel(interaction.id)
+      interactions.delete(interactionId)
+      return toStructured({ deleted: true })
     },
   }
 }

@@ -6,14 +6,14 @@ Deno.test('start returns Face with basic methods', async () => {
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.waitFor).toBe('function')
-    expect(typeof face.close).toBe('function')
+    expect(typeof face.destroy).toBe('function')
     expect(typeof face.status).toBe('function')
     const s = await face.status()
     expect(s.closed).toBe(false)
     expect(s.interactions).toBe(0)
     expect(typeof s.startedAt).toBe('string')
   } finally {
-    await face.close()
+    await face.destroy()
   }
 })
 
@@ -31,7 +31,7 @@ Deno.test('interaction returns id; waitFor returns result', async () => {
     expect(s.interactions).toBe(1)
     expect(s.lastInteractionId).toBe(out.id)
   } finally {
-    await face.close()
+    await face.destroy()
   }
 })
 
@@ -42,18 +42,18 @@ Deno.test('error path: waitFor returns { error: true }', async () => {
     const res = await face.waitFor(out.id)
     expect('error' in res).toBe(true)
   } finally {
-    await face.close()
+    await face.destroy()
   }
 })
 
 Deno.test('close marks closed and prevents interactions', async () => {
   const face = startFaceTest()
-  await face.close()
+  await face.destroy()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)
   expect(() => face.interaction('ping')).toThrow()
   // idempotent close
-  await face.close()
+  await face.destroy()
   const s2 = await face.status()
   expect(s2.closed).toBe(true)
 })

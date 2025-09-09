@@ -6,15 +6,16 @@ import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
 import { createInteractions } from './interactions.ts'
 import { createFaces } from './faces.ts'
+import { Face } from '@artifact/shared'
+type FaceId = string
 
 function createMcpServer() {
   const server = new McpServer({ name: 'web-server', version: '0.0.1' })
-  // Register tools from package servers onto this instance
-  const faces = createFaces()
-  createFacesServer(server, faces)
+  const faces = new Map<FaceId, Face>()
 
-  const interactions = createInteractions()
-  createInteractionsServer(server, interactions)
+  createFacesServer(server, createFaces(faces))
+  createInteractionsServer(server, createInteractions(faces))
+
   return server
 }
 

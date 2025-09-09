@@ -36,7 +36,14 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     return { id }
   }
 
-  async function close() {
+  function cancel(id: string) {
+    const rec = active.get(id)
+    if (!rec) throw new Error(`unknown interaction id: ${id}`)
+    active.delete(id)
+    return Promise.resolve()
+  }
+
+  async function destroy() {
     closed = true
     await Promise.resolve()
   }
@@ -61,5 +68,5 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     }
   }
 
-  return { interaction, waitFor, close, status }
+  return { interaction, waitFor, cancel, status, destroy }
 }

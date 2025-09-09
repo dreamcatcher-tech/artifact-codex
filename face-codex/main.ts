@@ -231,7 +231,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     return { id }
   }
 
-  async function close() {
+  async function destroy() {
     closed = true
     if (child) {
       try {
@@ -292,5 +292,13 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     }
   }
 
-  return { interaction, waitFor, close, status }
+  function cancel(id: string) {
+    const rec = active.get(id)
+    // TODO throw in an abort controller when its running so we can cancel it
+    if (!rec) throw new Error(`unknown interaction id: ${id}`)
+    active.delete(id)
+    return Promise.resolve()
+  }
+
+  return { interaction, waitFor, cancel, destroy, status }
 }

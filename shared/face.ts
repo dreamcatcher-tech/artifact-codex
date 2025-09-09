@@ -26,7 +26,8 @@ export type Face = {
     id: string,
     opts?: FaceWaitOptions,
   ) => Promise<FaceWaitResult>
-  close: () => Promise<void>
+  cancel: (id: string) => Promise<void>
+  destroy: () => Promise<void>
   status: () => Promise<FaceStatus>
 }
 
