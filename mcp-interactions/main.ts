@@ -7,8 +7,8 @@ import { createInteractionsServer } from './server.ts'
 
 const base = new McpServer({ name: 'interactions-mcp', version: '0.0.1' })
 const server = createInteractionsServer(base, {
-  list_interactions: ({ agentPath }, extra): Promise<CallToolResult> => {
-    console.log('list_interactions', { agentPath, extra })
+  list_interactions: ({ agentId }, extra): Promise<CallToolResult> => {
+    console.log('list_interactions', { agentId, extra })
     try {
       return Promise.resolve(toStructured({ interaction_kinds: [] }))
     } catch (err) {
@@ -16,10 +16,10 @@ const server = createInteractionsServer(base, {
     }
   },
   create_interaction: (
-    { agentPath, faceId, input },
+    { agentId, faceId, input },
     extra,
   ): Promise<CallToolResult> => {
-    console.log('create_interaction', { agentPath, faceId, input, extra })
+    console.log('create_interaction', { agentId, faceId, input, extra })
     try {
       return Promise.resolve(
         toStructured({ interaction_id: `stub-${crypto.randomUUID()}` }),
@@ -29,10 +29,10 @@ const server = createInteractionsServer(base, {
     }
   },
   read_interaction: (
-    { agentPath, interactionId },
+    { agentId, interactionId },
     extra,
   ): Promise<CallToolResult> => {
-    console.log('read_interaction', { agentPath, interactionId, extra })
+    console.log('read_interaction', { agentId, interactionId, extra })
     try {
       return Promise.resolve(
         toStructured({ exists: false, reason: 'Not implemented' }),
@@ -42,10 +42,10 @@ const server = createInteractionsServer(base, {
     }
   },
   destroy_interaction: (
-    { agentPath, interactionId },
+    { agentId, interactionId },
     extra,
   ): Promise<CallToolResult> => {
-    console.log('destroy_interaction', { agentPath, interactionId, extra })
+    console.log('destroy_interaction', { agentId, interactionId, extra })
     try {
       return Promise.resolve(
         toStructured({ ok: false, reason: 'Not implemented' }),

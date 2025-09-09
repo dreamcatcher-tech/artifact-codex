@@ -24,7 +24,7 @@ export const readInteractionOutput = z.object({
       command: z.string().optional(),
       description: z.string().optional(),
       status: z.string().optional(),
-      agentPath: z.string(),
+      agentId: z.string(),
     })
     .optional(),
   reason: z.string().optional(),
@@ -41,12 +41,12 @@ type ToolHandler<I> = (
 ) => Promise<CallToolResult> | CallToolResult
 
 export type InteractionsHandlers = {
-  list_interactions: ToolHandler<{ agentPath: string; faceId: string }>
+  list_interactions: ToolHandler<{ agentId: string; faceId: string }>
   create_interaction: ToolHandler<
-    { agentPath: string; faceId: string; input: string }
+    { agentId: string; faceId: string; input: string }
   >
-  read_interaction: ToolHandler<{ agentPath: string; interactionId: string }>
-  destroy_interaction: ToolHandler<{ agentPath: string; interactionId: string }>
+  read_interaction: ToolHandler<{ agentId: string; interactionId: string }>
+  destroy_interaction: ToolHandler<{ agentId: string; interactionId: string }>
 }
 
 export type CreateInteractionsServerOptions = Record<string, never>
@@ -63,8 +63,8 @@ export function createInteractionsServer(
     {
       title: 'List Interactions',
       description:
-        'Lists available interaction kinds for a given Agent path. Returns kind identifier, command, and description.',
-      inputSchema: { agentPath: z.string(), faceId: z.string() },
+        'Lists available interaction kinds for a given Agent id. Returns kind identifier, command, and description.',
+      inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: listInteractionsOutput.shape,
     },
     (args, extra) => handlers.list_interactions(args, extra),
@@ -75,9 +75,9 @@ export function createInteractionsServer(
     {
       title: 'Create Interaction',
       description:
-        'Creates an Interaction of the specified kind for the given Agent path. Returns an interaction id.',
+        'Creates an Interaction of the specified kind for the given Agent id. Returns an interaction id.',
       inputSchema: {
-        agentPath: z.string(),
+        agentId: z.string(),
         faceId: z.string(),
         input: z.string(),
       },
@@ -91,8 +91,8 @@ export function createInteractionsServer(
     {
       title: 'Read Interaction',
       description:
-        'Reads info about an Interaction by id for the given Agent path, including status.',
-      inputSchema: { agentPath: z.string(), interactionId: z.string() },
+        'Reads info about an Interaction by id for the given Agent id, including status.',
+      inputSchema: { agentId: z.string(), interactionId: z.string() },
       outputSchema: readInteractionOutput.shape,
     },
     (args, extra) => handlers.read_interaction(args, extra),
@@ -103,9 +103,9 @@ export function createInteractionsServer(
     {
       title: 'Destroy Interaction',
       description:
-        'Destroys an Interaction by id for the given Agent path. Returns ok boolean.',
+        'Destroys an Interaction by id for the given Agent id. Returns ok boolean.',
       inputSchema: {
-        agentPath: z.string(),
+        agentId: z.string(),
         interactionId: z.string(),
       },
       outputSchema: destroyInteractionOutput.shape,

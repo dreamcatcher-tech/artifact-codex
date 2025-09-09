@@ -17,7 +17,7 @@ Deno.test('tools/call list_faces returns available kinds', async () => {
   const { client } = fixtures
   const result = await client.callTool({
     name: 'list_faces',
-    arguments: { agentPath: '/dev/null' },
+    arguments: { agentId: 'agent123' },
   }) as { structuredContent?: { face_kinds?: string[] } }
   const kinds = result.structuredContent?.face_kinds
   expect(Array.isArray(kinds)).toBe(true)
@@ -29,7 +29,7 @@ Deno.test('tools/call create_face returns a face id', async () => {
   const { client } = fixtures
   const result = await client.callTool({
     name: 'create_face',
-    arguments: { agentPath: '/dev/null', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKind: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = result.structuredContent?.faceId
   expect(typeof faceId).toBe('string')
@@ -41,7 +41,7 @@ Deno.test('tools/call read_face returns error for unknown id', async () => {
   const { client } = fixtures
   const res = await client.callTool({
     name: 'read_face',
-    arguments: { agentPath: '/dev/null', faceId: 'does-not-exist' },
+    arguments: { agentId: 'agent123', faceId: 'does-not-exist' },
   })
   expect(res.isError).toBe(true)
 })
@@ -51,7 +51,7 @@ Deno.test('tools/call destroy_face returns error for unknown id', async () => {
   const { client } = fixtures
   const res = await client.callTool({
     name: 'destroy_face',
-    arguments: { agentPath: '/dev/null', faceId: 'does-not-exist' },
+    arguments: { agentId: 'agent123', faceId: 'does-not-exist' },
   })
   expect(res.isError).toBe(true)
 })
