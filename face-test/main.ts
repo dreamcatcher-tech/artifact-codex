@@ -16,18 +16,18 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     if (closed) throw new Error('face is closed')
   }
 
-  const active = new Map<string, Promise<FaceWaitResult<{ message: string }>>>()
+  const active = new Map<string, Promise<FaceWaitResult>>()
 
   function interaction(input: string) {
     assertOpen()
-    const id = 'ft_' + crypto.randomUUID()
-    const promise: Promise<FaceWaitResult<{ message: string }>> = Promise
+    const id = count.toString()
+    const promise: Promise<FaceWaitResult> = Promise
       .resolve()
       .then(() => {
-        if (String(input).toLowerCase() === 'error') {
+        if (input.toLowerCase() === 'error') {
           throw new Error('intentional test error')
         }
-        return { result: { message: String(input) } }
+        return { result: input }
       })
       .catch(() => ({ error: true as const }))
     active.set(id, promise)

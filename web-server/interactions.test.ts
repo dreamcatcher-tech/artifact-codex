@@ -20,3 +20,112 @@ Deno.test('tools/list exposes face + interaction tools', async () => {
   expect(names).toContain('read_interaction')
   expect(names).toContain('destroy_interaction')
 })
+
+Deno.test('tools/call list_interactions returns ids for a face', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const createdFace = await client.callTool({
+    name: 'create_face',
+    arguments: { agentId: 'agent123', faceKind: 'test' },
+  }) as { structuredContent?: { faceId?: string } }
+  const faceId = createdFace.structuredContent?.faceId!
+
+  const createdIx = await client.callTool({
+    name: 'create_interaction',
+    arguments: { agentId: 'agent123', faceId, input: 'hello' },
+  }) as { structuredContent?: { interactionId?: string } }
+  const interactionId = createdIx.structuredContent?.interactionId
+
+  const list = await client.callTool({
+    name: 'list_interactions',
+    arguments: { agentId: 'agent123', faceId },
+  }) as { structuredContent?: { interactionIds?: string[] } }
+  const ids = list.structuredContent?.interactionIds ?? []
+
+  expect(Array.isArray(ids)).toBe(true)
+  expect(ids).toContain(interactionId)
+})
+
+Deno.test('tools/call create_interaction returns an interaction id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const createdFace = await client.callTool({
+    name: 'create_face',
+    arguments: { agentId: 'agent123', faceKind: 'test' },
+  }) as { structuredContent?: { faceId?: string } }
+  const faceId = createdFace.structuredContent?.faceId
+
+  const result = await client.callTool({
+    name: 'create_interaction',
+    arguments: { agentId: 'agent123', faceId, input: 'ping' },
+  }) as { structuredContent?: { interactionId?: string } }
+  const id = result.structuredContent?.interactionId
+
+  expect(typeof id).toBe('string')
+})
+
+Deno.test('tools/call read_interaction returns result and removes id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const createdFace = await client.callTool({
+    name: 'create_face',
+    arguments: { agentId: 'agent123', faceKind: 'test' },
+  }) as { structuredContent?: { faceId?: string } }
+  const faceId = createdFace.structuredContent?.faceId!
+  const createdIx = await client.callTool({
+    name: 'create_interaction',
+    arguments: { agentId: 'agent123', faceId, input: 'hello world' },
+  }) as { structuredContent?: { interactionId?: string } }
+  const interactionId = createdIx.structuredContent?.interactionId!
+  const read = await client.callTool({
+    name: 'read_interaction',
+    arguments: { agentId: 'agent123', interactionId },
+  }) as { structuredContent?: { result?: unknown } }
+  expect(read.structuredContent?.result).toBeDefined()
+  const listAfter = await client.callTool({
+    name: 'list_interactions',
+    arguments: { agentId: 'agent123', faceId },
+  }) as { structuredContent?: { interactionIds?: string[] } }
+  const idsAfter = listAfter.structuredContent?.interactionIds ?? []
+  expect(idsAfter).not.toContain(interactionId)
+})
+
+Deno.test('tools/call read_interaction returns error for unknown id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const res = await client.callTool({
+    name: 'read_interaction',
+    arguments: { agentId: 'agent123', interactionId: 'does-not-exist' },
+  })
+  expect(res.isError).toBe(true)
+})
+
+Deno.test('tools/call destroy_interaction returns error for unknown id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const res = await client.callTool({
+    name: 'destroy_interaction',
+    arguments: { agentId: 'agent123', interactionId: 'does-not-exist' },
+  })
+  expect(res.isError).toBe(true)
+})
+
+Deno.test('tools/call destroy_interaction cancels and removes an id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const createdFace = await client.callTool({
+    name: 'create_face',
+    arguments: { agentId: 'agent123', faceKind: 'test' },
+  }) as { structuredContent?: { faceId?: string } }
+  const faceId = createdFace.structuredContent?.faceId!
+  const createdIx = await client.callTool({
+    name: 'create_interaction',
+    arguments: { agentId: 'agent123', faceId, input: 'ping' },
+  }) as { structuredContent?: { interactionId?: string } }
+  const interactionId = createdIx.structuredContent?.interactionId!
+  const destroyed = await client.callTool({
+    name: 'destroy_interaction',
+    arguments: { agentId: 'agent123', interactionId },
+  }) as { structuredContent?: { ok: boolean } }
+  expect(destroyed.structuredContent?.ok).toBe(true)
+})

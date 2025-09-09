@@ -43,7 +43,7 @@ export const createInteractions = (
       }
       const result = await face.waitFor(interaction.id)
       interactions.delete(interactionId)
-      return toStructured({ result })
+      return toStructured(result)
     },
     destroy_interaction: async ({ interactionId }): Promise<CallToolResult> => {
       const interaction = interactions.get(interactionId)
@@ -56,7 +56,7 @@ export const createInteractions = (
       }
       await face.cancel(interaction.id)
       interactions.delete(interactionId)
-      return toStructured({ deleted: true })
+      return toStructured({ ok: true })
     },
   }
 }

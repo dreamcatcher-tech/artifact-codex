@@ -9,23 +9,19 @@ import { createFaces } from './faces.ts'
 import { Face } from '@artifact/shared'
 type FaceId = string
 
-function createMcpServer() {
-  const server = new McpServer({ name: 'web-server', version: '0.0.1' })
-  const faces = new Map<FaceId, Face>()
-
-  createFacesServer(server, createFaces(faces))
-  createInteractionsServer(server, createInteractions(faces))
-
-  return server
-}
-
 export function createApp() {
   const app = new Hono()
+
+  const facesStore = new Map<FaceId, Face>()
+  const faces = createFaces(facesStore)
+  const interactions = createInteractions(facesStore)
 
   const servers = new Set<McpServer>()
 
   app.all('/mcp', async (c) => {
-    const server = createMcpServer()
+    const server = new McpServer({ name: 'web-server', version: '0.0.1' })
+    createFacesServer(server, faces)
+    createInteractionsServer(server, interactions)
     servers.add(server)
     const transport = new StreamableHTTPTransport()
     await server.connect(transport)

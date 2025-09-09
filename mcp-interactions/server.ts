@@ -3,17 +3,6 @@ import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 // Schemas for interaction tools
-export const interactionKindSchema = z.object({
-  interaction_kind: z.string(),
-  command: z.string(),
-  description: z.string(),
-})
-
-export const listInteractionsOutput = z.object({
-  interaction_kinds: z.array(interactionKindSchema),
-})
-
-export const createInteractionOutput = z.object({ interaction_id: z.string() })
 
 export const readInteractionOutput = z.object({
   exists: z.boolean(),
@@ -27,11 +16,6 @@ export const readInteractionOutput = z.object({
       agentId: z.string(),
     })
     .optional(),
-  reason: z.string().optional(),
-})
-
-export const destroyInteractionOutput = z.object({
-  ok: z.boolean(),
   reason: z.string().optional(),
 })
 
@@ -63,9 +47,9 @@ export function createInteractionsServer(
     {
       title: 'List Interactions',
       description:
-        'Lists available interaction kinds for a given Agent id. Returns kind identifier, command, and description. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
+        'Lists pending interaction IDs for a given Face. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
       inputSchema: { agentId: z.string(), faceId: z.string() },
-      outputSchema: listInteractionsOutput.shape,
+      outputSchema: { interactionIds: z.array(z.string()) },
     },
     (args, extra) => handlers.list_interactions(args, extra),
   )
@@ -81,7 +65,7 @@ export function createInteractionsServer(
         faceId: z.string(),
         input: z.string(),
       },
-      outputSchema: createInteractionOutput.shape,
+      outputSchema: { interactionId: z.string() },
     },
     (args, extra) => handlers.create_interaction(args, extra),
   )
@@ -93,7 +77,7 @@ export function createInteractionsServer(
       description:
         'Reads info about an Interaction by id for the given Agent id, including status. Use "@self" as agentId to target the current agent.',
       inputSchema: { agentId: z.string(), interactionId: z.string() },
-      outputSchema: readInteractionOutput.shape,
+      outputSchema: { result: z.string() },
     },
     (args, extra) => handlers.read_interaction(args, extra),
   )
@@ -108,7 +92,7 @@ export function createInteractionsServer(
         agentId: z.string(),
         interactionId: z.string(),
       },
-      outputSchema: destroyInteractionOutput.shape,
+      outputSchema: { ok: z.boolean() },
     },
     (args, extra) => handlers.destroy_interaction(args, extra),
   )

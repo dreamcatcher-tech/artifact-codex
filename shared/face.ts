@@ -18,7 +18,7 @@ export type FaceWaitOptions = {
   status?: 'pending' | 'settled'
 }
 
-export type FaceWaitResult<T = unknown> = { error: true } | { result: T }
+export type FaceWaitResult = { error: true } | { result: string }
 
 export type Face = {
   interaction: (input: string) => { id: string }

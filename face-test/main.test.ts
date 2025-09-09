@@ -25,8 +25,8 @@ Deno.test('interaction returns id; waitFor returns result', async () => {
     const res = await face.waitFor(out.id)
     expect('error' in res).toBe(false)
     expect('result' in res).toBe(true)
-    // @ts-ignore narrow result branch
-    expect(res.result.message).toBe('hello world')
+
+    expect('result' in res && res.result).toBe('hello world')
     const s = await face.status()
     expect(s.interactions).toBe(1)
     expect(s.lastInteractionId).toBe(out.id)
