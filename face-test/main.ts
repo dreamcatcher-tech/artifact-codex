@@ -16,7 +16,7 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     if (closed) throw new Error('face is closed')
   }
 
-  const active = new Map<string, Promise<string>>()
+  const active = new Map<string, { promise: Promise<string>; error?: Error }>()
 
   function interaction(input: string) {
     assertOpen()
@@ -29,7 +29,12 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
         }
         return input
       })
-    active.set(id, promise)
+
+    promise.catch((err) => {
+      record.error = err
+    })
+    const record = { promise, error: undefined }
+    active.set(id, record)
     lastId = id
     count += 1
     return { id }
@@ -61,7 +66,11 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     const rec = active.get(id)
     if (!rec) throw new Error(`unknown interaction id: ${id}`)
     try {
-      return await rec
+      const result = await rec.promise
+      if (rec.error) {
+        throw rec.error
+      }
+      return result
     } finally {
       active.delete(id)
     }
