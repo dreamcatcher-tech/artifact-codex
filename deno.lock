@@ -10,6 +10,7 @@
     "jsr:@std/internal@^1.0.10": "1.0.10",
     "jsr:@std/path@^1.1.2": "1.1.2",
     "jsr:@std/ulid@1": "1.0.0",
+    "npm:@modelcontextprotocol/sdk@*": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@1.17.5": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.17.1": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.17.4": "1.17.5_express@5.1.0_zod@3.25.76",

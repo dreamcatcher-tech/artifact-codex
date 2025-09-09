@@ -1,6 +1,6 @@
 import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { Face, FaceOptions, toError, toStructured } from '@artifact/shared'
+import { Face, FaceOptions, toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 
 type FaceId = string

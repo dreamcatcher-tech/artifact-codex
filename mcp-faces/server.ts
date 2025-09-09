@@ -2,33 +2,29 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-// Shared schemas for tool input/output
-export const faceKindSchema = z.object({
-  face_kind: z.string(),
-  command: z.string(),
-  description: z.string(),
-})
+// Output schemas aligned with @artifact/web-server faces.ts
+export const listFacesOutput = z.object({ face_kinds: z.array(z.string()) })
 
-export const listFacesOutput = z.object({ face_kinds: z.array(faceKindSchema) })
-export const createFaceOutput = z.object({ face_id: z.string() })
+export const createFaceOutput = z.object({ faceId: z.string() })
+
 export const readFaceOutput = z.object({
-  exists: z.boolean(),
-  face: z
-    .object({
-      id: z.string(),
-      kind: z.string().optional(),
-      command: z.string().optional(),
-      description: z.string().optional(),
-      status: z.string().optional(),
-      agentPath: z.string(),
-    })
-    .optional(),
-  reason: z.string().optional(),
+  status: z.object({
+    startedAt: z.string(),
+    closed: z.boolean(),
+    interactions: z.number(),
+    lastInteractionId: z.string().optional(),
+    pid: z.number().optional(),
+    config: z.string().optional(),
+    workspace: z.string().optional(),
+    processExited: z.boolean().optional(),
+    exitCode: z.number().nullable().optional(),
+    notifications: z.number().optional(),
+    lastNotificationRaw: z.string().optional(),
+  }),
 })
 
 export const destroyFaceOutput = z.object({
-  ok: z.boolean(),
-  reason: z.string().optional(),
+  deleted: z.boolean(),
 })
 
 type ToolHandler<I> = (
@@ -57,8 +53,7 @@ export function createFacesServer(
     'list_faces',
     {
       title: 'List Faces',
-      description:
-        'Lists available face kinds for a given Agent path. Returns kind identifier, command, and description.',
+      description: 'Lists available face kinds for a given Agent path.',
       inputSchema: { agentPath: z.string() },
       outputSchema: listFacesOutput.shape,
     },
@@ -70,7 +65,7 @@ export function createFacesServer(
     {
       title: 'Create Face',
       description:
-        'Creates a Face of the specified kind for the given Agent path. Returns a face id.',
+        'Creates a Face of the specified kind for the given Agent path. Returns a faceId.',
       inputSchema: { agentPath: z.string(), faceKind: z.string() },
       outputSchema: createFaceOutput.shape,
     },
@@ -81,8 +76,7 @@ export function createFacesServer(
     'read_face',
     {
       title: 'Read Face',
-      description:
-        'Reads info about a Face by id for the given Agent path, including status.',
+      description: 'Reads status about a Face by id for the given Agent path.',
       inputSchema: { agentPath: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },
@@ -94,7 +88,7 @@ export function createFacesServer(
     {
       title: 'Destroy Face',
       description:
-        'Destroys a Face by id for the given Agent path. Returns ok boolean.',
+        'Destroys a Face by id for the given Agent path. Returns deleted boolean.',
       inputSchema: { agentPath: z.string(), faceId: z.string() },
       outputSchema: destroyFaceOutput.shape,
     },

@@ -11,3 +11,47 @@ Deno.test('tools/list exposes face tools', async () => {
   expect(names).toContain('read_face')
   expect(names).toContain('destroy_face')
 })
+
+Deno.test('tools/call list_faces returns available kinds', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const result = await client.callTool({
+    name: 'list_faces',
+    arguments: { agentPath: '/dev/null' },
+  }) as { structuredContent?: { face_kinds?: string[] } }
+  const kinds = result.structuredContent?.face_kinds
+  expect(Array.isArray(kinds)).toBe(true)
+  expect(kinds).toContain('test')
+})
+
+Deno.test('tools/call create_face returns a face id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const result = await client.callTool({
+    name: 'create_face',
+    arguments: { agentPath: '/dev/null', faceKind: 'test' },
+  }) as { structuredContent?: { faceId?: string } }
+  const faceId = result.structuredContent?.faceId
+  expect(typeof faceId).toBe('string')
+  expect(faceId?.startsWith('face-')).toBe(true)
+})
+
+Deno.test('tools/call read_face returns error for unknown id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const res = await client.callTool({
+    name: 'read_face',
+    arguments: { agentPath: '/dev/null', faceId: 'does-not-exist' },
+  })
+  expect(res.isError).toBe(true)
+})
+
+Deno.test('tools/call destroy_face returns error for unknown id', async () => {
+  using fixtures = await withApp()
+  const { client } = fixtures
+  const res = await client.callTool({
+    name: 'destroy_face',
+    arguments: { agentPath: '/dev/null', faceId: 'does-not-exist' },
+  })
+  expect(res.isError).toBe(true)
+})

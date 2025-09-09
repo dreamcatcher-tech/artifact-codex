@@ -20,7 +20,7 @@ const server = createFacesServer(base, {
     console.log('create_face', { agentPath, faceKind, extra })
     try {
       return Promise.resolve(
-        toStructured({ face_id: `stub-${crypto.randomUUID()}` }),
+        toStructured({ faceId: `stub-${crypto.randomUUID()}` }),
       )
     } catch (err) {
       return Promise.resolve(toError(err))
@@ -30,7 +30,13 @@ const server = createFacesServer(base, {
     console.log('read_face', { agentPath, faceId, extra })
     try {
       return Promise.resolve(
-        toStructured({ exists: false, reason: 'Not implemented' }),
+        toStructured({
+          status: {
+            startedAt: new Date().toISOString(),
+            closed: true,
+            interactions: 0,
+          },
+        }),
       )
     } catch (err) {
       return Promise.resolve(toError(err))
@@ -40,7 +46,7 @@ const server = createFacesServer(base, {
     console.log('destroy_face', { agentPath, faceId, extra })
     try {
       return Promise.resolve(
-        toStructured({ ok: false, reason: 'Not implemented' }),
+        toStructured({ deleted: false }),
       )
     } catch (err) {
       return Promise.resolve(toError(err))

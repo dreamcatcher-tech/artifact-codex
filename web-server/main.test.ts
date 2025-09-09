@@ -24,17 +24,3 @@ Deno.test('tools/list exposes face + interaction tools', async () => {
   expect(names).toContain('read_interaction')
   expect(names).toContain('destroy_interaction')
 })
-
-Deno.test('tools/call create_face returns stub id', async () => {
-  using fixtures = await withApp()
-  const { client } = fixtures
-  const result = await client.callTool({
-    name: 'create_face',
-    arguments: { agentPath: '/dev/null', faceKind: 'stub' },
-  })
-  const faceId =
-    (result as unknown as { structuredContent?: { face_id?: string } })
-      ?.structuredContent?.face_id
-  expect(typeof faceId).toBe('string')
-  expect(faceId?.startsWith('stub-')).toBe(true)
-})
