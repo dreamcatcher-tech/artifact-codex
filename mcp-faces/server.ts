@@ -53,7 +53,8 @@ export function createFacesServer(
     'list_faces',
     {
       title: 'List Faces',
-      description: 'Lists available face kinds for a given Agent id.',
+      description:
+        'Lists available face kinds for a given Agent id. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
       inputSchema: { agentId: z.string() },
       outputSchema: listFacesOutput.shape,
     },
@@ -65,7 +66,7 @@ export function createFacesServer(
     {
       title: 'Create Face',
       description:
-        'Creates a Face of the specified kind for the given Agent id. Returns a faceId.',
+        'Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target the currently running agent via localhost.',
       inputSchema: { agentId: z.string(), faceKind: z.string() },
       outputSchema: createFaceOutput.shape,
     },
@@ -76,7 +77,8 @@ export function createFacesServer(
     'read_face',
     {
       title: 'Read Face',
-      description: 'Reads status about a Face by id for the given Agent id.',
+      description:
+        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target the current agent.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },
@@ -88,7 +90,7 @@ export function createFacesServer(
     {
       title: 'Destroy Face',
       description:
-        'Destroys a Face by id for the given Agent id. Returns deleted boolean.',
+        'Destroys a Face by id for the given Agent id. Returns deleted boolean. Use "@self" as agentId to target the current agent.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: destroyFaceOutput.shape,
     },

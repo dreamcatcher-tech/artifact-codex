@@ -63,7 +63,7 @@ export function createInteractionsServer(
     {
       title: 'List Interactions',
       description:
-        'Lists available interaction kinds for a given Agent id. Returns kind identifier, command, and description.',
+        'Lists available interaction kinds for a given Agent id. Returns kind identifier, command, and description. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: listInteractionsOutput.shape,
     },
@@ -75,7 +75,7 @@ export function createInteractionsServer(
     {
       title: 'Create Interaction',
       description:
-        'Creates an Interaction of the specified kind for the given Agent id. Returns an interaction id.',
+        'Creates an Interaction of the specified kind for the given Agent id. Returns an interaction id. Use "@self" as agentId to target the currently running agent via localhost.',
       inputSchema: {
         agentId: z.string(),
         faceId: z.string(),
@@ -91,7 +91,7 @@ export function createInteractionsServer(
     {
       title: 'Read Interaction',
       description:
-        'Reads info about an Interaction by id for the given Agent id, including status.',
+        'Reads info about an Interaction by id for the given Agent id, including status. Use "@self" as agentId to target the current agent.',
       inputSchema: { agentId: z.string(), interactionId: z.string() },
       outputSchema: readInteractionOutput.shape,
     },
@@ -103,7 +103,7 @@ export function createInteractionsServer(
     {
       title: 'Destroy Interaction',
       description:
-        'Destroys an Interaction by id for the given Agent id. Returns ok boolean.',
+        'Destroys an Interaction by id for the given Agent id. Returns ok boolean. Use "@self" as agentId to target the current agent.',
       inputSchema: {
         agentId: z.string(),
         interactionId: z.string(),

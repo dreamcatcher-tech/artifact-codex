@@ -1,6 +1,5 @@
 {
   "workspace": [
-    "agent-router",
     "mcp-agents",
     "mcp-computers",
     "mcp-faces",

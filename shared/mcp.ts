@@ -15,6 +15,14 @@ export type RemoteClientOptions = {
  * Stubbed: http://<agentId>.internal
  */
 export function resolveAgentToOrigin(agentId: string): URL {
+  // Special-case for calling the currently running agent.
+  // If agentId is "@self" we route to the local web server.
+  // The self web server listens on PORT (default 8787).
+  if (agentId === '@self') {
+    const port = Deno.env.get('PORT') ?? '8787'
+    return new URL(`http://127.0.0.1:${port}`)
+  }
+  // Default: resolve to internal DNS for the remote agent
   return new URL(`http://${agentId}.internal`)
 }
 

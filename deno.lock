@@ -667,12 +667,6 @@
   },
   "workspace": {
     "members": {
-      "agent-router": {
-        "dependencies": [
-          "jsr:@hono/hono@^4.9.5",
-          "npm:@modelcontextprotocol/sdk@^1.17.4"
-        ]
-      },
       "face-codex": {
         "dependencies": [
           "jsr:@std/expect@^1.0.17",
