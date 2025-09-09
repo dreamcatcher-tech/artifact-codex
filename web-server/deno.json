@@ -13,6 +13,7 @@
     "@hono/hono": "jsr:@hono/hono@^4.9.6",
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.17.5",
     "@std/expect": "jsr:@std/expect@^1.0.17",
+    "serialize-error": "npm:serialize-error@^12.0.0",
     "zod": "npm:zod@^3.25.76"
   }
 }

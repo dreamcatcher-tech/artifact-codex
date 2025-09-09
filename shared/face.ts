@@ -18,14 +18,12 @@ export type FaceWaitOptions = {
   status?: 'pending' | 'settled'
 }
 
-export type FaceWaitResult = { error: true } | { result: string }
-
 export type Face = {
   interaction: (input: string) => { id: string }
   waitFor: (
     id: string,
     opts?: FaceWaitOptions,
-  ) => Promise<FaceWaitResult>
+  ) => Promise<string>
   cancel: (id: string) => Promise<void>
   destroy: () => Promise<void>
   status: () => Promise<FaceStatus>

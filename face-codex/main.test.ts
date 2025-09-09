@@ -24,7 +24,8 @@ Deno.test('interaction returns id; outcome via waitFor, updates status', async (
     expect(typeof out.id).toBe('string')
     expect(out.id.length).toBeGreaterThan(8)
     const res = await face.waitFor(out.id)
-    expect('result' in res).toBe(true)
+    expect(res).toBe('hello')
+
     const s = await face.status()
     expect(s.interactions).toBe(1)
     expect(s.lastInteractionId).toBe(out.id)

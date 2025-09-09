@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run
-import type { Face, FaceOptions, FaceWaitResult } from '@artifact/shared'
+import type { Face, FaceOptions } from '@artifact/shared'
 
 /**
  * A minimal Face that echoes inputs. Used for exercising error paths.
@@ -16,20 +16,19 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     if (closed) throw new Error('face is closed')
   }
 
-  const active = new Map<string, Promise<FaceWaitResult>>()
+  const active = new Map<string, Promise<string>>()
 
   function interaction(input: string) {
     assertOpen()
     const id = count.toString()
-    const promise: Promise<FaceWaitResult> = Promise
+    const promise: Promise<string> = Promise
       .resolve()
       .then(() => {
         if (input.toLowerCase() === 'error') {
           throw new Error('intentional test error')
         }
-        return { result: input }
+        return input
       })
-      .catch(() => ({ error: true as const }))
     active.set(id, promise)
     lastId = id
     count += 1

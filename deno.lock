@@ -16,6 +16,7 @@
     "npm:@modelcontextprotocol/sdk@^1.17.4": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.17.5": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",
+    "npm:serialize-error@12": "12.0.0",
     "npm:zod@3.23.8": "3.23.8",
     "npm:zod@^3.25.76": "3.25.76"
   },
@@ -459,6 +460,12 @@
         "statuses@2.0.2"
       ]
     },
+    "serialize-error@12.0.0": {
+      "integrity": "sha512-ZYkZLAvKTKQXWuh5XpBw7CdbSzagarX39WyZ2H07CDLC5/KfsRGlIXV8d4+tfqX1M7916mRqR1QfNHSij+c9Pw==",
+      "dependencies": [
+        "type-fest"
+      ]
+    },
     "serve-static@2.2.0": {
       "integrity": "sha512-61g9pCh0Vnh7IutZjtLGGpTA355+OPn2TyDv/6ivP2h/AdAVX9azsoxmg2/M6nZeQZNYBEwIcsne1mJd9oQItQ==",
       "dependencies": [
@@ -524,6 +531,9 @@
     },
     "toidentifier@1.0.1": {
       "integrity": "sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA=="
+    },
+    "type-fest@4.41.0": {
+      "integrity": "sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA=="
     },
     "type-is@2.0.1": {
       "integrity": "sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw==",
@@ -716,6 +726,7 @@
           "jsr:@std/dotenv@~0.225.5",
           "jsr:@std/expect@^1.0.17",
           "npm:@modelcontextprotocol/sdk@^1.17.4",
+          "npm:serialize-error@12",
           "npm:zod@^3.25.76"
         ]
       },
@@ -725,6 +736,7 @@
           "jsr:@hono/hono@^4.9.6",
           "jsr:@std/expect@^1.0.17",
           "npm:@modelcontextprotocol/sdk@^1.17.5",
+          "npm:serialize-error@12",
           "npm:zod@^3.25.76"
         ]
       }

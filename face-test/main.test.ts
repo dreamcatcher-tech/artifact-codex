@@ -23,10 +23,8 @@ Deno.test('interaction returns id; waitFor returns result', async () => {
     const out = face.interaction('hello world')
     expect(typeof out.id).toBe('string')
     const res = await face.waitFor(out.id)
-    expect('error' in res).toBe(false)
-    expect('result' in res).toBe(true)
+    expect(res).toBe('hello world')
 
-    expect('result' in res && res.result).toBe('hello world')
     const s = await face.status()
     expect(s.interactions).toBe(1)
     expect(s.lastInteractionId).toBe(out.id)
@@ -35,12 +33,11 @@ Deno.test('interaction returns id; waitFor returns result', async () => {
   }
 })
 
-Deno.test('error path: waitFor returns { error: true }', async () => {
+Deno.test('error path: waitFor returns { error: SerializedError }', async () => {
   const face = startFaceTest()
   try {
     const out = face.interaction('error')
-    const res = await face.waitFor(out.id)
-    expect('error' in res).toBe(true)
+    await expect(face.waitFor(out.id)).rejects.toThrow('intentional test error')
   } finally {
     await face.destroy()
   }

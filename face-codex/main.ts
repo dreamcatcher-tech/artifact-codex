@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Face, FaceOptions, FaceWaitResult } from '@artifact/shared'
+import type { Face, FaceOptions } from '@artifact/shared'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
@@ -11,8 +11,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   let count = 0
   let lastId: string | undefined
   const idPrefix = 'fcx_'
-  const transform = (s: string) => s
-  const active = new Map<string, Promise<FaceWaitResult>>()
+  const active = new Map<string, Promise<string>>()
 
   // Child process state (when opts.launch === true)
   let child: Deno.ChildProcess | undefined
@@ -150,7 +149,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     lastId = id
     count += 1
     // record a settled result for waiters (echo)
-    active.set(id, Promise.resolve({ result: transform(input) }))
+    active.set(id, Promise.resolve(input))
     // If a custom runner is active, push input to its stdin
     if (child?.stdin) {
       const bytes = new TextEncoder().encode(String(input) + '\n')
@@ -282,7 +281,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     }
   }
 
-  async function waitFor(id: string): Promise<FaceWaitResult> {
+  async function waitFor(id: string): Promise<string> {
     const rec = active.get(id)
     if (!rec) throw new Error(`unknown interaction id: ${id}`)
     try {

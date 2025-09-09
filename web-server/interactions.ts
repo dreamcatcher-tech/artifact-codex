@@ -41,9 +41,12 @@ export const createInteractions = (
       if (!face) {
         throw new Error(`Face not found: ${interaction.faceId}`)
       }
-      const result = await face.waitFor(interaction.id)
-      interactions.delete(interactionId)
-      return toStructured(result)
+      try {
+        const result = await face.waitFor(interaction.id)
+        return toStructured({ result })
+      } finally {
+        interactions.delete(interactionId)
+      }
     },
     destroy_interaction: async ({ interactionId }): Promise<CallToolResult> => {
       const interaction = interactions.get(interactionId)
