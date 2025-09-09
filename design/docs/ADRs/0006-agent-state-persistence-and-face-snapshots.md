@@ -4,13 +4,15 @@ Status: Proposed Date: 2025-08-30
 
 ## Context
 
-Faces are ephemeral by default; we sometimes need snapshot/restore of overall agent state.
+Faces are ephemeral by default; we sometimes need snapshot/restore of overall
+agent state.
 
 ## Decision
 
-- On persistence events, optionally write a freeform Agent State Object to the Artifact Storage
-  Layer.
-- Optionally restore on next start; faces may be rehydrated but remain inert until attached.
+- On persistence events, optionally write a freeform Agent State Object to the
+  Artifact Storage Layer.
+- Optionally restore on next start; faces may be rehydrated but remain inert
+  until attached.
 
 ## Consequences
 
@@ -19,8 +21,10 @@ Faces are ephemeral by default; we sometimes need snapshot/restore of overall ag
 
 ## MCP Interfaces (sketch)
 
-- `artifacts.save_state(app, machine_id, agent_id, state_json)` → `{version, stored_at}`
-- `artifacts.load_state(app, machine_id, agent_id)` → `{state_json, version, stored_at}|null`
+- `artifacts.save_state(app, machine_id, agent_id, state_json)` →
+  `{version, stored_at}`
+- `artifacts.load_state(app, machine_id, agent_id)` →
+  `{state_json, version, stored_at}|null`
 
 ## Security
 

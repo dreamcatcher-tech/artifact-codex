@@ -7,8 +7,8 @@ Defines the filesystem layout and policies for an agent’s working area.
 - Root: `/workspace`
 - Contents: one or more Git repos, plus a scratch area for ephemeral repos.
 - Scope: shared by all faces/sessions within the same agent (container).
-- Boundary: the agent/container is the unit of mutability and pooling; use a new agent for different
-  isolation needs.
+- Boundary: the agent/container is the unit of mutability and pooling; use a new
+  agent for different isolation needs.
 
 **Layout**
 
@@ -21,8 +21,8 @@ Defines the filesystem layout and policies for an agent’s working area.
 
 **Initialization**
 
-- On launch, the agent ensures `/workspace` exists and materializes the repos from the Workspace
-  Manifest.
+- On launch, the agent ensures `/workspace` exists and materializes the repos
+  from the Workspace Manifest.
 - Scratch root `/workspace/.scratch` is created and subject to TTL/GC.
 
 **Workspace Manifest**
@@ -54,7 +54,8 @@ ref = "v1.0.0"
 **Scratch Repos**
 
 - Created under `/.scratch/{id}`; initialized as Git repos without remotes.
-- Default TTL (e.g., 7 days). GC may remove expired scratch repos when over quota or on launch.
+- Default TTL (e.g., 7 days). GC may remove expired scratch repos when over
+  quota or on launch.
 - To persist, user must push to a remote or move content into a tracked repo.
 
 **Operations (sketch)**
@@ -66,19 +67,21 @@ ref = "v1.0.0"
 
 **Codex Config**
 
-- File `~/codex.toml` contains codex runtime settings. The manifest’s `codex_config_path` points to
-  this file; agents SHOULD load it during launch in addition to the locked
-  `$CODEX_HOME/config.toml`.
+- File `~/codex.toml` contains codex runtime settings. The manifest’s
+  `codex_config_path` points to this file; agents SHOULD load it during launch
+  in addition to the locked `$CODEX_HOME/config.toml`.
 
 **Concurrency**
 
-- Serialize Git operations per path. Faces share the same filesystem; lock around
-  clone/fetch/checkout.
+- Serialize Git operations per path. Faces share the same filesystem; lock
+  around clone/fetch/checkout.
 
 **Persistence**
 
-- If `/workspace` is backed by a volume, contents survive restarts; otherwise consider it ephemeral.
-- Secrets for Git auth are provisioned outside the workspace (see `CODEX_HOME` and secrets docs).
+- If `/workspace` is backed by a volume, contents survive restarts; otherwise
+  consider it ephemeral.
+- Secrets for Git auth are provisioned outside the workspace (see `CODEX_HOME`
+  and secrets docs).
 
 **Diagram**
 

@@ -2,248 +2,248 @@
 // of it is json schema.  The schema parts are dynamically supplied at runtime,
 // but the data parts are required that the runtime parts can know what to do.
 {
-    "name": "napp-name",
-    "version": "0.0.1",
-    "napp-format": "v1",
-    "description": "This is a description of the napp",
-    // what species of runtime needs to be used to execute this napp, such as
-    // rust, go, python, deno, c++, etc.
-    "runtime": "deno",
-    // folder containing the branding assets of the napp
-    "branding": "path/to/branding/",
+  "name": "napp-name",
+  "version": "0.0.1",
+  "napp-format": "v1",
+  "description": "This is a description of the napp",
+  // what species of runtime needs to be used to execute this napp, such as
+  // rust, go, python, deno, c++, etc.
+  "runtime": "deno",
+  // folder containing the branding assets of the napp
+  "branding": "path/to/branding/",
 
-    // if the tool exports are not in the default module export, then this path
-    // can be used to specify where to import code from.  Each tool call can also
-    // specify a path to import code from, which will override this path.
-    // If the module is not given, then we assume a module named the same as the
-    // napp.
-    // the module can be a string or it can be an object, to allow targeting
-    // existing packages with no changes to those packages.
-    // Only publicly exported functions are accessible.
-    "module": {
+  // if the tool exports are not in the default module export, then this path
+  // can be used to specify where to import code from.  Each tool call can also
+  // specify a path to import code from, which will override this path.
+  // If the module is not given, then we assume a module named the same as the
+  // napp.
+  // the module can be a string or it can be an object, to allow targeting
+  // existing packages with no changes to those packages.
+  // Only publicly exported functions are accessible.
+  "module": {
+    "package": "npm:lodash",
+    "export": "some-exported-object",
+    "path": ["some", "path", "within", "the", "object"]
+  },
+
+  "stucks": {
+    "napp": "@artifact/stucks",
+    "tool": "create",
+    "parameters": {
+      "title": "This is the title of the stuck",
+      "description": "This is the description of the stuck",
+      "snapshotId": "snapshot-id",
+      "crypto": "crypto-id", // universally and securely id the repo
+      "branch": "main",
+      "expectations": [
+        "Mrs Miggins should have two pies, not one"
+      ]
+    }
+  },
+  "changes": {
+    // how the upgrades to this napp are managed
+    // this is a change control agent that approves or rejects pull requests
+    // and can be configured to do so in various ways
+    "napp": "@artifact/change-control",
+    "parameters": {
+      "directive": "make the most number of paperclips"
+    }
+  },
+  "agent": {
+    // entry point that takes plain text in and returns text plus files
+    "napp": "@artifact/openai",
+    "tool": "some-exported-function", // if use a function other than main
+    "parameters": {
+      // parameters for the chat runner, based on what the runner is.  This is
+      // the exact same format as a tool call.
+      "model": "gpt-4o",
+      "parallel_tool_calls": false,
+      // if any of these tool calls are made, the agent will stop
+      "stop_on_tools": ["tool1", "tool3"],
+      // "tools" is a special key that is resolved back to the calling napp if
+      // not given
+      "tools": ["some-function"],
+      // "content" is the reserved name for the input text, so it is an error to
+      // specify it here
+
+      // the default name for instructions is instructions.md but this can be
+      // overridden to any other file
+      "instructions": "instructions.md"
+    }
+  },
+  // the default function to run.  If not given, and there is only exported tool, then that is default.  If not given, and there is a tool named "main", then that is default.
+  "main": "some-tool-name",
+
+  "tools": {
+    "some-function": {
+      "description": "This function does something",
+      "parameters": {
+        "type": "object",
+        // if extra properties are included, they are stripped when parsing
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "City and country e.g. Bogotá, Colombia"
+          }
+        },
+        "required": ["location"], // by default, all properties are required
+        "additionalProperties": false // this defaults to false
+      },
+      "returns": {
+        "description": "This is what the function returns",
+        "type": "string"
+      },
+      // optionally, can include a list of errors
+      "throws": {
+        "FileNotFoundError": {
+          // list of expected error types and what to do about it
+        }
+      },
+      // if path is not given, then the default export must include a function
+      // that satisfies this signature and that matches the name of the tool.
+      // if path is given, the function name will be searched for, and if not
+      // found, the default export will be used.
+      "module": {
         "package": "npm:lodash",
+        // if the function is not named the same as the tool, then the export
+        // can be used to specify the name of the function to use
         "export": "some-exported-object",
+        // if the function is not named the same as the tool on the exported
+        // object, then the path can be used to specify the path to the function
         "path": ["some", "path", "within", "the", "object"]
+      }
     },
+    // by referring to a napp directly, it will be called as an agent
+    "some-other-function": "@napps/dependent-napp-name",
 
-    "stucks": {
-        "napp": "@artifact/stucks",
-        "tool": "create",
-        "parameters": {
-            "title": "This is the title of the stuck",
-            "description": "This is the description of the stuck",
-            "snapshotId": "snapshot-id",
-            "crypto": "crypto-id", // universally and securely id the repo
-            "branch": "main",
-            "expectations": [
-                "Mrs Miggins should have two pies, not one"
-            ]
-        }
+    // passes thru to a tool of the same name
+    "modified-passthru": {
+      // optionally can modify the parameters so long as it is narrowing not
+      // expanding
+      "parameters": {},
+      "napp": {
+        "name": "@napps/dependent-napp-name",
+        // if the tool is omitted, then we assume it has the same name as the
+        // containing tool
+        "tool": "some-exported-function"
+        // this key could be "agent", which would allow rewriting of the agent parameters
+      }
     },
-    "changes": {
-        // how the upgrades to this napp are managed
-        // this is a change control agent that approves or rejects pull requests
-        // and can be configured to do so in various ways
-        "napp": "@artifact/change-control",
-        "parameters": {
-            "directive": "make the most number of paperclips"
-        }
-    },
-    "agent": {
-        // entry point that takes plain text in and returns text plus files
-        "napp": "@artifact/openai",
-        "tool": "some-exported-function", // if use a function other than main
-        "parameters": {
-            // parameters for the chat runner, based on what the runner is.  This is
-            // the exact same format as a tool call.
-            "model": "gpt-4o",
-            "parallel_tool_calls": false,
-            // if any of these tool calls are made, the agent will stop
-            "stop_on_tools": ["tool1", "tool3"],
-            // "tools" is a special key that is resolved back to the calling napp if
-            // not given
-            "tools": ["some-function"],
-            // "content" is the reserved name for the input text, so it is an error to
-            // specify it here
-
-            // the default name for instructions is instructions.md but this can be
-            // overridden to any other file
-            "instructions": "instructions.md"
-        }
-    },
-    // the default function to run.  If not given, and there is only exported tool, then that is default.  If not given, and there is a tool named "main", then that is default.
-    "main": "some-tool-name",
-
-    "tools": {
-        "some-function": {
-            "description": "This function does something",
-            "parameters": {
-                "type": "object",
-                // if extra properties are included, they are stripped when parsing
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "City and country e.g. Bogotá, Colombia"
-                    }
-                },
-                "required": ["location"], // by default, all properties are required
-                "additionalProperties": false // this defaults to false
-            },
-            "returns": {
-                "description": "This is what the function returns",
-                "type": "string"
-            },
-            // optionally, can include a list of errors
-            "throws": {
-                "FileNotFoundError": {
-                    // list of expected error types and what to do about it
-                }
-            },
-            // if path is not given, then the default export must include a function
-            // that satisfies this signature and that matches the name of the tool.
-            // if path is given, the function name will be searched for, and if not
-            // found, the default export will be used.
-            "module": {
-                "package": "npm:lodash",
-                // if the function is not named the same as the tool, then the export
-                // can be used to specify the name of the function to use
-                "export": "some-exported-object",
-                // if the function is not named the same as the tool on the exported
-                // object, then the path can be used to specify the path to the function
-                "path": ["some", "path", "within", "the", "object"]
-            }
-        },
-        // by referring to a napp directly, it will be called as an agent
-        "some-other-function": "@napps/dependent-napp-name",
-
-        // passes thru to a tool of the same name
-        "modified-passthru": {
-            // optionally can modify the parameters so long as it is narrowing not
-            // expanding
-            "parameters": {},
-            "napp": {
-                "name": "@napps/dependent-napp-name",
-                // if the tool is omitted, then we assume it has the same name as the
-                // containing tool
-                "tool": "some-exported-function"
-                // this key could be "agent", which would allow rewriting of the agent parameters
-            }
-        },
-        "side-effect-function": {
-            "description": "This function has side effects",
-            "parameters": {},
-            // if this is a boolean, then it knows this function is a side effect, and
-            // it might have not used the context object, or it might rely on the napp
-            // level side effects context.
-            "effects": {
-                "type": "object",
-                "properties": {
-                    "db": {
-                        "description": "This is the database",
-                        "type": "object"
-                    }
-                }
-            }
-        },
-        "@mount": {
-            "description": "This function mounts the side effect context"
-            // note that there can be no parameters in a mount function
-        },
-        "@unmount": {
-            "description": "This function unmounts the side effect context"
-            // note that there can be no parameters in a unmount function
-        },
-        "@init": {
-            "description": "An action that is always available to side effect napps, that will do everything but execute the action.  This is used when some other napp requires that this napp be mounted, but does not need to execute any actions."
-        },
-        "streaming-function": {
-            "description": "This function streams data",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "param1": {
-                        "description": "This is the first parameter",
-                        "type": "string"
-                    }
-                },
-                "required": ["param1"],
-                "additionalProperties": false
-            },
-            // if stream schema is given, the function must return an AsyncIterable
-            "stream": {
-                // the schema of each item in the stream
-                "type": "string"
-            }
-        },
-        // if no parameters object is given, an empty object is assumed
-        // if no returns object is given, the function must return undefined
-        // if no description is given, an empty string is assumed
-        "empty-function": {}
-    },
-
-    "evals": {
-        "napp": "napp-test-runner-name",
-        "parameters": {
-            // config for the test runner, based on what the runner is
-            "files": [
-                // list of eval files that can be run to verify the napp is working correctly
-            ]
-        }
-    },
-    "dependencies": {
-        // list of napps that this napp depends on, including version numbers and
-        // commits so that every reference to the napp can be by simple name.
-        "dependent-napp-name": {
-            // if name is left out, it is assumed to be the same
-            "version": "0.0.1"
-        },
-        "napp-test-runner-name": {
-            "name": "@artifact/evals",
-            "version": "0.0.1"
-        }
-    },
-    "frames": {
-        // a list of exported frames that can be displayed on the stateboard
-        "googleMapsViewer": {
-            // for now, only react is supported, but we can support other frameworks
-            "type": "react",
-            "parameters": {
-                // react props that can be configured by the LLM
-                // same format as the tool call parameters
-            },
-            // uses the same rules as tools for importing graphics components
-            "module": {
-                "package": "npm:google-maps-react",
-                "export": "GoogleMaps",
-                "path": ["components", "GoogleMaps"]
-            }
-        },
-
-        // same naming conventions as tools apply.  This shows passing thru to a
-        // napp named "@artifact/truck-routes" and using the graphics element named
-        // "truckRoutes" from that napp
-        "truckRoutes": "@artifact/truck-routes",
-
-        // allows renaming the graphics component during passthru
-        "weatherDisplay": {
-            "napp": "@artifact/weather",
-            "frame": "weatherDisplayInCelsius"
-            // could modify the react props here as well
-        }
-    },
-    "effects": {
-        // the format of side effects context can be set for the whole napp, or for
-        // individual tools
+    "side-effect-function": {
+      "description": "This function has side effects",
+      "parameters": {},
+      // if this is a boolean, then it knows this function is a side effect, and
+      // it might have not used the context object, or it might rely on the napp
+      // level side effects context.
+      "effects": {
         "type": "object",
         "properties": {
-            "db": {
-                "description": "This is the database",
-                "type": "object"
-            },
-            "fetch": {
-                "description": "This is the fetch function",
-                "type": "object"
-            }
+          "db": {
+            "description": "This is the database",
+            "type": "object"
+          }
         }
+      }
+    },
+    "@mount": {
+      "description": "This function mounts the side effect context"
+      // note that there can be no parameters in a mount function
+    },
+    "@unmount": {
+      "description": "This function unmounts the side effect context"
+      // note that there can be no parameters in a unmount function
+    },
+    "@init": {
+      "description": "An action that is always available to side effect napps, that will do everything but execute the action.  This is used when some other napp requires that this napp be mounted, but does not need to execute any actions."
+    },
+    "streaming-function": {
+      "description": "This function streams data",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "param1": {
+            "description": "This is the first parameter",
+            "type": "string"
+          }
+        },
+        "required": ["param1"],
+        "additionalProperties": false
+      },
+      // if stream schema is given, the function must return an AsyncIterable
+      "stream": {
+        // the schema of each item in the stream
+        "type": "string"
+      }
+    },
+    // if no parameters object is given, an empty object is assumed
+    // if no returns object is given, the function must return undefined
+    // if no description is given, an empty string is assumed
+    "empty-function": {}
+  },
+
+  "evals": {
+    "napp": "napp-test-runner-name",
+    "parameters": {
+      // config for the test runner, based on what the runner is
+      "files": [
+        // list of eval files that can be run to verify the napp is working correctly
+      ]
     }
+  },
+  "dependencies": {
+    // list of napps that this napp depends on, including version numbers and
+    // commits so that every reference to the napp can be by simple name.
+    "dependent-napp-name": {
+      // if name is left out, it is assumed to be the same
+      "version": "0.0.1"
+    },
+    "napp-test-runner-name": {
+      "name": "@artifact/evals",
+      "version": "0.0.1"
+    }
+  },
+  "frames": {
+    // a list of exported frames that can be displayed on the stateboard
+    "googleMapsViewer": {
+      // for now, only react is supported, but we can support other frameworks
+      "type": "react",
+      "parameters": {
+        // react props that can be configured by the LLM
+        // same format as the tool call parameters
+      },
+      // uses the same rules as tools for importing graphics components
+      "module": {
+        "package": "npm:google-maps-react",
+        "export": "GoogleMaps",
+        "path": ["components", "GoogleMaps"]
+      }
+    },
+
+    // same naming conventions as tools apply.  This shows passing thru to a
+    // napp named "@artifact/truck-routes" and using the graphics element named
+    // "truckRoutes" from that napp
+    "truckRoutes": "@artifact/truck-routes",
+
+    // allows renaming the graphics component during passthru
+    "weatherDisplay": {
+      "napp": "@artifact/weather",
+      "frame": "weatherDisplayInCelsius"
+      // could modify the react props here as well
+    }
+  },
+  "effects": {
+    // the format of side effects context can be set for the whole napp, or for
+    // individual tools
+    "type": "object",
+    "properties": {
+      "db": {
+        "description": "This is the database",
+        "type": "object"
+      },
+      "fetch": {
+        "description": "This is the fetch function",
+        "type": "object"
+      }
+    }
+  }
 }

@@ -1,5 +1,6 @@
-This is a list of all the URLs we expect to handle and in all the possible system states. Some of
-these would do redirects, and some would be the final resolved target.
+This is a list of all the URLs we expect to handle and in all the possible
+system states. Some of these would do redirects, and some would be the final
+resolved target.
 
 1. `https://dreamcatcher.ai`
    - with auth
@@ -33,15 +34,15 @@ these would do redirects, and some would be the final resolved target.
 
 **Visualization (proposed)**
 
-Goal: Show every URL pattern, how it resolves across Fly apps, and which component is responsible at
-each hop — without duplicating common steps.
+Goal: Show every URL pattern, how it resolves across Fly apps, and which
+component is responsible at each hop — without duplicating common steps.
 
 - Canonical flow: one URL-resolution flowchart with subgraphs per Fly app.
-- Phases: a single sequence diagram with named phases (Resolve Hostname, Route Agent Path, Ensure
-  Face, Attach Terminal Session, Interactive Face) that define the shared steps (resolve, route,
-  ensure face, attach).
-- Per-URL journeys: short sequences that run just until they reach a phase label, then hand off by
-  reference (e.g., “Continue at Ensure Face”).
+- Phases: a single sequence diagram with named phases (Resolve Hostname, Route
+  Agent Path, Ensure Face, Attach Terminal Session, Interactive Face) that
+  define the shared steps (resolve, route, ensure face, attach).
+- Per-URL journeys: short sequences that run just until they reach a phase
+  label, then hand off by reference (e.g., “Continue at Ensure Face”).
 
 ### URL Resolution Map (canonical)
 
@@ -82,8 +83,9 @@ flowchart LR
   HBRIDGE -. "Hardware MCP" .- U
 ```
 
-Caption: Subgraphs represent Fly apps. The Agent Router authenticates and routes requests; Registry
-and Artifact provide mapping and control; target Agents expose TTYD behind the Router.
+Caption: Subgraphs represent Fly apps. The Agent Router authenticates and routes
+requests; Registry and Artifact provide mapping and control; target Agents
+expose TTYD behind the Router.
 
 ### Common Phases (shared sequence)
 
@@ -119,8 +121,9 @@ sequenceDiagram
   Note over U,T: Interactive Face (read/write)
 ```
 
-Caption: Reusable phases. Per-URL journeys may stop once they reach “Ensure Face” or “Attach
-Terminal Session” and reference this sequence instead of duplicating.
+Caption: Reusable phases. Per-URL journeys may stop once they reach “Ensure
+Face” or “Attach Terminal Session” and reference this sequence instead of
+duplicating.
 
 ### Per-URL Journey Templates
 
@@ -172,17 +175,21 @@ sequenceDiagram
 
 Notes
 
-- One face per page: landing without `?face` triggers Ensure Face and 302 to add `?face={id}`.
-- Per-URL diagrams should end at Ensure Face or Attach Terminal Session and reference the Common
-  Phases to avoid duplication.
-- Subgraphs name Fly apps explicitly: Agent Router, Artifact, Concierge, Customer App.
+- One face per page: landing without `?face` triggers Ensure Face and 302 to add
+  `?face={id}`.
+- Per-URL diagrams should end at Ensure Face or Attach Terminal Session and
+  reference the Common Phases to avoid duplication.
+- Subgraphs name Fly apps explicitly: Agent Router, Artifact, Concierge,
+  Customer App.
 
 ### URL Patterns (reference)
 
 - Root: `https://dreamcatcher.ai/` → concierge or handoff.
 - Concierge: `https://dreamcatcher.ai/concierge[?face=…]`.
 - App alias: `https://your-app.dreamcatcher.ai/{agent_path}/[?face=…]`.
-- App fallback: `https://{app}.fly.dev/{agent_path}/[?face=…]` (may normalize to alias).
+- App fallback: `https://{app}.fly.dev/{agent_path}/[?face=…]` (may normalize to
+  alias).
 - Faces index: `/{agent_path}/faces` (alias `/sessions`).
 - Auth callbacks: `/auth/callback`, `/logout`, `/me` on Router host.
-- Health: `/_healthz`, `/_readyz`, `/_version` on Router (and optionally agents).
+- Health: `/_healthz`, `/_readyz`, `/_version` on Router (and optionally
+  agents).

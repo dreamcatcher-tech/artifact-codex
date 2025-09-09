@@ -1,12 +1,12 @@
 # Diagrams: Mermaid Index & Templates
 
-Use Mermaid to visualize architecture, flows, and behaviors. Keep diagrams close to the docs they
-explain; add shared or canonical versions here.
+Use Mermaid to visualize architecture, flows, and behaviors. Keep diagrams close
+to the docs they explain; add shared or canonical versions here.
 
 ## Conventions
 
-- Place diagrams inline in `ARCHITECTURE.md`, `USER-FLOW.md`, etc.; cross-link canonical copies
-  here.
+- Place diagrams inline in `ARCHITECTURE.md`, `USER-FLOW.md`, etc.; cross-link
+  canonical copies here.
 - Prefer: `flowchart`, `stateDiagram-v2`, `sequenceDiagram`.
 - Include a short caption and a one-line text summary below each diagram.
 - Avoid color-only distinctions; label edges and nodes clearly.
@@ -85,8 +85,8 @@ sequenceDiagram
   A-->>F: {ok}
 ```
 
-Summary: First login reserves a random app name, creates the app, maps a friendly DNS alias, and
-records the mapping in Artifact.
+Summary: First login reserves a random app name, creates the app, maps a
+friendly DNS alias, and records the mapping in Artifact.
 
 ## Launch Sequence (canonical)
 
@@ -112,7 +112,8 @@ sequenceDiagram
   R-->>M: {launch_id, pid, ssh_target}
 ```
 
-Summary: Post-boot MCP call writes config.toml, sets CODEX_HOME, and execs codex.
+Summary: Post-boot MCP call writes config.toml, sets CODEX_HOME, and execs
+codex.
 
 ## Agent Runtime States (canonical)
 
@@ -127,7 +128,8 @@ stateDiagram-v2
   Error --> [*]
 ```
 
-Summary: Container lifecycle from boot to codex running, highlighting the Launch Sequence.
+Summary: Container lifecycle from boot to codex running, highlighting the Launch
+Sequence.
 
 ## Faces & Sessions (proposed)
 
@@ -144,7 +146,8 @@ flowchart TB
   FS --- P3
 ```
 
-Summary: One interface presents multiple faces (sessions) that share the same mutable filesystem.
+Summary: One interface presents multiple faces (sessions) that share the same
+mutable filesystem.
 
 ## Face Viewer + Router (canonical)
 
@@ -171,8 +174,8 @@ flowchart LR
   BA -->|OAuth| CL
 ```
 
-Summary: Canonical split: Face Viewer (view + hardware + auth) and Agent Router (terminal WS proxy +
-hardware MCP bridge).
+Summary: Canonical split: Face Viewer (view + hardware + auth) and Agent Router
+(terminal WS proxy + hardware MCP bridge).
 
 ## Agent Router — Terminal Proxy (proposed)
 

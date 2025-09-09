@@ -1,7 +1,8 @@
 # UI States: ASCII Wireframes
 
-Purpose: Define the terminal UI (TUI) for SSH sessions in clear, monospace-friendly diagrams. Each
-state shows layout, labeled regions, and transitions. State names must exist in TERMS.md.
+Purpose: Define the terminal UI (TUI) for SSH sessions in clear,
+monospace-friendly diagrams. Each state shows layout, labeled regions, and
+transitions. State names must exist in TERMS.md.
 
 ---
 
@@ -179,7 +180,8 @@ Transitions
 Notes
 
 - Appears only when `concurrency.mode = "multi-face"`.
-- Shows face/session list for the current agent path. All faces share the same filesystem/workspace.
+- Shows face/session list for the current agent path. All faces share the same
+  filesystem/workspace.
 
 Transitions
 
@@ -191,5 +193,6 @@ Transitions
 
 ## Change Control
 
-- Any change to prompts, banners, or layouts must update this file and `USER-FLOW.md` together.
+- Any change to prompts, banners, or layouts must update this file and
+  `USER-FLOW.md` together.
 - State names and key terms must match `TERMS.md`.

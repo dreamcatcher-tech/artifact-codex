@@ -1,7 +1,8 @@
 **MCP Servers Catalog**
 
-This lists the MCP servers the concierge and base agents may call. Implementation lives in a
-separate MCP host product; here we only define names and tool contracts.
+This lists the MCP servers the concierge and base agents may call.
+Implementation lives in a separate MCP host product; here we only define names
+and tool contracts.
 
 —
 
@@ -35,8 +36,8 @@ separate MCP host product; here we only define names and tool contracts.
 
 **artifact.mcp (proposed)**
 
-- **Purpose:** Artifact State Tracker — maps Clerk users to apps, manages friendly DNS aliases, and
-  coordinates maintenance mode.
+- **Purpose:** Artifact State Tracker — maps Clerk users to apps, manages
+  friendly DNS aliases, and coordinates maintenance mode.
 - **Tools:**
   - `reserve_app_name(user_id)` → `{app}`
   - `record_user_app(user_id, app, aliases[])` → `{ok}`
@@ -60,10 +61,10 @@ separate MCP host product; here we only define names and tool contracts.
 
 - **Purpose:** Post‑boot agent launch and runtime control.
 - **Tools:**
-  - `launch_agent(app, machine_id, agent_id, config_toml, codex_args?, env?, workdir?)` →
-    `{launch_id, pid, ssh_target}`
-    - Writes `config.toml` to `$CODEX_HOME` (per RUNTIME.md “Launch Sequence”), exports
-      `CODEX_HOME`, then `exec`’s `codex`.
+  - `launch_agent(app, machine_id, agent_id, config_toml, codex_args?, env?, workdir?)`
+    → `{launch_id, pid, ssh_target}`
+    - Writes `config.toml` to `$CODEX_HOME` (per RUNTIME.md “Launch Sequence”),
+      exports `CODEX_HOME`, then `exec`’s `codex`.
   - `stop_agent(app, machine_id, pid|launch_id)` → `{stopped:boolean}`
   - `status_agent(app, machine_id, pid|launch_id)` → `{status, started_at}`
 
@@ -76,9 +77,15 @@ separate MCP host product; here we only define names and tool contracts.
         "app": { "type": "string" },
         "machine_id": { "type": "string" },
         "agent_id": { "type": "string" },
-        "config_toml": { "type": "string", "description": "Full contents of config.toml" },
+        "config_toml": {
+          "type": "string",
+          "description": "Full contents of config.toml"
+        },
         "codex_args": { "type": "array", "items": { "type": "string" } },
-        "env": { "type": "object", "additionalProperties": { "type": "string" } },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
         "workdir": { "type": "string" }
       }
     }
@@ -89,7 +96,8 @@ separate MCP host product; here we only define names and tool contracts.
 - **Purpose:** Durable artifact storage for agent snapshots and related state.
 - **Tools:**
   - `save_state(app, machine_id, agent_id, state_json)` → `{version, stored_at}`
-  - `load_state(app, machine_id, agent_id)` → `{state_json, version, stored_at}|null`
+  - `load_state(app, machine_id, agent_id)` →
+    `{state_json, version, stored_at}|null`
 
 **policy.mcp** (optional)
 
@@ -109,9 +117,10 @@ separate MCP host product; here we only define names and tool contracts.
 
 **Access Matrix (Concise)**
 
-- Frontend/concierge: provisioning, auth, registry, secrets, runtime, policy, session.
-- Base agent: registry (read-own), secrets (read scoped), policy (check), session (intra-agent),
-  provisioning (optional: sub-agents).
+- Frontend/concierge: provisioning, auth, registry, secrets, runtime, policy,
+  session.
+- Base agent: registry (read-own), secrets (read scoped), policy (check),
+  session (intra-agent), provisioning (optional: sub-agents).
 
 **Config Example (per-agent)**
 

@@ -4,7 +4,8 @@ Status: Accepted Date: 2025-08-30
 
 ## Context
 
-Agents require a predictable filesystem layout for repos and scratch space, with quotas and GC.
+Agents require a predictable filesystem layout for repos and scratch space, with
+quotas and GC.
 
 ## Decision
 
@@ -20,7 +21,8 @@ Agents require a predictable filesystem layout for repos and scratch space, with
 
 ## Consequences
 
-- Launch must ensure `/workspace` exists and materialize repos before accepting faces.
+- Launch must ensure `/workspace` exists and materialize repos before accepting
+  faces.
 - Git operations must lock per path to avoid corruption.
 
 ## Alternatives Considered
