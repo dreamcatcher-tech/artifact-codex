@@ -74,8 +74,8 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       template += `\nnotify = [${notifyListStr}]\n`
     }
 
-    const outPath = join(configDir, 'codex.config.toml')
-    await Deno.writeTextFile(outPath, template)
+    const outPathCodex = join(configDir, 'config.toml')
+    await Deno.writeTextFile(outPathCodex, template)
   }
 
   async function maybeLaunch() {
@@ -93,17 +93,16 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       throw new Error(`workspace directory not found: ${workspaceDir}`)
     }
 
-    // Build command: support custom runnerApp from opts.config; default to heavy app
+    // Build command: support custom runnerApp from opts.config; otherwise run our tmux+ttyd wrapper
     const configMap = opts.config as Record<string, unknown> | undefined
     const runnerApp = Array.isArray(configMap?.['runnerApp'])
       ? (configMap!['runnerApp'] as string[])
       : undefined
     const useCustom = Array.isArray(runnerApp) && runnerApp.length > 0
-    let command = 'npx'
-    let args: string[] = ['-y', 'openai/codex']
+    let cmd: Deno.Command
     if (useCustom) {
-      command = runnerApp![0]
-      args = runnerApp!.slice(1)
+      const command = runnerApp![0]
+      let args = runnerApp!.slice(1)
       // Provide notify script and config dir to mock runner
       const cfg = configDir!
       args = args.concat([
@@ -112,16 +111,39 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
         '--dir',
         cfg,
       ])
+      cmd = new Deno.Command(command, {
+        args,
+        cwd: workspaceDir,
+        env: { ...Deno.env.toObject(), CODEX_HOME: configDir! },
+        stdin: 'piped',
+        stdout: 'inherit',
+        stderr: 'inherit',
+      })
+    } else {
+      // Launch tmux + ttyd and run Codex as the main app command.
+      const thisDir = dirname(fromFileUrl(import.meta.url))
+      const tmuxScript = join(thisDir, 'tmux.sh')
+
+      // Ensure Codex uses the provided home dir and workspace root.
+      const env = {
+        ...Deno.env.toObject(),
+        CODEX_HOME: configDir!,
+        // Run the interactive TUI anchored at the workspace via --cd
+        AUTOSTART_CMD: `codex --cd ${workspaceDir}`,
+        // Provide a readable window title
+        WINDOW_TITLE: 'Codex',
+      }
+
+      cmd = new Deno.Command(tmuxScript, {
+        args: [],
+        cwd: workspaceDir,
+        env,
+        stdin: 'inherit',
+        stdout: 'inherit',
+        stderr: 'inherit',
+      })
     }
 
-    const cmd = new Deno.Command(command, {
-      args,
-      cwd: workspaceDir,
-      env: { ...Deno.env.toObject(), CODEX_HOME: configDir! },
-      stdin: useCustom ? 'piped' : 'inherit',
-      stdout: 'inherit',
-      stderr: 'inherit',
-    })
     child = cmd.spawn()
     pid = child.pid // Observe exit asynchronously
     ;(async () => {

@@ -684,6 +684,12 @@
           "npm:zod@^3.25.76"
         ]
       },
+      "face-inspector": {
+        "dependencies": [
+          "jsr:@std/expect@^1.0.17",
+          "jsr:@std/path@^1.1.2"
+        ]
+      },
       "face-test": {
         "dependencies": [
           "jsr:@std/expect@^1.0.17"

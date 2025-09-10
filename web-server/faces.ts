@@ -2,6 +2,7 @@ import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { Face, FaceOptions, toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
+import { startFaceInspector } from '@artifact/face-inspector'
 
 type FaceKind = {
   title: string
@@ -16,6 +17,11 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       title: 'Test',
       description: 'A test face',
       creator: startFaceTest,
+    },
+    inspector: {
+      title: 'Inspector',
+      description: 'Runs MCP Inspector and reports ports',
+      creator: startFaceInspector,
     },
   }
 

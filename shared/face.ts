@@ -12,6 +12,13 @@ export type FaceStatus = {
   // Optional notification info (file-based IPC)
   notifications?: number
   lastNotificationRaw?: string
+  // Optional child server/UI ports (for faces that run web UIs or proxies)
+  ports?: {
+    ui?: number
+    server?: number
+    uiUrl?: string
+    serverUrl?: string
+  }
 }
 
 export type FaceWaitOptions = {

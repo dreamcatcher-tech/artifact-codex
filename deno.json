@@ -5,6 +5,7 @@
     "mcp-faces",
     "mcp-interactions",
     "face-codex",
+    "face-inspector",
     "face-test",
     "web-server",
     "shared"

@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/face-codex",
+  "name": "@artifact/face-inspector",
   "exports": "./main.ts",
   "tasks": {
     "dev": "deno run -A dev.ts",
@@ -10,8 +10,7 @@
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
   },
   "imports": {
-    "@std/expect": "jsr:@std/expect@^1.0.17",
     "@std/path": "jsr:@std/path@^1.1.2",
-    "zod": "npm:zod@^3.25.76"
+    "@std/expect": "jsr:@std/expect@^1.0.17"
   }
 }
