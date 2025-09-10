@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run -A
-import { dirname, fromFileUrl, join } from '@std/path'
+import { dirname, fromFileUrl } from '@std/path'
 import { startFaceCodex } from './main.ts'
 
 function repoRootFromHere(): string {
@@ -61,10 +61,8 @@ async function openInBrowser(url: string) {
 }
 
 if (import.meta.main) {
-  const root = repoRootFromHere()
-
   // Workspace for Codex to start in (default: repo root)
-  const workspace = Deno.env.get('WORKSPACE') ?? root
+  const workspace = repoRootFromHere()
 
   const home = await Deno.makeTempDir({ prefix: 'codex-dev-' })
   const port = Number(Deno.env.get('PORT') ?? '7681')

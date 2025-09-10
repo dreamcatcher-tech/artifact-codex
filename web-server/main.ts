@@ -1,45 +1,21 @@
 #!/usr/bin/env -S deno run -A
 import { Hono } from '@hono/hono'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { StreamableHTTPTransport } from '@hono/mcp'
-import { createInteractionsServer } from '@artifact/mcp-interactions'
-import { createFacesServer } from '@artifact/mcp-faces'
-import { createInteractions } from './interactions.ts'
-import { createFaces } from './faces.ts'
-import { Face } from '@artifact/shared'
-type FaceId = string
+import { mcpHandler } from './mcp.ts'
 
 export function createApp() {
   const app = new Hono()
-
-  const facesStore = new Map<FaceId, Face>()
-  const faces = createFaces(facesStore)
-  const interactions = createInteractions(facesStore)
-
-  const servers = new Set<McpServer>()
-
-  app.all('/mcp', async (c) => {
-    const server = new McpServer({ name: 'web-server', version: '0.0.1' })
-    createFacesServer(server, faces)
-    createInteractionsServer(server, interactions)
-    servers.add(server)
-    const transport = new StreamableHTTPTransport()
-    await server.connect(transport)
-    return transport.handleRequest(c)
-  })
+  const mcp = mcpHandler()
+  app.all('/mcp', mcp.handler)
 
   const close = () => {
-    for (const server of servers) {
-      server.close()
-    }
-    servers.clear()
+    mcp.close()
   }
 
   return { app, close }
 }
 
 if (import.meta.main) {
-  const port = Number(Deno.env.get('PORT') ?? '8787')
+  const port = Number(Deno.env.get('PORT') ?? '8080')
   const { app } = createApp()
-  Deno.serve({ hostname: '0.0.0.0', port }, app.fetch)
+  Deno.serve({ port }, app.fetch)
 }
