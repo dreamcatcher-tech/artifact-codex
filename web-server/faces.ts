@@ -1,6 +1,7 @@
 import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { Face, FaceOptions, toStructured } from '@artifact/shared'
+import type { Face, FaceOptions } from '@artifact/shared'
+import { toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
 

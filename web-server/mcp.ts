@@ -5,7 +5,7 @@ import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
 import { createInteractions } from './interactions.ts'
 import { createFaces } from './faces.ts'
-import { Face } from '@artifact/shared'
+import type { Face } from '@artifact/shared'
 type FaceId = string
 
 export const mcpHandler = () => {

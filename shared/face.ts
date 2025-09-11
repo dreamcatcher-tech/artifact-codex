@@ -1,24 +1,27 @@
+export type FaceView = {
+  name: string
+  port: number
+  protocol: 'http'
+}
+
 export type FaceStatus = {
   startedAt: string
   closed: boolean
   interactions: number
   lastInteractionId?: string
   pid?: number
-  // Generic directory names
-  config?: string
+
+  home?: string
   workspace?: string
+  config?: string
+
   processExited?: boolean
   exitCode?: number | null
   // Optional notification info (file-based IPC)
   notifications?: number
   lastNotificationRaw?: string
-  // Optional child server/UI ports (for faces that run web UIs or proxies)
-  ports?: {
-    ui?: number
-    server?: number
-    uiUrl?: string
-    serverUrl?: string
-  }
+  // Optional views exposed by the face (e.g., web UIs or proxies)
+  views?: FaceView[]
 }
 
 export type FaceWaitOptions = {
@@ -27,7 +30,7 @@ export type FaceWaitOptions = {
 
 export type Face = {
   interaction: (input: string) => { id: string }
-  waitFor: (
+  awaitInteraction: (
     id: string,
     opts?: FaceWaitOptions,
   ) => Promise<string>

@@ -303,7 +303,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     }
   }
 
-  async function waitFor(id: string): Promise<string> {
+  async function awaitInteraction(id: string): Promise<string> {
     const rec = active.get(id)
     if (!rec) throw new Error(`unknown interaction id: ${id}`)
     try {
@@ -321,5 +321,5 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     return Promise.resolve()
   }
 
-  return { interaction, waitFor, cancel, destroy, status }
+  return { interaction, awaitInteraction, cancel, destroy, status }
 }

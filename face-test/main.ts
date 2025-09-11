@@ -62,7 +62,7 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     }
   }
 
-  async function waitFor(id: string) {
+  async function awaitInteraction(id: string) {
     const rec = active.get(id)
     if (!rec) throw new Error(`unknown interaction id: ${id}`)
     try {
@@ -76,5 +76,5 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     }
   }
 
-  return { interaction, waitFor, cancel, status, destroy }
+  return { interaction, awaitInteraction, cancel, status, destroy }
 }

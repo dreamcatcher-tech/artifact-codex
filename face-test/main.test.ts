@@ -5,7 +5,7 @@ Deno.test('start returns Face with basic methods', async () => {
   const face = startFaceTest()
   try {
     expect(typeof face.interaction).toBe('function')
-    expect(typeof face.waitFor).toBe('function')
+    expect(typeof face.awaitInteraction).toBe('function')
     expect(typeof face.destroy).toBe('function')
     expect(typeof face.status).toBe('function')
     const s = await face.status()
@@ -17,12 +17,12 @@ Deno.test('start returns Face with basic methods', async () => {
   }
 })
 
-Deno.test('interaction returns id; waitFor returns result', async () => {
+Deno.test('interaction returns id; awaitInteraction returns result', async () => {
   const face = startFaceTest()
   try {
     const out = face.interaction('hello world')
     expect(typeof out.id).toBe('string')
-    const res = await face.waitFor(out.id)
+    const res = await face.awaitInteraction(out.id)
     expect(res).toBe('hello world')
 
     const s = await face.status()
@@ -33,11 +33,13 @@ Deno.test('interaction returns id; waitFor returns result', async () => {
   }
 })
 
-Deno.test('error path: waitFor returns { error: SerializedError }', async () => {
+Deno.test('error path: awaitInteraction rejects with error', async () => {
   const face = startFaceTest()
   try {
     const out = face.interaction('error')
-    await expect(face.waitFor(out.id)).rejects.toThrow('intentional test error')
+    await expect(face.awaitInteraction(out.id)).rejects.toThrow(
+      'intentional test error',
+    )
   } finally {
     await face.destroy()
   }

@@ -1,13 +1,6 @@
 #!/usr/bin/env -S deno run
 import { join } from '@std/path'
-import type { Face, FaceOptions, FaceStatus } from '@artifact/shared'
-
-type InspectorPorts = {
-  ui?: number
-  server?: number
-  uiUrl?: string
-  serverUrl?: string
-}
+import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -16,6 +9,9 @@ type InspectorPorts = {
  * - By default, only launches the child when both `workspace` and `home` are provided in opts.
  */
 export function startFaceInspector(opts: FaceOptions = {}): Face {
+  if (!opts.workspace || !opts.home) {
+    throw new Error('face-inspector requires workspace and home options')
+  }
   const startedAt = new Date()
   let closed = false
   const interactions = 0
@@ -26,77 +22,77 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
   let processExited = false
   let exitCode: number | null = null
   let pid: number | undefined
-  const ports: InspectorPorts = {}
+  const CLIENT_PORT = 8080
+  const SERVER_PORT = 9000
+  const views: FaceView[] = [
+    { name: 'client', port: CLIENT_PORT, protocol: 'http' },
+    { name: 'server', port: SERVER_PORT, protocol: 'http' },
+  ] as const
+
+  // readiness gate: status() resolves after the face is ready
+  let readyResolve: (() => void) | null = null
+  const ready: Promise<void> = new Promise((res) => (readyResolve = res))
+
+  function markReady() {
+    if (readyResolve) {
+      readyResolve()
+      readyResolve = null
+    }
+  }
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
   }
 
-  function parseLineForPorts(line: string) {
-    // Try to find URLs first
-    const urlRegex = /(https?:\/\/[^\s]+)/g
-    const urls = [...line.matchAll(urlRegex)].map((m) => m[1])
-    for (const u of urls) {
-      try {
-        const url = new URL(u)
-        const port = Number(url.port || (url.protocol === 'https:' ? 443 : 80))
-        if (!ports.uiUrl && /ui|client|inspector|web/i.test(line)) {
-          ports.uiUrl = url.toString()
-          ports.ui = port
-        } else if (!ports.serverUrl && /server|proxy/i.test(line)) {
-          ports.serverUrl = url.toString()
-          ports.server = port
-        } else if (!ports.uiUrl) {
-          ports.uiUrl = url.toString()
-          ports.ui = port
-        } else if (!ports.serverUrl) {
-          ports.serverUrl = url.toString()
-          ports.server = port
-        }
-      } catch (_) {
-        // ignore parse errors
-      }
-    }
-
-    // Fallback: bare "listening on port <n>" style lines
-    const portMatch = /port\s+(\d{2,5})/i.exec(line)
-    if (portMatch) {
-      const p = Number(portMatch[1])
-      if (!ports.ui) ports.ui = p
-      else if (!ports.server) ports.server = p
-    }
-  }
-
   async function streamLines(stream: ReadableStream<Uint8Array> | null) {
     if (!stream) return
-    const reader = stream
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(
-        new TransformStream<string, string>({
-          start() {},
-          transform(chunk, controller) {
-            // Split on newlines but keep it simple
-            for (const line of chunk.split(/\r?\n/)) {
-              controller.enqueue(line)
-            }
-          },
-        }),
-      )
-      .getReader()
+    const reader = stream.pipeThrough(new TextDecoderStream()).getReader()
     try {
       while (true) {
-        const { value, done } = await reader.read()
+        const { done } = await reader.read()
         if (done) break
-        if (value) parseLineForPorts(value)
       }
     } finally {
       reader.releaseLock()
     }
   }
 
+  async function isTcpListening(
+    port: number,
+    host = 'localhost',
+  ): Promise<boolean> {
+    try {
+      const conn = await Deno.connect({ hostname: host, port })
+      try {
+        conn.close()
+      } catch (_) {
+        // ignore close error
+      }
+      return true
+    } catch (_) {
+      return false
+    }
+  }
+
+  async function waitForPorts(ports: number[], timeoutMs = 60_000) {
+    const start = Date.now()
+    const remaining = new Set(ports)
+    while (remaining.size > 0) {
+      for (const p of Array.from(remaining)) {
+        if (await isTcpListening(p)) remaining.delete(p)
+      }
+      if (remaining.size === 0) break
+      if (Date.now() - start > timeoutMs) {
+        throw new Error('Timeout waiting for ports to be listening')
+      }
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  }
+
   async function maybeLaunch() {
-    // Gate launching behind presence of both workspace and home to keep tests light
-    if (!opts.workspace || !opts.home) return
+    if (!opts.workspace || !opts.home) {
+      throw new Error('face-inspector requires both workspace and home options')
+    }
 
     // Ensure the provided directories exist; create home if missing
     const workspaceDir = opts.workspace
@@ -113,6 +109,19 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     } catch {
       await Deno.mkdir(homeDir, { recursive: true })
     }
+    // Allow tests to skip spawning the inspector process
+    const skipLaunch = Boolean(
+      (opts.config as Record<string, unknown> | undefined)?.['skipLaunch'],
+    )
+    if (skipLaunch) {
+      markReady()
+      return
+    }
+
+    const env: Record<string, string> = {
+      CLIENT_PORT: String(CLIENT_PORT),
+      SERVER_PORT: String(SERVER_PORT),
+    }
 
     const cmd = new Deno.Command('npx', {
       args: ['-y', '@modelcontextprotocol/inspector'],
@@ -120,6 +129,7 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
       stdin: 'null',
       stdout: 'piped',
       stderr: 'piped',
+      env,
     })
     child = cmd.spawn()
     pid = child.pid
@@ -143,6 +153,10 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
         processExited = true
       }
     })()
+
+    // Wait for client port to be listening (required). Server port is optional.
+    await waitForPorts([CLIENT_PORT])
+    markReady()
   }
 
   // fire-and-forget launch
@@ -161,14 +175,15 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     closed = true
     try {
       child?.kill('SIGTERM')
-    } catch (_) {
+    } catch {
       // ignore
     }
     await Promise.resolve()
   }
 
   async function status(): Promise<FaceStatus> {
-    await Promise.resolve()
+    // Only resolves once loading is complete
+    await ready
     return {
       startedAt: startedAt.toISOString(),
       closed,
@@ -177,16 +192,22 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
       pid,
       processExited,
       exitCode,
-      ports: { ...ports },
+      views,
       config: opts.home ? join(opts.home) : undefined,
       workspace: opts.workspace ? join(opts.workspace) : undefined,
     }
   }
 
-  async function waitFor(_id: string): Promise<string> {
+  async function awaitInteraction(_id: string): Promise<string> {
     await Promise.resolve()
     throw new Error('face-inspector has no pending interactions')
   }
 
-  return { interaction, waitFor, cancel, status, destroy }
+  return {
+    interaction,
+    awaitInteraction,
+    cancel,
+    status,
+    destroy,
+  }
 }

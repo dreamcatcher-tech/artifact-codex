@@ -5,7 +5,6 @@ import { mcpHandler } from './mcp.ts'
 export function createApp() {
   const app = new Hono()
   const mcp = mcpHandler()
-  // Treat MCP as a URL flag: any request with `?mcp` hits the MCP handler.
   app.all('*', (c, next) => {
     const url = new URL(c.req.url)
     if (url.searchParams.has('mcp')) {
@@ -13,6 +12,8 @@ export function createApp() {
     }
     return next()
   })
+
+  // kind with no face, will trigger a new face, if that is permitted
 
   const close = () => {
     mcp.close()

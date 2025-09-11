@@ -5,7 +5,7 @@ Deno.test('start returns object with required methods', async () => {
   const face = startFaceCodex()
   try {
     expect(typeof face.interaction).toBe('function')
-    expect(typeof face.waitFor).toBe('function')
+    expect(typeof face.awaitInteraction).toBe('function')
     expect(typeof face.destroy).toBe('function')
     expect(typeof face.status).toBe('function')
     const s = await face.status()
@@ -17,13 +17,13 @@ Deno.test('start returns object with required methods', async () => {
   }
 })
 
-Deno.test('interaction returns id; outcome via waitFor, updates status', async () => {
+Deno.test('interaction returns id; outcome via awaitInteraction, updates status', async () => {
   const face = startFaceCodex()
   try {
     const out = face.interaction('hello')
     expect(typeof out.id).toBe('string')
     expect(out.id.length).toBeGreaterThan(8)
-    const res = await face.waitFor(out.id)
+    const res = await face.awaitInteraction(out.id)
     expect(res).toBe('hello')
 
     const s = await face.status()

@@ -20,6 +20,11 @@ export const readFaceOutput = z.object({
     exitCode: z.number().nullable().optional(),
     notifications: z.number().optional(),
     lastNotificationRaw: z.string().optional(),
+    views: z.array(z.object({
+      name: z.string(),
+      port: z.number(),
+      protocol: z.literal('http'),
+    })).optional(),
   }),
 })
 

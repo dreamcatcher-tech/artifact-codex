@@ -1,7 +1,7 @@
 import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toStructured } from '@artifact/shared'
-import { Face } from '@artifact/shared'
+import type { Face } from '@artifact/shared'
 type FaceId = string
 type InteractionId = string
 type InteractionRecord = { faceId: FaceId; id: string }
@@ -38,11 +38,11 @@ export const createInteractions = (
         throw new Error(`Interaction not found: ${interactionId}`)
       }
       const face = faces.get(interaction.faceId)
-      if (!face) {
-        throw new Error(`Face not found: ${interaction.faceId}`)
-      }
       try {
-        const result = await face.waitFor(interaction.id)
+        if (!face) {
+          throw new Error(`Face not found: ${interaction.faceId}`)
+        }
+        const result = await face.awaitInteraction(interaction.id)
         return toStructured({ result })
       } finally {
         interactions.delete(interactionId)
