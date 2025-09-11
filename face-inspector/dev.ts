@@ -29,7 +29,7 @@ async function main() {
   const { app } = createApp()
   Deno.serve({ hostname: '127.0.0.1', port: 8080 }, app.fetch)
   console.log(
-    'MCP streamable HTTP server listening at http://127.0.0.1:8080/mcp',
+    'MCP streamable HTTP server listening at http://127.0.0.1:8080/?mcp',
   )
 
   // 2) Launch Inspector face (gated by workspace+home)

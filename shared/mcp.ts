@@ -26,15 +26,19 @@ export function resolveAgentToOrigin(agentId: string): URL {
   return new URL(`http://${agentId}.internal`)
 }
 
-/** Ensure the URL targets the MCP endpoint at /mcp. */
+/** Ensure the URL targets the MCP endpoint via `?mcp` query param. */
 export function withMcpPath(origin: URL): URL {
   const url = new URL(origin.toString())
-  url.pathname = '/mcp'
+  // Keep existing path; just signal MCP via query param presence.
+  // Using empty value results in `?mcp=`; presence is what matters server-side.
+  const params = url.searchParams
+  if (!params.has('mcp')) params.set('mcp', '')
+  url.search = params.toString()
   return url
 }
 
 /**
- * Call a remote MCP tool hosted at the agent's `/mcp` endpoint.
+ * Call a remote MCP tool hosted at the agent's `?mcp` endpoint.
  */
 export async function callRemoteTool(
   agentId: string,

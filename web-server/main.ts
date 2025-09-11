@@ -5,7 +5,14 @@ import { mcpHandler } from './mcp.ts'
 export function createApp() {
   const app = new Hono()
   const mcp = mcpHandler()
-  app.all('/mcp', mcp.handler)
+  // Treat MCP as a URL flag: any request with `?mcp` hits the MCP handler.
+  app.all('*', (c, next) => {
+    const url = new URL(c.req.url)
+    if (url.searchParams.has('mcp')) {
+      return mcp.handler(c)
+    }
+    return next()
+  })
 
   const close = () => {
     mcp.close()

@@ -3,7 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 
-const baseUrl = 'http://in-memory/mcp'
+const baseUrl = 'http://in-memory/?mcp'
 
 export async function withApp() {
   const { app, close } = createApp()

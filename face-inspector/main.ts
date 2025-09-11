@@ -114,20 +114,9 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
       await Deno.mkdir(homeDir, { recursive: true })
     }
 
-    const env: Record<string, string> = {
-      ...Object.fromEntries(
-        Object.entries(Deno.env.toObject()).filter(([k]) => !k.startsWith('_')),
-      ),
-      // Default inspected MCP endpoint: streamable HTTP server on 127.0.0.1:8080
-      // Some inspector versions allow pasting/choosing the URL in the UI.
-      // We keep this here for reference; the user can paste http://127.0.0.1:8080/mcp
-      // If future inspector adds CLI env to preselect target, we can pass it here.
-    }
-
     const cmd = new Deno.Command('npx', {
       args: ['-y', '@modelcontextprotocol/inspector'],
       cwd: workspaceDir,
-      env,
       stdin: 'null',
       stdout: 'piped',
       stderr: 'piped',
