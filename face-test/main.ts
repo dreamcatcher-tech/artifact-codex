@@ -1,6 +1,5 @@
 #!/usr/bin/env -S deno run
 import type { Face, FaceOptions } from '@artifact/shared'
-import { createLifecycle } from '@artifact/shared'
 
 /**
  * A minimal Face that echoes inputs. Used for exercising error paths.
@@ -12,9 +11,6 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
   let closed = false
   let count = 0
   let lastId: string | undefined
-
-  // Lifecycle promise resolves when the face is destroyed
-  const { lifecycle, resolve } = createLifecycle()
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
@@ -53,7 +49,6 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
 
   async function destroy() {
     closed = true
-    resolve()
     await Promise.resolve()
   }
 
@@ -81,5 +76,5 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
     }
   }
 
-  return { interaction, awaitInteraction, cancel, status, destroy, lifecycle }
+  return { interaction, awaitInteraction, cancel, status, destroy }
 }

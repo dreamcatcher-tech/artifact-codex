@@ -1,7 +1,6 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions } from '@artifact/shared'
-import { createLifecycle } from '@artifact/shared'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
@@ -14,13 +13,8 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   const idPrefix = 'fcx_'
   const active = new Map<string, Promise<string>>()
 
-  // Lifecycle promise resolves when process exits or face is destroyed
-  const { lifecycle, resolve } = createLifecycle()
-
   // Child process state (when opts.launch === true)
   let child: Deno.ChildProcess | undefined
-  let childExited = false
-  let exitCode: number | null = null
   let pid: number | undefined
   let configDir: string | undefined
   let workspaceDir: string | undefined
@@ -152,13 +146,9 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     pid = child.pid // Observe exit asynchronously
     ;(async () => {
       try {
-        const status = await child!.status
-        exitCode = status.code
-      } catch (_) {
-        exitCode = null
+        await child!.status
       } finally {
-        childExited = true
-        resolve()
+        destroy()
       }
     })()
   }
@@ -276,20 +266,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       } catch (_) {
         // ignore
       }
-      const deadline = Date.now() + 3_000
-      while (!childExited && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 50))
-      }
-      if (!childExited) {
-        try {
-          child.kill('SIGKILL')
-        } catch (_) {
-          // ignore
-        }
-      }
     }
-    resolve()
-    await Promise.resolve()
   }
 
   async function status() {
@@ -302,8 +279,6 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       pid,
       config: configDir,
       workspace: workspaceDir,
-      processExited: child ? childExited : undefined,
-      exitCode: child ? exitCode : undefined,
       notifications,
       lastNotificationRaw,
     }
@@ -327,5 +302,5 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     return Promise.resolve()
   }
 
-  return { interaction, awaitInteraction, cancel, destroy, status, lifecycle }
+  return { interaction, awaitInteraction, cancel, destroy, status }
 }

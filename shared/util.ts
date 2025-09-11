@@ -34,19 +34,3 @@ export function isValidFlyName(name: string): boolean {
  * Create a simple lifecycle promise + resolver. The promise resolves once
  * `settle()` is called. Useful for keeping a process alive until shutdown.
  */
-export function createLifecycle(): {
-  lifecycle: Promise<void>
-  resolve: () => void
-} {
-  let doResolve: (() => void) | null = null
-  const lifecycle = new Promise<void>((res) => {
-    doResolve = res
-  })
-  const resolve = () => {
-    if (doResolve) {
-      doResolve()
-      doResolve = null
-    }
-  }
-  return { lifecycle, resolve }
-}

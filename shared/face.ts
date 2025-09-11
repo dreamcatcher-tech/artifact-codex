@@ -37,14 +37,6 @@ export type Face = {
   cancel: (id: string) => Promise<void>
   destroy: () => Promise<void>
   status: () => Promise<FaceStatus>
-  /**
-   * Lifecycle promise for the face process.
-   * - Resolves when the underlying process exits or the face is destroyed.
-   * - Never resolves while the face is active.
-   * Consumers may `await face.lifecycle` to keep their own process alive
-   * until the face finishes.
-   */
-  lifecycle: Promise<void>
 }
 
 export type FaceOptions = {

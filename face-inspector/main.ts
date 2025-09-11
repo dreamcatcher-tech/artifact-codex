@@ -1,7 +1,6 @@
 #!/usr/bin/env -S deno run
 import { join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
-import { createLifecycle } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -27,9 +26,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     { name: 'client', port: CLIENT_PORT, protocol: 'http' },
     { name: 'server', port: SERVER_PORT, protocol: 'http' },
   ] as const
-
-  // Lifecycle promise resolves when process exits or face is destroyed
-  const { lifecycle, resolve } = createLifecycle()
 
   // readiness gate: status() resolves after the face is ready
   let readyResolve: (() => void) | null = null
@@ -142,7 +138,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     } catch {
       // ignore
     }
-    resolve()
     await Promise.resolve()
   }
 
@@ -172,6 +167,5 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     cancel,
     status,
     destroy,
-    lifecycle,
   }
 }
