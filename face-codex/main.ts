@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions } from '@artifact/shared'
+import { createLifecycle } from '@artifact/shared'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
@@ -12,6 +13,9 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   let lastId: string | undefined
   const idPrefix = 'fcx_'
   const active = new Map<string, Promise<string>>()
+
+  // Lifecycle promise resolves when process exits or face is destroyed
+  const { lifecycle, resolve } = createLifecycle()
 
   // Child process state (when opts.launch === true)
   let child: Deno.ChildProcess | undefined
@@ -154,6 +158,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
         exitCode = null
       } finally {
         childExited = true
+        resolve()
       }
     })()
   }
@@ -283,6 +288,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
         }
       }
     }
+    resolve()
     await Promise.resolve()
   }
 
@@ -321,5 +327,5 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     return Promise.resolve()
   }
 
-  return { interaction, awaitInteraction, cancel, destroy, status }
+  return { interaction, awaitInteraction, cancel, destroy, status, lifecycle }
 }

@@ -13,15 +13,12 @@ async function main() {
 
   console.log('Starting Face Inspector in dev mode...')
   const s = await face.status() // resolves when loading completes
-  const views = s.views ?? []
 
-  for (const v of views) {
-    console.log(`- ${v.name}: ${v.protocol}://127.0.0.1:${v.port}`)
+  for (const v of s.views || []) {
+    console.log(`- ${v.name}: ${v.protocol}://localhost:${v.port}`)
   }
 
   console.log('Face Inspector ready. Press Ctrl+C to exit.')
-  // Keep process alive
-  await new Promise(() => {})
 }
 
 main().catch((err) => {

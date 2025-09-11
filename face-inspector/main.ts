@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run
 import { join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
+import { createLifecycle } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -19,8 +20,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
 
   // Child process + runtime state
   let child: Deno.ChildProcess | undefined
-  let processExited = false
-  let exitCode: number | null = null
   let pid: number | undefined
   const CLIENT_PORT = 8080
   const SERVER_PORT = 9000
@@ -28,6 +27,9 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     { name: 'client', port: CLIENT_PORT, protocol: 'http' },
     { name: 'server', port: SERVER_PORT, protocol: 'http' },
   ] as const
+
+  // Lifecycle promise resolves when process exits or face is destroyed
+  const { lifecycle, resolve } = createLifecycle()
 
   // readiness gate: status() resolves after the face is ready
   let readyResolve: (() => void) | null = null
@@ -37,23 +39,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     if (readyResolve) {
       readyResolve()
       readyResolve = null
-    }
-  }
-
-  function assertOpen() {
-    if (closed) throw new Error('face is closed')
-  }
-
-  async function streamLines(stream: ReadableStream<Uint8Array> | null) {
-    if (!stream) return
-    const reader = stream.pipeThrough(new TextDecoderStream()).getReader()
-    try {
-      while (true) {
-        const { done } = await reader.read()
-        if (done) break
-      }
-    } finally {
-      reader.releaseLock()
     }
   }
 
@@ -126,33 +111,13 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     const cmd = new Deno.Command('npx', {
       args: ['-y', '@modelcontextprotocol/inspector'],
       cwd: workspaceDir,
-      stdin: 'null',
-      stdout: 'piped',
-      stderr: 'piped',
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
       env,
     })
     child = cmd.spawn()
     pid = child.pid
-    ;(async () => {
-      try {
-        await Promise.all([
-          streamLines(child!.stdout),
-          streamLines(child!.stderr),
-        ])
-      } catch (_) {
-        // ignore
-      }
-    })()
-    ;(async () => {
-      try {
-        const st = await child!.status
-        exitCode = st.code
-      } catch (_) {
-        exitCode = null
-      } finally {
-        processExited = true
-      }
-    })()
 
     // Wait for client port to be listening (required). Server port is optional.
     await waitForPorts([CLIENT_PORT])
@@ -162,8 +127,7 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
   // fire-and-forget launch
   maybeLaunch()
 
-  function interaction(_input: string): { id: string } {
-    assertOpen()
+  function interaction(): { id: string } {
     throw new Error('face-inspector is non-interactive')
   }
 
@@ -178,6 +142,7 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     } catch {
       // ignore
     }
+    resolve()
     await Promise.resolve()
   }
 
@@ -190,8 +155,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
       interactions,
       lastInteractionId,
       pid,
-      processExited,
-      exitCode,
       views,
       config: opts.home ? join(opts.home) : undefined,
       workspace: opts.workspace ? join(opts.workspace) : undefined,
@@ -209,5 +172,6 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     cancel,
     status,
     destroy,
+    lifecycle,
   }
 }
