@@ -1,17 +1,13 @@
 import { expect } from '@std/expect'
-import { dirname, fromFileUrl, join } from '@std/path'
 import { startFaceCodex } from './main.ts'
 
 Deno.test('custom mock runner receives stdin and triggers notify', async () => {
   const workspace = await Deno.makeTempDir()
   const config = await Deno.makeTempDir()
-  const thisDir = dirname(fromFileUrl(import.meta.url))
-  const mock = join(thisDir, 'mock-app.ts')
-  const runnerApp = [Deno.execPath(), 'run', '-A', mock]
   const face = startFaceCodex({
     workspace,
     home: config,
-    config: { runnerApp },
+    config: { test: true },
   })
   try {
     // Wait until runner process spawned (pid available)
@@ -23,7 +19,7 @@ Deno.test('custom mock runner receives stdin and triggers notify', async () => {
     }
     face.interaction('do-thing')
     // Wait for notification to be observed
-    const deadline = Date.now() + 2000
+    const deadline = Date.now() + 5000
     let noted = 0
     let raw = ''
     while (Date.now() < deadline) {

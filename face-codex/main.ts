@@ -1,11 +1,18 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions } from '@artifact/shared'
+import { startNotifyWatcher } from './notify_watcher.ts'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
  */
-export function startFaceCodex(opts: FaceOptions = {}): Face {
+type CodexConfig = {
+  test?: boolean
+}
+
+export function startFaceCodex(
+  opts: FaceOptions & { config?: CodexConfig } = {},
+): Face {
   const startedAt = new Date()
   let closed = false
   let count = 0
@@ -13,7 +20,7 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   const idPrefix = 'fcx_'
   const active = new Map<string, Promise<string>>()
 
-  // Child process state (when opts.launch === true)
+  // Child process state (when launching)
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
   let configDir: string | undefined
@@ -77,7 +84,6 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
   }
 
   async function maybeLaunch() {
-    // Launch only if both workspace and home are provided
     if (!opts.workspace || !opts.home) return
     await ensureConfigIfNeeded()
     workspaceDir = opts.workspace
@@ -91,25 +97,22 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
       throw new Error(`workspace directory not found: ${workspaceDir}`)
     }
 
-    // Build command: support custom runnerApp from opts.config; otherwise run our tmux+ttyd wrapper
-    const configMap = opts.config as Record<string, unknown> | undefined
-    const runnerApp = Array.isArray(configMap?.['runnerApp'])
-      ? (configMap!['runnerApp'] as string[])
-      : undefined
-    const useCustom = Array.isArray(runnerApp) && runnerApp.length > 0
+    const cfg = (opts.config ?? {}) as CodexConfig
     let cmd: Deno.Command
-    if (useCustom) {
-      const command = runnerApp![0]
-      let args = runnerApp!.slice(1)
-      // Provide notify script and config dir to mock runner
-      const cfg = configDir!
-      args = args.concat([
+    if (cfg.test) {
+      // Test mode: run mock-app directly so we can pipe stdin for the test.
+      const thisDir = dirname(fromFileUrl(import.meta.url))
+      const mock = join(thisDir, 'mock-app.ts')
+      const args = [
+        'run',
+        '-A',
+        mock,
         '--notify',
-        join(dirname(fromFileUrl(import.meta.url)), 'notify.ts'),
+        join(thisDir, 'notify.ts'),
         '--dir',
-        cfg,
-      ])
-      cmd = new Deno.Command(command, {
+        String(configDir!),
+      ]
+      cmd = new Deno.Command(Deno.execPath(), {
         args,
         cwd: workspaceDir,
         env: { ...Deno.env.toObject(), CODEX_HOME: configDir! },
@@ -118,22 +121,23 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
         stderr: 'inherit',
       })
     } else {
-      // Launch tmux + ttyd and run Codex as the main app command.
+      // Real mode: use the generic tmux+ttyd script from shared.
       const thisDir = dirname(fromFileUrl(import.meta.url))
-      const tmuxScript = join(thisDir, 'tmux.sh')
+      const repoRoot = dirname(thisDir)
+      const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
 
-      // Ensure Codex uses the provided home dir and workspace root.
       const env = {
         ...Deno.env.toObject(),
         CODEX_HOME: configDir!,
-        // Run the interactive TUI anchored at the workspace via --cd
-        AUTOSTART_CMD: `codex --cd ${workspaceDir}`,
-        // Provide a readable window title
         WINDOW_TITLE: 'Codex',
+        SESSION: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
+        SOCKET: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
+        PORT: String(17860),
+        HOST: 'localhost',
       }
 
       cmd = new Deno.Command(tmuxScript, {
-        args: [],
+        args: ['npx', '-y', '@openai/codex', '--cd', workspaceDir],
         cwd: workspaceDir,
         env,
         stdin: 'inherit',
@@ -182,66 +186,17 @@ export function startFaceCodex(opts: FaceOptions = {}): Face {
     }
     // Start a single-use watcher for notify.json on first interaction after idle
     if (configDir && !pendingNotifyWatcher) {
-      const filePath = join(configDir, 'notify.json')
-      pendingNotifyWatcher = (async () => {
-        const watcher = Deno.watchFs(configDir!)
-        try {
-          // Race: if file appeared between interaction call and watcher start
-          let created = false
-          try {
-            const s = await Deno.stat(filePath)
-            created = s.isFile
-          } catch (_) {
-            // not exists yet
-          }
-          if (created) {
-            const raw = await Deno.readTextFile(filePath)
-            lastNotificationRaw = raw
-            notifications += 1
-            try {
-              await Deno.remove(filePath)
-            } catch (_) {
-              /* ignore */
-            }
-            return
-          }
-          for await (const ev of watcher) {
-            if (
-              (ev.kind === 'create' || ev.kind === 'modify') &&
-              ev.paths.some((p) => p === filePath)
-            ) {
-              try {
-                const raw = await Deno.readTextFile(filePath)
-                lastNotificationRaw = raw
-                notifications += 1
-              } catch (_) {
-                // try once more after a tiny delay in case of write timing
-                await new Promise((r) => setTimeout(r, 10))
-                try {
-                  const raw = await Deno.readTextFile(filePath)
-                  lastNotificationRaw = raw
-                  notifications += 1
-                } catch (_) {
-                  // give up; keep silent
-                }
-              } finally {
-                try {
-                  await Deno.remove(filePath)
-                } catch (_) {
-                  /* ignore */
-                }
-              }
-              break
-            }
-          }
-        } finally {
-          watcher.close()
-          pendingNotifyWatcher = null
-        }
-      })()
-      // fire-and-forget
+      pendingNotifyWatcher = startNotifyWatcher(
+        configDir,
+        (raw) => {
+          lastNotificationRaw = raw
+          notifications += 1
+        },
+      ).finally(() => {
+        pendingNotifyWatcher = null
+      })
       pendingNotifyWatcher.catch(() => {
-        // swallow errors; status will not reflect an update
+        // ignore
       })
     }
     return { id }

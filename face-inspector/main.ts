@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run
-import { join } from '@std/path'
+import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
 
 /**
@@ -8,7 +8,14 @@ import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
  * - Throws on interaction requests (non-interactive face).
  * - By default, only launches the child when both `workspace` and `home` are provided in opts.
  */
-export function startFaceInspector(opts: FaceOptions = {}): Face {
+type InspectorConfig = { test?: boolean }
+export interface FaceInspectorOptions extends FaceOptions {
+  config?: InspectorConfig
+}
+
+export function startFaceInspector(
+  opts: FaceInspectorOptions = {} as FaceInspectorOptions,
+): Face {
   if (!opts.workspace || !opts.home) {
     throw new Error('face-inspector requires workspace and home options')
   }
@@ -90,22 +97,28 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     } catch {
       await Deno.mkdir(homeDir, { recursive: true })
     }
-    // Allow tests to skip spawning the inspector process
-    const skipLaunch = Boolean(
-      (opts.config as Record<string, unknown> | undefined)?.['skipLaunch'],
-    )
-    if (skipLaunch) {
-      markReady()
-      return
-    }
+
+    const config = (opts.config ?? {}) as InspectorConfig
+    const args = config.test
+      ? ['echo', 'ok']
+      : ['npx', '-y', '@modelcontextprotocol/inspector']
 
     const env: Record<string, string> = {
       CLIENT_PORT: String(CLIENT_PORT),
       SERVER_PORT: String(SERVER_PORT),
+      WINDOW_TITLE: 'Inspector',
+      // Required by tmux.sh
+      SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
+      SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
+      PORT: String(17861),
+      HOST: 'localhost',
     }
 
-    const cmd = new Deno.Command('npx', {
-      args: ['-y', '@modelcontextprotocol/inspector'],
+    const thisDir = dirname(fromFileUrl(import.meta.url))
+    const repoRoot = dirname(thisDir)
+    const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
+    const cmd = new Deno.Command(tmuxScript, {
+      args,
       cwd: workspaceDir,
       stdin: 'inherit',
       stdout: 'inherit',
@@ -115,8 +128,9 @@ export function startFaceInspector(opts: FaceOptions = {}): Face {
     child = cmd.spawn()
     pid = child.pid
 
-    // Wait for client port to be listening (required). Server port is optional.
-    await waitForPorts([CLIENT_PORT])
+    if (!config.test) {
+      await waitForPorts([CLIENT_PORT])
+    }
     markReady()
   }
 

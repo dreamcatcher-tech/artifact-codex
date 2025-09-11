@@ -4,11 +4,7 @@ import { startFaceInspector } from './main.ts'
 Deno.test('inspector face basic methods and non-interactive behavior', async () => {
   const workspace = await Deno.makeTempDir()
   const home = await Deno.makeTempDir()
-  const face = startFaceInspector({
-    workspace,
-    home,
-    config: { skipLaunch: true },
-  })
+  const face = startFaceInspector({ workspace, home, config: { test: true } })
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.awaitInteraction).toBe('function')
