@@ -10,19 +10,23 @@ dockerfile = 'Dockerfile'
 [env]
 PORT = '8080'
 
-[processes]
-web = ''
-worker = ''
-
 [http_service]
-internal_port = 8080
+port = 8080
 force_https = true
 auto_stop_machines = 'suspend'
 auto_start_machines = true
 min_machines_running = 0
-processes = ['web']
 
 [[vm]]
 memory = '1gb'
 cpu_kind = 'shared'
 cpus = 1
+
+[[services]]
+start_port = 3000
+end_port = 30000
+[[services.ports]]
+handlers = ["http"]
+force_https = true
+start_port = 3000
+end_port = 30000

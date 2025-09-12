@@ -78,12 +78,15 @@ RUN bash /usr/local/bin/setup-powerlevel.sh
 
 # Default entrypoint runs the MCP web server
 # Listens on PORT (default 8080) for Fly's internal HTTP service
-EXPOSE 8080
+EXPOSE 3000-30000
 
-ENV PORT=8080
-ENV PRE_CMD="/headers/shared/pre.ts"
-# ENV AUTOSTART_CMD="npx -y @openai/codex"
-ENV SIXEL="on"
-COPY tmux.sh /tmux.sh
-ENTRYPOINT ["/tmux.sh"]
-CMD []
+ENV SESSION="root-session"
+ENV SOCKET="root-socket"
+ENV PORT="8080"
+ENV TTYD_PORT="8100"
+ENV WINDOW_TITLE="root-window"
+ENV HOST="127.0.0.1"
+ENV READONLY="off"
+
+ENTRYPOINT ["/headers/shared/tmux.sh"]
+CMD ["deno", "run", "-A", "/headers/web-server/main.ts"]

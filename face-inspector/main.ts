@@ -47,7 +47,7 @@ export function startFaceInspector(
 
   async function isTcpListening(
     port: number,
-    host = 'localhost',
+    host = '127.0.0.1',
   ): Promise<boolean> {
     try {
       const conn = await Deno.connect({ hostname: host, port })
@@ -104,14 +104,17 @@ export function startFaceInspector(
       : ['npx', '-y', '@modelcontextprotocol/inspector']
 
     const env: Record<string, string> = {
+      // inspector related
       CLIENT_PORT: String(CLIENT_PORT),
       SERVER_PORT: String(SERVER_PORT),
+      HOST: '127.0.0.1',
+      MCP_AUTO_OPEN_ENABLED: 'false',
+
+      // tmux.sh related
       WINDOW_TITLE: 'Inspector',
-      // Required by tmux.sh
       SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
       SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
-      PORT: String(17861),
-      HOST: 'localhost',
+      TTYD_PORT: String(17861),
     }
 
     const thisDir = dirname(fromFileUrl(import.meta.url))

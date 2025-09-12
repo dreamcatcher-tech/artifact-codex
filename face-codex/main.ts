@@ -133,6 +133,7 @@ export function startFaceCodex(
         SESSION: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
         SOCKET: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
         PORT: String(17860),
+        TTYD_PORT: String(17860),
         HOST: 'localhost',
       }
 

@@ -15,7 +15,7 @@ async function main() {
   const s = await face.status() // resolves when loading completes
 
   for (const v of s.views || []) {
-    console.log(`- ${v.name}: ${v.protocol}://localhost:${v.port}`)
+    console.log(`- ${v.name}: ${v.protocol}://127.0.0.1:${v.port}`)
   }
 
   console.log('Face Inspector ready. Press Ctrl+C to exit.')

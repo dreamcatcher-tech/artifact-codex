@@ -6,7 +6,7 @@ set -Eeuo pipefail
 
 SESSION=${SESSION-}
 SOCKET=${SOCKET-}
-PORT=${PORT-}
+TTYD_PORT=${TTYD_PORT-}
 WINDOW_TITLE=${WINDOW_TITLE-}
 HOST=${HOST-}
 # Optional: when set truthy, enables ttyd read-only mode
@@ -20,7 +20,7 @@ require tmux
 require ttyd
 require_env SESSION
 require_env SOCKET
-require_env PORT
+require_env TTYD_PORT
 require_env WINDOW_TITLE
 require_env HOST
 
@@ -46,9 +46,9 @@ if ! tmux -L "$SOCKET" has-session -t "$SESSION" 2>/dev/null; then
   tmux -L "$SOCKET" send-keys -t "$SESSION":"$WINDOW_TITLE" "$CMD" C-m >/dev/null
 fi
 
-echo "ttyd: http://${HOST}:${PORT}"
+echo "ttyd: http://${HOST}:${TTYD_PORT}"
 
-ttyd_flags=( -W -p "$PORT" )
+ttyd_flags=( -W -p "$TTYD_PORT" )
 # Enable read-only if requested
 case "${READONLY,,}" in
   1|true|on|yes) ttyd_flags+=( -R ) ;;
@@ -56,4 +56,3 @@ case "${READONLY,,}" in
 esac
 
 exec ttyd "${ttyd_flags[@]}" tmux -L "$SOCKET" attach -t "$SESSION"
-
