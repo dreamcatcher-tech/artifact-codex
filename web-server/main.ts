@@ -1,8 +1,14 @@
 #!/usr/bin/env -S deno run -A
 import { Hono } from '@hono/hono'
-import { proxy } from '@hono/hono/proxy'
 import { mcpHandler } from './mcp.ts'
 import { proxyHTTP, proxyWS } from './proxy.ts'
+
+function _parsePort(v: string | null): number | null {
+  if (!v) return null
+  if (!/^\d{1,5}$/.test(v)) return null
+  const n = Number(v)
+  return n >= 1 && n <= 65535 ? n : null
+}
 
 export function createApp() {
   const app = new Hono()
@@ -10,14 +16,16 @@ export function createApp() {
   app.use('*', async (c, next) => {
     console.log('request', c.req.raw)
     const url = new URL(c.req.url)
-    const cookie = c.req.header('cookie') ?? ''
-    const hasTargetCookie = cookie.includes('__proxy_target=')
+    const hasFlyHeader = !!(
+      c.req.raw.headers.get('fly-forwarded-port') ??
+        c.req.header('fly-forwarded-port') ?? null
+    )
 
     if (url.searchParams.has('mcp')) {
       return await mcp.handler(c)
     }
 
-    if (url.searchParams.has('port') || hasTargetCookie) {
+    if (hasFlyHeader) {
       const isWS = c.req.header('upgrade')?.toLowerCase() === 'websocket'
       if (isWS) return proxyWS(c.req.raw)
       return proxyHTTP(c.req.raw)

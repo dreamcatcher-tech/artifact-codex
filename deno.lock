@@ -17,6 +17,8 @@
     "npm:@modelcontextprotocol/sdk@^1.17.5": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",
     "npm:serialize-error@12": "12.0.0",
+    "npm:ws@*": "8.18.3",
+    "npm:ws@^8.18.3": "8.18.3",
     "npm:zod@3.23.8": "3.23.8",
     "npm:zod@^3.25.76": "3.25.76"
   },
@@ -568,6 +570,9 @@
     "wrappy@1.0.2": {
       "integrity": "sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ=="
     },
+    "ws@8.18.3": {
+      "integrity": "sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg=="
+    },
     "zod-to-json-schema@3.24.6_zod@3.25.76": {
       "integrity": "sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==",
       "dependencies": [
@@ -743,6 +748,7 @@
           "jsr:@std/expect@^1.0.17",
           "npm:@modelcontextprotocol/sdk@^1.17.5",
           "npm:serialize-error@12",
+          "npm:ws@^8.18.3",
           "npm:zod@^3.25.76"
         ]
       }

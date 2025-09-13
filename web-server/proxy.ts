@@ -9,7 +9,7 @@ const HOP_BY_HOP = [
   'upgrade',
 ]
 
-const COOKIE_TARGET = '__proxy_target'
+// In-VM router: rely only on Fly-Forwarded-Port
 
 function parsePort(v: string | null): number | null {
   if (!v) return null
@@ -22,86 +22,20 @@ function stripHopByHop(h: Headers) {
   for (const k of HOP_BY_HOP) h.delete(k)
 }
 
-function readCookie(h: Headers, name: string): string | null {
-  const raw = h.get('cookie')
-  if (!raw) return null
-  for (const part of raw.split(';')) {
-    const [k, ...rest] = part.split('=')
-    if (k && k.trim() === name) return rest.join('=').trim()
-  }
-  return null
-}
+// No cookie or query param routing
 
-type TargetCookie = {
-  port: number
-  mountPath: string
-  upstreamBasePath: string
-}
-
-function parseTargetCookie(h: Headers): TargetCookie | null {
-  const v = readCookie(h, COOKIE_TARGET)
-  if (!v) return null
-  if (!v.startsWith('v1,')) return null
-  const parts = v.split(',')
-  if (parts.length < 4) return null
-  const port = Number(parts[1])
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null
-  const mountPath = decodeURIComponent(parts[2] ?? '') || '/'
-  const upstreamBasePath = decodeURIComponent(parts[3] ?? '') || '/'
-  return { port, mountPath, upstreamBasePath }
-}
-
-function encodeTargetCookie(t: TargetCookie, secure: boolean): string {
-  const val = `v1,${t.port},${encodeURIComponent(t.mountPath)},${
-    encodeURIComponent(t.upstreamBasePath)
-  }`
-  return `${COOKIE_TARGET}=${val}; Path=/; HttpOnly; SameSite=Lax${
-    secure ? '; Secure' : ''
-  }`
-}
-
-function stripLeadingSlash(s: string): string {
-  return s.startsWith('/') ? s.slice(1) : s
-}
-
-function ensureLeadingSlash(s: string): string {
-  return s.startsWith('/') ? s : `/${s}`
-}
-
-function relativeFromMount(pathname: string, mountPath: string): string {
-  if (mountPath === '/') return stripLeadingSlash(pathname)
-  if (pathname === mountPath) return ''
-  const mp = mountPath.endsWith('/') ? mountPath : `${mountPath}/`
-  if (pathname.startsWith(mp)) {
-    return stripLeadingSlash(pathname.slice(mp.length))
-  }
-  return stripLeadingSlash(pathname)
-}
-
-function joinPaths(base: string, rel: string): string {
-  const left = base === '/' ? '' : base
-  const right = stripLeadingSlash(rel)
-  const joined = `${left}/${right}`
-  return ensureLeadingSlash(joined.replace(/\/+/, '/'))
+function portFromHeaders(h: Headers): number | null {
+  return parsePort(h.get('fly-forwarded-port'))
 }
 
 export async function proxyHTTP(req: Request): Promise<Response> {
   const inUrl = new URL(req.url)
-  const tc = parseTargetCookie(req.headers)
-  const cookiePresent = !!tc
-  const port = tc?.port ?? parsePort(inUrl.searchParams.get('port'))
-  if (!port) return new Response('invalid or missing port', { status: 400 })
+  const port = portFromHeaders(req.headers)
+  if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
-  inUrl.searchParams.delete('port')
   const qs = inUrl.searchParams.toString()
-  const targetPath = cookiePresent
-    ? joinPaths(
-      tc!.upstreamBasePath,
-      relativeFromMount(inUrl.pathname, tc!.mountPath),
-    )
-    : inUrl.pathname
   const target = new URL(
-    `${targetPath}${qs ? `?${qs}` : ''}`,
+    `${inUrl.pathname}${qs ? `?${qs}` : ''}`,
     `http://127.0.0.1:${port}`,
   )
 
@@ -122,41 +56,38 @@ export async function proxyHTTP(req: Request): Promise<Response> {
     redirect: 'manual',
   }
 
-  const upstreamRes = await fetch(target, forwardInit)
-  const outHeaders = new Headers(upstreamRes.headers)
-  stripHopByHop(outHeaders)
-  if (inUrl.searchParams.has('port')) {
-    const secure = inUrl.protocol === 'https:'
-    const cookie = encodeTargetCookie(
-      { port, mountPath: inUrl.pathname, upstreamBasePath: inUrl.pathname },
-      secure,
-    )
-    outHeaders.append('set-cookie', cookie)
+  try {
+    const upstreamRes = await fetch(target, forwardInit)
+    const outHeaders = new Headers(upstreamRes.headers)
+    stripHopByHop(outHeaders)
+    return new Response(upstreamRes.body, {
+      status: upstreamRes.status,
+      headers: outHeaders,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const lower = msg.toLowerCase()
+    let status = 502
+    if (lower.includes('timeout') || lower.includes('timed out')) status = 504
+    const body =
+      `Proxy to 127.0.0.1:${port} for ${req.method} ${inUrl.pathname}${inUrl.search} failed: ${msg}`
+    const headers = new Headers({
+      'content-type': 'text/plain; charset=utf-8',
+      'x-proxy-error': 'fetch-failed',
+    })
+    return new Response(body, { status, headers })
   }
-  return new Response(upstreamRes.body, {
-    status: upstreamRes.status,
-    headers: outHeaders,
-  })
 }
 
 export function proxyWS(req: Request): Response {
   const inUrl = new URL(req.url)
-  const tc = parseTargetCookie(req.headers)
-  const cookiePresent = !!tc
-  const port = tc?.port ?? parsePort(inUrl.searchParams.get('port'))
-  if (!port) return new Response('invalid or missing port', { status: 400 })
+  const port = portFromHeaders(req.headers)
+  if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
-  inUrl.searchParams.delete('port')
   const qs = inUrl.searchParams.toString()
   const isSecure = inUrl.protocol === 'https:'
   const scheme = isSecure ? 'wss' : 'ws'
-  const targetPath = cookiePresent
-    ? joinPaths(
-      tc!.upstreamBasePath,
-      relativeFromMount(inUrl.pathname, tc!.mountPath),
-    )
-    : inUrl.pathname
-  const wsUrl = `${scheme}://127.0.0.1:${port}${targetPath}${
+  const wsUrl = `${scheme}://127.0.0.1:${port}${inUrl.pathname}${
     qs ? `?${qs}` : ''
   }`
 
@@ -168,12 +99,36 @@ export function proxyWS(req: Request): Response {
     : undefined
   const selectedProtocol = protocols?.[0]
 
-  const { socket, response } = Deno.upgradeWebSocket(
-    req,
-    selectedProtocol ? { protocol: selectedProtocol } : undefined,
-  )
+  let socket: WebSocket
+  let response: Response
+  try {
+    ;({ socket, response } = Deno.upgradeWebSocket(
+      req,
+      selectedProtocol ? { protocol: selectedProtocol } : undefined,
+    ))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return new Response(
+      `WebSocket upgrade failed for ${inUrl.pathname}${inUrl.search}: ${msg}`,
+      { status: 400 },
+    )
+  }
 
-  const upstream = new WebSocket(wsUrl, protocols as string[] | undefined)
+  let upstream: WebSocket
+  try {
+    upstream = new WebSocket(wsUrl, protocols as string[] | undefined)
+  } catch (err) {
+    try {
+      socket.close(1011)
+    } catch {
+      // ignore
+    }
+    const msg = err instanceof Error ? err.message : String(err)
+    return new Response(
+      `WebSocket connect to ${wsUrl} failed: ${msg}`,
+      { status: 502 },
+    )
+  }
 
   const pumpUp = (ev: MessageEvent) => {
     if (upstream.readyState === WebSocket.OPEN) upstream.send(ev.data)

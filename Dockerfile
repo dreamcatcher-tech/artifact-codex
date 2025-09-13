@@ -48,6 +48,7 @@ RUN apt-get update && \
   htop \
   nnn \
   tmux \
+  fish \
   ttyd && \
   rm -rf /var/lib/apt/lists/*
 
@@ -69,12 +70,7 @@ RUN deno install --quiet
 
 WORKDIR /workspace
 
-# --- Zsh + powerlevel10k + MesloLGS NF --------------------------------------
-# Set default runtime shell env to zsh (tmux will also be configured below).
-ENV SHELL=/usr/bin/zsh
-
-COPY setup-powerlevel.sh /usr/local/bin/setup-powerlevel.sh
-RUN bash /usr/local/bin/setup-powerlevel.sh
+RUN chsh -s /usr/bin/fish
 
 # Default entrypoint runs the MCP web server
 # Listens on PORT (default 8080) for Fly's internal HTTP service

@@ -4,14 +4,15 @@
 app = 'universal-compute'
 primary_region = 'syd'
 
+[processes]
+'/' = '' # Root agent receives all requests
+# agents process group is made ad hoc
+
 [build]
 dockerfile = 'Dockerfile'
 
-[env]
-PORT = '8080'
-
 [http_service]
-port = 8080
+internal_port = 8080
 force_https = true
 auto_stop_machines = 'suspend'
 auto_start_machines = true
@@ -23,10 +24,13 @@ cpu_kind = 'shared'
 cpus = 1
 
 [[services]]
-start_port = 3000
-end_port = 30000
+internal_port = 8080
+protocol = 'tcp'
+auto_stop_machines = 'suspend'
+auto_start_machines = true
+min_machines_running = 0
+
 [[services.ports]]
-handlers = ["http"]
-force_https = true
+handlers = ["tls", "http"]
 start_port = 3000
 end_port = 30000
