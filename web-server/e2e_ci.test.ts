@@ -2,67 +2,72 @@ import { expect } from '@std/expect'
 import { createApp } from './main.ts'
 import NodeWS from 'ws'
 
-function startHTTPUpstream(port: number) {
+function safe<T>(fn: () => T) {
+  return () => {
+    try {
+      fn()
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function serveOn(port: number, handler: Deno.ServeHandler) {
   const ac = new AbortController()
   const srv = Deno.serve(
     { hostname: '127.0.0.1', port, signal: ac.signal },
-    (req) => {
-      const u = new URL(req.url)
-      const body = `HTTP-${port}:${u.pathname}${u.search}`
-      return new Response(body, { headers: { 'content-type': 'text/plain' } })
-    },
+    handler,
   )
-  return { close: () => ac.abort(), srv }
+  return {
+    [Symbol.dispose]: () => ac.abort(),
+    [Symbol.asyncDispose]: () => {
+      ac.abort()
+      return srv.finished
+    },
+  }
 }
 
-function startWSUpstream(port: number) {
+function startApp(listen: number) {
+  const { app } = createApp()
+  return serveOn(listen, app.fetch)
+}
+
+function startHTTPEcho(port: number) {
+  return serveOn(port, (req) => {
+    const u = new URL(req.url)
+    const body = `HTTP-${port}:${u.pathname}${u.search}`
+    return new Response(body, { headers: { 'content-type': 'text/plain' } })
+  })
+}
+
+function startWSEcho(port: number) {
   const ac = new AbortController()
   const sockets = new Set<WebSocket>()
-  const srv = Deno.serve(
+  Deno.serve(
     { hostname: '127.0.0.1', port, signal: ac.signal },
     (req) => {
       const { socket, response } = Deno.upgradeWebSocket(req)
-      sockets.add(socket as unknown as WebSocket)
-      socket.onopen = () => {
-        try {
-          socket.send(`WS-READY-${port}`)
-        } catch {
-          // ignore
+      const ws = socket as unknown as WebSocket
+      sockets.add(ws)
+      ws.onopen = safe(() => ws.send(`WS-READY-${port}`))
+
+      ws.onmessage = (e: MessageEvent) => {
+        if (typeof e.data === 'string') {
+          safe(() => ws.send(`ECHO-${port}:${e.data}`))()
         }
       }
-      socket.onmessage = (e: MessageEvent) => {
-        console.log('ws upstream got', e.data)
-        if (typeof e.data === 'string') socket.send(`ECHO-${port}:${e.data}`)
-      }
-      socket.onclose = () => {
-        try {
-          sockets.delete(socket as unknown as WebSocket)
-        } catch {
-          // ignore
-        }
-      }
-      socket.onerror = () => {
-        try {
-          socket.close()
-        } catch {
-          // ignore
-        }
-      }
+      ws.onclose = safe(() => sockets.delete(ws))
+      ws.onerror = safe(() => ws.close())
       return response
     },
   )
   return {
-    close: () => {
+    [Symbol.dispose]: () => {
       for (const s of sockets) {
-        try {
-          s.close(1000)
-        } catch {
-          // ignore
-        }
+        safe(() => s.close(1000))()
       }
       ac.abort()
     },
-    srv,
   }
 }
 
@@ -70,68 +75,51 @@ function randomPort(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
+async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('ws timeout')), timeoutMs)
+    const cleanup = () => clearTimeout(timer)
+    ws.once('message', (data: NodeWS.RawData) => {
+      cleanup()
+      const text = typeof data === 'string'
+        ? data
+        : new TextDecoder().decode(data as Uint8Array)
+      resolve(text)
+    })
+    ws.once('error', (err: Error) => {
+      cleanup()
+      reject(err)
+    })
+  })
+}
+
 Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
   const HTTP_PORT = randomPort(30500, 30600)
   const LISTEN = 18080
-  const upstream = startHTTPUpstream(HTTP_PORT)
-  const { app } = createApp()
-  const ac = new AbortController()
-  const srv = Deno.serve({
-    hostname: '127.0.0.1',
-    port: LISTEN,
-    signal: ac.signal,
-  }, app.fetch)
-  try {
-    const res = await fetch(`http://127.0.0.1:${LISTEN}/hello?x=1`, {
-      headers: { 'Fly-Forwarded-Port': String(HTTP_PORT) },
-    })
-    const text = await res.text()
-    expect(text).toBe(`HTTP-${HTTP_PORT}:/hello?x=1`)
-  } finally {
-    upstream.close()
-    ac.abort()
-    await srv.finished
-  }
+  using _upstream = startHTTPEcho(HTTP_PORT)
+  await using _appSrv = startApp(LISTEN)
+
+  const res = await fetch(`http://127.0.0.1:${LISTEN}/hello?x=1`, {
+    headers: { 'Fly-Forwarded-Port': String(HTTP_PORT) },
+  })
+  const text = await res.text()
+  expect(text).toBe(`HTTP-${HTTP_PORT}:/hello?x=1`)
 })
 
 Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
   const WS_PORT = randomPort(30650, 30750)
   const LISTEN = 18081
-  const upstream = startWSUpstream(WS_PORT)
-  const { app } = createApp()
-  const ac = new AbortController()
-  const srv = Deno.serve({
-    hostname: '127.0.0.1',
-    port: LISTEN,
-    signal: ac.signal,
-  }, app.fetch)
-  try {
-    const ws = new NodeWS(`ws://127.0.0.1:${LISTEN}/ws`, [], {
-      headers: { 'Fly-Forwarded-Port': String(WS_PORT) },
-      perMessageDeflate: false,
-    })
-    const firstMsg = await new Promise<string>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('ws timeout')), 2000)
-      ws.once('message', (data: NodeWS.RawData) => {
-        clearTimeout(timer)
-        resolve(
-          typeof data === 'string' ? data : new TextDecoder().decode(data),
-        )
-      })
-      ws.once('error', (err: Error) => {
-        clearTimeout(timer)
-        reject(err)
-      })
-      ws.on('open', () => ws.send('hello'))
-    })
-    const ready = `WS-READY-${WS_PORT}`
-    const echo = `ECHO-${WS_PORT}:hello`
-    expect([ready, echo]).toContain(firstMsg)
-    ws.close()
-    await new Promise((r) => ws.once('close', r))
-  } finally {
-    upstream.close()
-    ac.abort()
-    await srv.finished
-  }
+  using _upstream = startWSEcho(WS_PORT)
+  await using _appSrv = startApp(LISTEN)
+  const ws = new NodeWS(`ws://127.0.0.1:${LISTEN}/ws`, [], {
+    headers: { 'Fly-Forwarded-Port': String(WS_PORT) },
+    perMessageDeflate: false,
+  })
+  ws.on('open', () => ws.send('hello'))
+  const firstMsg = await firstMessage(ws)
+  const ready = `WS-READY-${WS_PORT}`
+  const echo = `ECHO-${WS_PORT}:hello`
+  expect([ready, echo]).toContain(firstMsg)
+  ws.close()
+  await new Promise((r) => ws.once('close', r))
 })
