@@ -1,3 +1,6 @@
+import Debug from 'debug'
+const log = Debug('@artifact/web-server:proxy')
+
 const HOP_BY_HOP = [
   'connection',
   'keep-alive',
@@ -56,8 +59,16 @@ export async function proxyHTTP(req: Request): Promise<Response> {
     redirect: 'manual',
   }
 
+  log(
+    'HTTP proxy -> %s %s (to %s)',
+    req.method,
+    inUrl.pathname + inUrl.search,
+    String(target),
+  )
+
   try {
     const upstreamRes = await fetch(target, forwardInit)
+    log('HTTP proxy <- %d %s', upstreamRes.status, upstreamRes.statusText)
     const outHeaders = new Headers(upstreamRes.headers)
     stripHopByHop(outHeaders)
     return new Response(upstreamRes.body, {
@@ -75,6 +86,7 @@ export async function proxyHTTP(req: Request): Promise<Response> {
       'content-type': 'text/plain; charset=utf-8',
       'x-proxy-error': 'fetch-failed',
     })
+    log('HTTP proxy error: %s', msg)
     return new Response(body, { status, headers })
   }
 }
@@ -91,7 +103,7 @@ export function proxyWS(req: Request): Response {
     qs ? `?${qs}` : ''
   }`
 
-  console.log('proxyWS', wsUrl)
+  log('WS proxy -> %s', wsUrl)
 
   const requestedProtocols = req.headers.get('sec-websocket-protocol')
   const protocols = requestedProtocols
@@ -108,6 +120,7 @@ export function proxyWS(req: Request): Response {
     ))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    log('WS upgrade failed for %s%s: %s', inUrl.pathname, inUrl.search, msg)
     return new Response(
       `WebSocket upgrade failed for ${inUrl.pathname}${inUrl.search}: ${msg}`,
       { status: 400 },
@@ -124,6 +137,7 @@ export function proxyWS(req: Request): Response {
       // ignore
     }
     const msg = err instanceof Error ? err.message : String(err)
+    log('WS connect failed to %s: %s', wsUrl, msg)
     return new Response(
       `WebSocket connect to ${wsUrl} failed: ${msg}`,
       { status: 502 },
@@ -139,8 +153,8 @@ export function proxyWS(req: Request): Response {
     }
   }
 
-  socket.onopen = () => console.log('client ws open')
-  upstream.onopen = () => console.log('upstream ws open')
+  socket.onopen = () => log('client ws open')
+  upstream.onopen = () => log('upstream ws open')
   socket.onmessage = pumpUp
   upstream.onmessage = pumpDown
 
@@ -158,19 +172,19 @@ export function proxyWS(req: Request): Response {
   }
 
   socket.onerror = (e) => {
-    console.error('client ws error', e)
+    log('client ws error %o', e)
     closeBoth(1011)
   }
   upstream.onerror = (e) => {
-    console.error('upstream ws error', e)
+    log('upstream ws error %o', e)
     closeBoth(1011)
   }
   socket.onclose = (ev: CloseEvent) => {
-    console.log('client ws close', ev.code, ev.reason)
+    log('client ws close %d %s', ev.code, ev.reason)
     closeBoth(ev.code, ev.reason)
   }
   upstream.onclose = (ev: CloseEvent) => {
-    console.log('upstream ws close', ev.code, ev.reason)
+    log('upstream ws close %d %s', ev.code, ev.reason)
     closeBoth(ev.code, ev.reason)
   }
 

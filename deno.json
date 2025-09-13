@@ -14,6 +14,7 @@
     "ok": "deno task --filter='@artifact/' ok"
   },
   "imports": {
+    "debug": "npm:debug@^4.4.1"
   },
   "fmt": {
     "semiColons": false,

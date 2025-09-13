@@ -16,6 +16,7 @@
     "npm:@modelcontextprotocol/sdk@^1.17.4": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.17.5": "1.17.5_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",
+    "npm:debug@^4.4.1": "4.4.1",
     "npm:serialize-error@12": "12.0.0",
     "npm:ws@*": "8.18.3",
     "npm:ws@^8.18.3": "8.18.3",
@@ -681,6 +682,9 @@
     "https://deno.land/x/zod@v3.23.8/types.ts": "1b172c90782b1eaa837100ebb6abd726d79d6c1ec336350c8e851e0fd706bf5c"
   },
   "workspace": {
+    "dependencies": [
+      "npm:debug@^4.4.1"
+    ],
     "members": {
       "face-codex": {
         "dependencies": [

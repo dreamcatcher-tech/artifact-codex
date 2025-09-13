@@ -47,7 +47,7 @@ export function createInteractionsServer(
     {
       title: 'List Interactions',
       description:
-        'Lists pending interaction IDs for a given Face. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
+        'Lists pending interaction IDs for a given Face. Use "@self" as agentId to target the currently running agent via the local web server.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: { interactionIds: z.array(z.string()) },
     },

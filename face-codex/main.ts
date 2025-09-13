@@ -135,6 +135,7 @@ export function startFaceCodex(
         PORT: String(17860),
         TTYD_PORT: String(17860),
         HOST: 'localhost',
+        WRITEABLE: 'on',
       }
 
       cmd = new Deno.Command(tmuxScript, {

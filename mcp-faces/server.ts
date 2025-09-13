@@ -19,6 +19,14 @@ export const listFacesOutput = z.object({
 
 export type ListFacesOutput = z.infer<typeof listFacesOutput>
 
+export const createFaceInput = z.object({
+  agentId: z.string(),
+  faceKind: z.string(),
+  home: z.string().optional(),
+  workspace: z.string().optional(),
+  config: z.record(z.unknown()).optional(),
+})
+
 export const createFaceOutput = z.object({ faceId: z.string() })
 
 export const readFaceOutput = z.object({
@@ -28,6 +36,7 @@ export const readFaceOutput = z.object({
     interactions: z.number(),
     lastInteractionId: z.string().optional(),
     pid: z.number().optional(),
+    home: z.string().optional(),
     config: z.string().optional(),
     workspace: z.string().optional(),
     processExited: z.boolean().optional(),
@@ -54,7 +63,13 @@ type ToolHandler<I> = (
 
 export type FacesHandlers = {
   list_faces: ToolHandler<{ agentId: string }>
-  create_face: ToolHandler<{ agentId: string; faceKind: string }>
+  create_face: ToolHandler<{
+    agentId: string
+    faceKind: string
+    home?: string
+    workspace?: string
+    config?: Record<string, unknown>
+  }>
   read_face: ToolHandler<{ agentId: string; faceId: string }>
   destroy_face: ToolHandler<{ agentId: string; faceId: string }>
 }
@@ -73,7 +88,7 @@ export function createFacesServer(
     {
       title: 'List Faces',
       description:
-        'Lists available face kinds for a given Agent id. Use "@self" as agentId to target the currently running agent via the local web server (http://127.0.0.1:<PORT>, default 8787).',
+        'Lists available face kinds for a given Agent id. Use "@self" as agentId to target the currently running agent via the local web server',
       inputSchema: { agentId: z.string() },
       outputSchema: listFacesOutput.shape,
     },
@@ -86,7 +101,7 @@ export function createFacesServer(
       title: 'Create Face',
       description:
         'Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target the currently running agent via localhost.',
-      inputSchema: { agentId: z.string(), faceKind: z.string() },
+      inputSchema: createFaceInput.shape,
       outputSchema: createFaceOutput.shape,
     },
     (args, extra) => handlers.create_face(args, extra),

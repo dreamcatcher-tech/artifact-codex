@@ -24,3 +24,7 @@ try {
   // ignore
 }
 ```
+
+Whenever you see a task like `deno task dev` be very careful running it since it
+is designed to never exit, as it runs a web server. If you must run this command
+you will need to use a timeout or something to exit it.

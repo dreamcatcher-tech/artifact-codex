@@ -30,9 +30,27 @@ export function createRemoteFacesHandlers(
       return callRemote(agentId, 'list_faces', { agentId })
     },
     create_face: (
-      { agentId, faceKind }: { agentId: string; faceKind: string },
+      {
+        agentId,
+        faceKind,
+        home,
+        workspace,
+        config,
+      }: {
+        agentId: string
+        faceKind: string
+        home?: string
+        workspace?: string
+        config?: Record<string, unknown>
+      },
     ): Promise<CallToolResult> => {
-      return callRemote(agentId, 'create_face', { agentId, faceKind })
+      return callRemote(agentId, 'create_face', {
+        agentId,
+        faceKind,
+        home,
+        workspace,
+        config,
+      })
     },
     read_face: (
       { agentId, faceId }: { agentId: string; faceId: string },

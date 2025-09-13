@@ -10,7 +10,7 @@ TTYD_PORT=${TTYD_PORT-}
 WINDOW_TITLE=${WINDOW_TITLE-}
 HOST=${HOST-}
 # Optional: when set truthy, enables ttyd read-only mode
-READONLY=${READONLY-}
+WRITEABLE=${WRITEABLE-}
 
 have() { command -v "$1" >/dev/null 2>&1; }
 require() { if ! have "$1"; then echo "error: missing '$1' in PATH" >&2; exit 1; fi; }
@@ -48,11 +48,15 @@ fi
 
 echo "ttyd: http://${HOST}:${TTYD_PORT}"
 
-ttyd_flags=( -W -p "$TTYD_PORT" )
-# Enable read-only if requested
-case "${READONLY,,}" in
-  1|true|on|yes) ttyd_flags+=( -R ) ;;
+ttyd_flags=( -p "$TTYD_PORT" )
+# Enable write if requested
+case "${WRITEABLE,,}" in
+  1|true|on|yes) ttyd_flags+=( -W ) ;;
   *) ;;
 esac
 
-exec ttyd "${ttyd_flags[@]}" tmux -L "$SOCKET" attach -t "$SESSION"
+# Attach to the session if it exists, or create a fresh login shell if not.
+# This ensures that after exiting the main command (e.g., via Ctrl+C),
+# clients reconnect into a shell instead of looping when the session is gone.
+# exec ttyd "${ttyd_flags[@]}" tmux -L "$SOCKET" new-session -A -s "$SESSION" -n "$WINDOW_TITLE" "$SHELL" -il
+exec ttyd "${ttyd_flags[@]}" bash -il

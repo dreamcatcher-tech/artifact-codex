@@ -4,6 +4,7 @@ import type { Face, FaceOptions } from '@artifact/shared'
 import { toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
+import Debug from 'debug'
 
 type FaceKind = {
   title: string
@@ -13,6 +14,7 @@ type FaceKind = {
 type FaceId = string
 
 export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
+  const log = Debug('@artifact/web-server:faces')
   const faceKinds: Record<string, FaceKind> = {
     test: {
       title: 'Test',
@@ -31,6 +33,11 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
 
   return {
     list_faces: (): Promise<CallToolResult> => {
+      log(
+        'list_faces: kinds=%d live=%d',
+        Object.keys(faceKinds).length,
+        faces.size,
+      )
       const face_kinds = Object.entries(faceKinds).map(([faceKind, info]) => ({
         faceKind,
         title: info.title,
@@ -45,6 +52,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
         if (!info) {
           throw new Error(`Internal error: ${faceId} unknown: ${faceKind}`)
         }
+        log('list_faces: live %s (%s)', faceId, faceKind)
         return {
           faceId,
           faceKind,
@@ -54,15 +62,25 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       })
       return Promise.resolve(toStructured({ face_kinds, live_faces }))
     },
-    create_face: ({ faceKind }): Promise<CallToolResult> => {
+    create_face: (
+      { faceKind, home, workspace, config },
+    ): Promise<CallToolResult> => {
       if (!faceKinds[faceKind]) {
         const kinds = Object.keys(faceKinds).join(', ')
         throw new Error(`Unknown face kind: ${faceKind} - use one of ${kinds}`)
       }
       const id = `face-${idCounter++}`
-      const face = faceKinds[faceKind].creator({})
+      const finalWorkspace = workspace ?? Deno.cwd()
+      const finalHome = home ?? Deno.env.get('CODEX_HOME') ?? '/root/.codex'
+      const finalConfig = config ?? {}
+      const face = faceKinds[faceKind].creator({
+        home: finalHome,
+        workspace: finalWorkspace,
+        config: finalConfig,
+      })
       faces.set(id, face)
       faceIdToKind.set(id, faceKind)
+      log('create_face: %s (%s)', id, faceKind)
       return Promise.resolve(toStructured({ faceId: id }))
     },
     read_face: async ({ faceId }): Promise<CallToolResult> => {
@@ -71,6 +89,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
         throw new Error(`Face not found: ${faceId}`)
       }
       const status = await face.status()
+      log('read_face: %s status=%j', faceId, status)
       return toStructured({ status })
     },
     destroy_face: async ({ faceId }): Promise<CallToolResult> => {
@@ -81,6 +100,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       await face.destroy()
       faces.delete(faceId)
       faceIdToKind.delete(faceId)
+      log('destroy_face: %s', faceId)
       return toStructured({ deleted: true })
     },
   }

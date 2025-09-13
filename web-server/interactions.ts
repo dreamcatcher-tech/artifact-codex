@@ -2,6 +2,7 @@ import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toStructured } from '@artifact/shared'
 import type { Face } from '@artifact/shared'
+import Debug from 'debug'
 type FaceId = string
 type InteractionId = string
 type InteractionRecord = { faceId: FaceId; id: string }
@@ -9,6 +10,7 @@ type InteractionRecord = { faceId: FaceId; id: string }
 export const createInteractions = (
   faces: Map<FaceId, Face>,
 ): InteractionsHandlers => {
+  const log = Debug('@artifact/web-server:interactions')
   const interactions = new Map<InteractionId, InteractionRecord>()
 
   return {
@@ -20,6 +22,7 @@ export const createInteractions = (
       const interactionIds = Array.from(interactions.keys()).filter(
         (interactionId) => interactions.get(interactionId)?.faceId === faceId,
       )
+      log('list_interactions: face=%s count=%d', faceId, interactionIds.length)
       return Promise.resolve(toStructured({ interactionIds }))
     },
     create_interaction: ({ faceId, input }): Promise<CallToolResult> => {
@@ -30,6 +33,12 @@ export const createInteractions = (
       const { id } = face.interaction(input)
       const interactionId = `f-${faceId}_i-${id}`
       interactions.set(interactionId, { faceId, id })
+      log(
+        'create_interaction: face=%s input=%j -> %s',
+        faceId,
+        input,
+        interactionId,
+      )
       return Promise.resolve(toStructured({ interactionId }))
     },
     read_interaction: async ({ interactionId }): Promise<CallToolResult> => {
@@ -43,6 +52,11 @@ export const createInteractions = (
           throw new Error(`Face not found: ${interaction.faceId}`)
         }
         const result = await face.awaitInteraction(interaction.id)
+        log(
+          'read_interaction: %s -> result=%j (deleting)',
+          interactionId,
+          result,
+        )
         return toStructured({ result })
       } finally {
         interactions.delete(interactionId)
@@ -59,6 +73,7 @@ export const createInteractions = (
       }
       await face.cancel(interaction.id)
       interactions.delete(interactionId)
+      log('destroy_interaction: %s (deleted)', interactionId)
       return toStructured({ ok: true })
     },
   }
