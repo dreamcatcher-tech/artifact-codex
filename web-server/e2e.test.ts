@@ -19,7 +19,6 @@ function serveOn(port: number, handler: Deno.ServeHandler) {
     handler,
   )
   return {
-    [Symbol.dispose]: () => ac.abort(),
     [Symbol.asyncDispose]: () => {
       ac.abort()
       return srv.finished
@@ -96,7 +95,7 @@ async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
 Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
   const HTTP_PORT = randomPort(30500, 30600)
   const LISTEN = 18080
-  using _upstream = startHTTPEcho(HTTP_PORT)
+  await using _upstream = startHTTPEcho(HTTP_PORT)
   await using _appSrv = startApp(LISTEN)
 
   const res = await fetch(`http://127.0.0.1:${LISTEN}/hello?x=1`, {
@@ -109,7 +108,7 @@ Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
 Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
   const WS_PORT = randomPort(30650, 30750)
   const LISTEN = 18081
-  using _upstream = startWSEcho(WS_PORT)
+  await using _upstream = startWSEcho(WS_PORT)
   await using _appSrv = startApp(LISTEN)
   const ws = new NodeWS(`ws://127.0.0.1:${LISTEN}/ws`, [], {
     headers: { 'Fly-Forwarded-Port': String(WS_PORT) },
