@@ -6,6 +6,9 @@ https://modelcontextprotocol.io/specification/2025-06-18
 Repo for the npm package @modelcontextprotocol/sdk contains many examples and
 can be found at: https://github.com/modelcontextprotocol/typescript-sdk
 
+The .refs folder contains code for reference only NEVER MODIFY ANYTHING INSIDE
+THIS FOLDER
+
 To verify the code works, run `deno task ok`.
 
 Whenever you change code, never leave comments saying what you changed - we

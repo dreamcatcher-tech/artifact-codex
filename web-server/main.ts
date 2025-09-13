@@ -7,13 +7,14 @@ export function createApp() {
   const app = new Hono()
   const mcp = mcpHandler()
   app.use('*', async (c, next) => {
-    if (c.req.header('fly-forwarded-port')) {
+    const port = c.req.header('fly-forwarded-port')
+    if (port && port !== '443') {
       const isWS = c.req.header('upgrade')?.toLowerCase() === 'websocket'
       if (isWS) return proxyWS(c.req.raw)
       return proxyHTTP(c.req.raw)
     }
 
-    if (c.req.query('mcp')) {
+    if (c.req.query('mcp') !== undefined) {
       return await mcp.handler(c)
     }
 
