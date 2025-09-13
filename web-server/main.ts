@@ -14,7 +14,6 @@ export function createApp() {
   const app = new Hono()
   const mcp = mcpHandler()
   app.use('*', async (c, next) => {
-    console.log('request', c.req.raw)
     const url = new URL(c.req.url)
     const hasFlyHeader = !!(
       c.req.raw.headers.get('fly-forwarded-port') ??
