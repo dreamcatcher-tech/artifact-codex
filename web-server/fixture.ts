@@ -20,6 +20,7 @@ export async function withApp() {
     app,
     fetch,
     client,
+    baseUrl,
     [Symbol.dispose]: () => {
       close()
     },

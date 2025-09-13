@@ -44,6 +44,6 @@ export type FaceOptions = {
   workspace?: string
   /** Absolute path to the Face home directory used for app config/cache/scratch. */
   home?: string
-  /** Arbitrary configuration map for face-specific options (e.g., runnerApp, flags). */
+  /** Arbitrary configuration map for face-kind specific options */
   config?: Record<string, unknown>
 }

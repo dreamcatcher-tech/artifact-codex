@@ -28,5 +28,6 @@
       ]
     }
   },
+  "exclude": [".refs/"],
   "nodeModulesDir": "auto"
 }

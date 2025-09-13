@@ -3,7 +3,21 @@ import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 // Output schemas aligned with @artifact/web-server faces.ts
-export const listFacesOutput = z.object({ face_kinds: z.array(z.string()) })
+export const listFacesOutput = z.object({
+  face_kinds: z.array(z.object({
+    faceKind: z.string(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+  })),
+  live_faces: z.array(z.object({
+    faceId: z.string(),
+    faceKind: z.string(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+  })),
+})
+
+export type ListFacesOutput = z.infer<typeof listFacesOutput>
 
 export const createFaceOutput = z.object({ faceId: z.string() })
 

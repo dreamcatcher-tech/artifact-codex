@@ -1,5 +1,6 @@
 import { expect } from '@std/expect'
 import { withApp } from './fixture.ts'
+import type { ListFacesOutput } from '@artifact/mcp-faces'
 
 Deno.test('tools/list exposes face tools', async () => {
   using fixtures = await withApp()
@@ -18,10 +19,13 @@ Deno.test('tools/call list_faces returns available kinds', async () => {
   const result = await client.callTool({
     name: 'list_faces',
     arguments: { agentId: 'agent123' },
-  }) as { structuredContent?: { face_kinds?: string[] } }
-  const kinds = result.structuredContent?.face_kinds
+  }) as { structuredContent?: ListFacesOutput }
+  const kinds = result.structuredContent?.face_kinds ?? []
   expect(Array.isArray(kinds)).toBe(true)
-  expect(kinds).toContain('test')
+  const kindNames = kinds.map((k) => k.faceKind)
+  expect(kindNames).toContain('test')
+  const live = result.structuredContent?.live_faces
+  expect(Array.isArray(live)).toBe(true)
 })
 
 Deno.test('tools/call create_face returns a face id', async () => {

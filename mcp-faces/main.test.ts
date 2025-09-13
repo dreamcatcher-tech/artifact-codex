@@ -1,6 +1,7 @@
 import { expect } from '@std/expect'
 import { spawnStdioMcpServer } from '@artifact/shared'
 import { createRemoteFacesHandlers } from './main.ts'
+import type { ListFacesOutput } from './server.ts'
 import { withApp } from '../web-server/fixture.ts'
 
 Deno.test('MCP initialize handshake', async () => {
@@ -41,11 +42,14 @@ Deno.test('proxy list_faces forwards to remote server', async () => {
   using fixtures = await withApp()
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const result = await handlers.list_faces({ agentId: 'in-memory' }) as {
-    structuredContent?: { face_kinds?: string[] }
+    structuredContent?: ListFacesOutput
   }
-  const kinds = result.structuredContent?.face_kinds
+  const kinds = result.structuredContent?.face_kinds ?? []
   expect(Array.isArray(kinds)).toBe(true)
-  expect(kinds).toContain('test')
+  const kindNames = kinds.map((k) => k.faceKind)
+  expect(kindNames).toContain('test')
+  const live = result.structuredContent?.live_faces
+  expect(Array.isArray(live)).toBe(true)
 })
 
 Deno.test('proxy create_face returns faceId via remote', async () => {

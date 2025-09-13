@@ -27,12 +27,32 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
   }
 
   let idCounter = 0
+  const faceIdToKind = new Map<FaceId, string>()
 
   return {
     list_faces: (): Promise<CallToolResult> => {
-      return Promise.resolve(
-        toStructured({ face_kinds: Object.keys(faceKinds) }),
-      )
+      const face_kinds = Object.entries(faceKinds).map(([faceKind, info]) => ({
+        faceKind,
+        title: info.title,
+        description: info.description,
+      }))
+      const live_faces = Array.from(faces.keys()).map((faceId) => {
+        const faceKind = faceIdToKind.get(faceId)
+        if (!faceKind) {
+          throw new Error(`Internal error: missing faceKind for face ${faceId}`)
+        }
+        const info = faceKinds[faceKind]
+        if (!info) {
+          throw new Error(`Internal error: ${faceId} unknown: ${faceKind}`)
+        }
+        return {
+          faceId,
+          faceKind,
+          title: info.title,
+          description: info.description,
+        }
+      })
+      return Promise.resolve(toStructured({ face_kinds, live_faces }))
     },
     create_face: ({ faceKind }): Promise<CallToolResult> => {
       if (!faceKinds[faceKind]) {
@@ -42,6 +62,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       const id = `face-${idCounter++}`
       const face = faceKinds[faceKind].creator({})
       faces.set(id, face)
+      faceIdToKind.set(id, faceKind)
       return Promise.resolve(toStructured({ faceId: id }))
     },
     read_face: async ({ faceId }): Promise<CallToolResult> => {
@@ -59,6 +80,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       }
       await face.destroy()
       faces.delete(faceId)
+      faceIdToKind.delete(faceId)
       return toStructured({ deleted: true })
     },
   }
