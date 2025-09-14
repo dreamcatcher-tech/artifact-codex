@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { HOST } from './consts.ts'
 
 export type RemoteClientOptions = {
   /** Optional fetch implementation override (used in tests). */
@@ -20,7 +21,7 @@ export function resolveAgentToOrigin(agentId: string): URL {
   // The self web server listens on PORT (default 8080).
   if (agentId === '@self') {
     const port = Deno.env.get('PORT') ?? '8080'
-    return new URL(`http://127.0.0.1:${port}`)
+    return new URL(`http://${HOST}:${port}`)
   }
   // Default: resolve to internal DNS for the remote agent
   return new URL(`http://${agentId}.internal`)

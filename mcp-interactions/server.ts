@@ -59,7 +59,7 @@ export function createInteractionsServer(
     {
       title: 'Create Interaction',
       description:
-        'Creates an Interaction of the specified kind for the given Agent id. Returns an interaction id. Use "@self" as agentId to target the currently running agent via localhost.',
+        `Creates an Interaction of the specified kind for the given Agent ID. Returns an interaction id. Use "@self" as agentId to target your own Agent ID.`,
       inputSchema: {
         agentId: z.string(),
         faceId: z.string(),

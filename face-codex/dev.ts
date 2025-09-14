@@ -1,5 +1,6 @@
 #!/usr/bin/env -S deno run -A
 import { startFaceCodex } from './main.ts'
+import { HOST } from '@artifact/shared'
 import { dirname, fromFileUrl } from '@std/path'
 
 async function main() {
@@ -15,7 +16,7 @@ async function main() {
   const s = await face.status() // resolves when loading completes
 
   for (const v of s.views || []) {
-    console.log(`- ${v.name}: ${v.protocol}://localhost:${v.port}`)
+    console.log(`- ${v.name}: ${v.protocol}://${HOST}:${v.port}`)
   }
 
   console.log('Face Codex ready. Press Ctrl+C to exit.')

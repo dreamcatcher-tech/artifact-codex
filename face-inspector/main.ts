@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
+import { HOST } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -42,12 +43,9 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     }
   }
 
-  async function isTcpListening(
-    port: number,
-    host = '127.0.0.1',
-  ): Promise<boolean> {
+  async function isTcpListening(port: number): Promise<boolean> {
     try {
-      const conn = await Deno.connect({ hostname: host, port })
+      const conn = await Deno.connect({ hostname: HOST, port })
       try {
         conn.close()
       } catch (_) {

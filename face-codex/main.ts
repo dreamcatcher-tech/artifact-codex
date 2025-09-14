@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions } from '@artifact/shared'
+import { HOST } from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 
 /**
@@ -133,7 +134,7 @@ export function startFaceCodex(
         SOCKET: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
         PORT: String(17860),
         TTYD_PORT: String(17860),
-        HOST: 'localhost',
+        HOST,
         WRITEABLE: 'on',
       }
 
@@ -167,7 +168,8 @@ export function startFaceCodex(
 
   function interaction(input: string) {
     assertOpen()
-    const id = String(count++)
+    const id = crypto.randomUUID()
+    count += 1
     lastId = id
 
     // record a settled result for waiters (echo)

@@ -99,7 +99,7 @@ export function createFacesServer(
     {
       title: 'Create Face',
       description:
-        'Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target the currently running agent via localhost.',
+        `Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target your own Agent ID.`,
       inputSchema: createFaceInput.shape,
       outputSchema: createFaceOutput.shape,
     },
@@ -111,7 +111,7 @@ export function createFacesServer(
     {
       title: 'Read Face',
       description:
-        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target the current agent.',
+        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target your own Agent ID.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },

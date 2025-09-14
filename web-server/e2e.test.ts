@@ -1,4 +1,5 @@
 import { expect } from '@std/expect'
+import { HOST } from '@artifact/shared'
 import { createApp } from './main.ts'
 import NodeWS from 'ws'
 
@@ -15,7 +16,7 @@ function safe<T>(fn: () => T) {
 function serveOn(port: number, handler: Deno.ServeHandler) {
   const ac = new AbortController()
   const srv = Deno.serve(
-    { hostname: '127.0.0.1', port, signal: ac.signal },
+    { hostname: HOST, port, signal: ac.signal },
     handler,
   )
   return {
@@ -43,7 +44,7 @@ function startWSEcho(port: number) {
   const ac = new AbortController()
   const sockets = new Set<WebSocket>()
   Deno.serve(
-    { hostname: '127.0.0.1', port, signal: ac.signal },
+    { hostname: HOST, port, signal: ac.signal },
     (req) => {
       const { socket, response } = Deno.upgradeWebSocket(req)
       const ws = socket as unknown as WebSocket
@@ -98,7 +99,7 @@ Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
   await using _upstream = startHTTPEcho(HTTP_PORT)
   await using _appSrv = startApp(LISTEN)
 
-  const res = await fetch(`http://127.0.0.1:${LISTEN}/hello?x=1`, {
+  const res = await fetch(`http://${HOST}:${LISTEN}/hello?x=1`, {
     headers: { 'Fly-Forwarded-Port': String(HTTP_PORT) },
   })
   const text = await res.text()
@@ -110,7 +111,7 @@ Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
   const LISTEN = 18081
   await using _upstream = startWSEcho(WS_PORT)
   await using _appSrv = startApp(LISTEN)
-  const ws = new NodeWS(`ws://127.0.0.1:${LISTEN}/ws`, [], {
+  const ws = new NodeWS(`ws://${HOST}:${LISTEN}/ws`, [], {
     headers: { 'Fly-Forwarded-Port': String(WS_PORT) },
     perMessageDeflate: false,
   })

@@ -1,4 +1,5 @@
 import Debug from 'debug'
+import { HOST } from '@artifact/shared'
 const log = Debug('@artifact/web-server:proxy')
 
 const HOP_BY_HOP = [
@@ -39,12 +40,12 @@ export async function proxyHTTP(req: Request): Promise<Response> {
   const qs = inUrl.searchParams.toString()
   const target = new URL(
     `${inUrl.pathname}${qs ? `?${qs}` : ''}`,
-    `http://127.0.0.1:${port}`,
+    `http://${HOST}:${port}`,
   )
 
   const fwdHeaders = new Headers(req.headers)
   stripHopByHop(fwdHeaders)
-  fwdHeaders.set('host', `127.0.0.1:${port}`)
+  fwdHeaders.set('host', `${HOST}:${port}`)
   const xf = req.headers.get('x-forwarded-for')
   const clientIP = req.headers.get('x-real-ip') ?? ''
   fwdHeaders.set('x-forwarded-for', xf ? `${xf}, ${clientIP}` : clientIP)
@@ -81,7 +82,7 @@ export async function proxyHTTP(req: Request): Promise<Response> {
     let status = 502
     if (lower.includes('timeout') || lower.includes('timed out')) status = 504
     const body =
-      `Proxy to 127.0.0.1:${port} for ${req.method} ${inUrl.pathname}${inUrl.search} failed: ${msg}`
+      `Proxy to ${HOST}:${port} for ${req.method} ${inUrl.pathname}${inUrl.search} failed: ${msg}`
     const headers = new Headers({
       'content-type': 'text/plain; charset=utf-8',
       'x-proxy-error': 'fetch-failed',
@@ -99,7 +100,7 @@ export function proxyWS(req: Request): Response {
   const qs = inUrl.searchParams.toString()
   const isSecure = inUrl.protocol === 'https:'
   const scheme = isSecure ? 'wss' : 'ws'
-  const wsUrl = `${scheme}://127.0.0.1:${port}${inUrl.pathname}${
+  const wsUrl = `${scheme}://${HOST}:${port}${inUrl.pathname}${
     qs ? `?${qs}` : ''
   }`
 
