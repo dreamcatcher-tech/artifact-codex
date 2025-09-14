@@ -24,7 +24,6 @@ export const createFaceInput = z.object({
   faceKind: z.string(),
   home: z.string().optional(),
   workspace: z.string().optional(),
-  config: z.record(z.unknown()).optional(),
 })
 
 export const createFaceOutput = z.object({ faceId: z.string() })

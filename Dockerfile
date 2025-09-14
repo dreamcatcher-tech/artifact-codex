@@ -49,6 +49,7 @@ RUN apt-get update && \
   nnn \
   tmux \
   fish \
+  lsof \
   ttyd && \
   rm -rf /var/lib/apt/lists/*
 
@@ -72,11 +73,6 @@ WORKDIR /workspace
 
 RUN chsh -s /usr/bin/fish
 
-# Default entrypoint runs the MCP web server
-# Listens on PORT (default 8080) for Fly's internal HTTP service
-EXPOSE 3000-30000
-
-
 ENV SESSION="root-session"
 ENV SOCKET="root-socket"
 ENV PORT="8080"
@@ -84,6 +80,8 @@ ENV TTYD_PORT="8100"
 ENV WINDOW_TITLE="root-window"
 ENV HOST="127.0.0.1"
 ENV WRITEABLE="on"
+
+
 
 ENTRYPOINT ["/headers/shared/tmux.sh"]
 CMD ["deno", "run", "-A", "/headers/web-server/main.ts"]
