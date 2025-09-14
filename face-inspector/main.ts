@@ -8,14 +8,11 @@ import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
  * - Throws on interaction requests (non-interactive face).
  * - By default, only launches the child when both `workspace` and `home` are provided in opts.
  */
-type InspectorConfig = { test?: boolean }
 export interface FaceInspectorOptions extends FaceOptions {
-  config?: InspectorConfig
+  config?: { test?: boolean }
 }
 
-export function startFaceInspector(
-  opts: FaceInspectorOptions = {} as FaceInspectorOptions,
-): Face {
+export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
   if (!opts.workspace || !opts.home) {
     throw new Error('face-inspector requires workspace and home options')
   }
@@ -98,7 +95,7 @@ export function startFaceInspector(
       await Deno.mkdir(homeDir, { recursive: true })
     }
 
-    const config = (opts.config ?? {}) as InspectorConfig
+    const config = opts.config ?? {}
     const args = config.test
       ? ['echo', 'ok']
       : ['npx', '-y', '@modelcontextprotocol/inspector']
@@ -107,14 +104,15 @@ export function startFaceInspector(
       // inspector related
       CLIENT_PORT: String(CLIENT_PORT),
       SERVER_PORT: String(SERVER_PORT),
-      HOST: '127.0.0.1',
+      HOST: '0.0.0.0',
+      ALLOWED_ORIGINS: '*',
       MCP_AUTO_OPEN_ENABLED: 'false',
 
       // tmux.sh related
       WINDOW_TITLE: 'Inspector',
       SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
       SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
-      TTYD_PORT: String(17861),
+      TTYD_PORT: String(0),
     }
 
     const thisDir = dirname(fromFileUrl(import.meta.url))

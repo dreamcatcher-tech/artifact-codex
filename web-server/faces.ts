@@ -4,6 +4,7 @@ import type { Face, FaceOptions } from '@artifact/shared'
 import { toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
+import { startFaceCodex } from '@artifact/face-codex'
 import Debug from 'debug'
 
 type FaceKind = {
@@ -23,8 +24,13 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
     },
     inspector: {
       title: 'Inspector',
-      description: 'Runs MCP Inspector and reports ports',
+      description: 'MCP Inspector that presents a web server UI',
       creator: startFaceInspector,
+    },
+    codex: {
+      title: 'Codex',
+      description: 'Runs a Codex session and presents it in a ttyd ui',
+      creator: startFaceCodex,
     },
   }
 

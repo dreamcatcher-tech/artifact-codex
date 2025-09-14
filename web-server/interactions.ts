@@ -31,7 +31,7 @@ export const createInteractions = (
         throw new Error(`Face not found: ${faceId}`)
       }
       const { id } = face.interaction(input)
-      const interactionId = `f-${faceId}_i-${id}`
+      const interactionId = `${faceId}_${id}`
       interactions.set(interactionId, { faceId, id })
       log(
         'create_interaction: face=%s input=%j -> %s',

@@ -1,25 +1,14 @@
 model = "gpt-5"
 model_provider = "openai"
-model_reasoning_effort = "high"
+model_reasoning_effort = "low"
 model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 preferred_auth_method = "apikey"
 
-
-[projects."/workspace"]
-trust_level = "trusted"
-
 [tools]
 web_search = true
 view_image = true
-
-# Only used if sandbox_mode = "workspace-write"
-[sandbox_workspace_write]
-network_access = true
-writable_roots = ["/root"]
-exclude_slash_tmp = false
-exclude_tmpdir_env_var = false
 
 [mcp_servers.mcp-computers]
 command = "/headers/mcp-computers/main.ts"

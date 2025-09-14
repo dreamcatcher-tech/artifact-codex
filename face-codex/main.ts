@@ -17,7 +17,6 @@ export function startFaceCodex(
   let closed = false
   let count = 0
   let lastId: string | undefined
-  const idPrefix = 'fcx_'
   const active = new Map<string, Promise<string>>()
 
   // Child process state (when launching)
@@ -168,9 +167,9 @@ export function startFaceCodex(
 
   function interaction(input: string) {
     assertOpen()
-    const id = idPrefix + crypto.randomUUID()
+    const id = String(count++)
     lastId = id
-    count += 1
+
     // record a settled result for waiters (echo)
     active.set(id, Promise.resolve(input))
     // If a custom runner is active, push input to its stdin
