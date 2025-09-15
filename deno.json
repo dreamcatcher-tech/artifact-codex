@@ -4,6 +4,7 @@
     "mcp-computers",
     "mcp-faces",
     "mcp-interactions",
+    "face-cmd",
     "face-codex",
     "face-inspector",
     "face-test",

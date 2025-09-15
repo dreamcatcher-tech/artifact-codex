@@ -5,6 +5,9 @@ import { HOST, toStructured } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
 import { startFaceCodex } from '@artifact/face-codex'
+import { startFaceCmd } from '@artifact/face-cmd'
+import { createVirtualFace } from './face-self.ts'
+
 import Debug from 'debug'
 
 type FaceKind = {
@@ -14,28 +17,51 @@ type FaceKind = {
 }
 type FaceId = string
 
+const selfKindId = '@self system'
+
+const faceKinds: Record<string, FaceKind> = {
+  [selfKindId]: {
+    title: '@self system',
+    description:
+      'the read only face that shows the process that the face management server runs on.  THIS CANNOT BE INSTANTIATED, DESTROYED, OR INTERACTED WITH',
+    creator: () => {
+      throw new Error('@self system face cannot be instantiated')
+    },
+  },
+  test: {
+    title: 'Test',
+    description: 'A test face',
+    creator: startFaceTest,
+  },
+  inspector: {
+    title: 'Inspector',
+    description: 'MCP Inspector that presents a web server UI',
+    creator: startFaceInspector,
+  },
+  codex: {
+    title: 'Codex',
+    description: 'Runs a Codex session and presents it in a ttyd ui',
+    creator: startFaceCodex,
+  },
+  cmd: {
+    title: 'Command',
+    description: 'Runs an arbitrary shell command in tmux with a ttyd view',
+    creator: startFaceCmd,
+  },
+}
+
 export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
   const log = Debug('@artifact/web-server:faces')
-  const faceKinds: Record<string, FaceKind> = {
-    test: {
-      title: 'Test',
-      description: 'A test face',
-      creator: startFaceTest,
-    },
-    inspector: {
-      title: 'Inspector',
-      description: 'MCP Inspector that presents a web server UI',
-      creator: startFaceInspector,
-    },
-    codex: {
-      title: 'Codex',
-      description: 'Runs a Codex session and presents it in a ttyd ui',
-      creator: startFaceCodex,
-    },
-  }
 
   let idCounter = 0
   const faceIdToKind = new Map<FaceId, string>()
+
+  const getFaceId = () => `face-${idCounter++}`
+
+  const virtualFace = createVirtualFace()
+  const virtualFaceId = getFaceId()
+  faces.set(virtualFaceId, virtualFace)
+  faceIdToKind.set(virtualFaceId, selfKindId)
 
   return {
     list_faces: async (): Promise<CallToolResult> => {
@@ -87,7 +113,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
         const kinds = Object.keys(faceKinds).join(', ')
         throw new Error(`Unknown kind: ${faceKindId} - use one of ${kinds}`)
       }
-      const id = `face-${idCounter++}`
+      const id = getFaceId()
       const finalWorkspace = workspace ?? Deno.cwd()
       const finalHome = home ?? Deno.env.get('CODEX_HOME') ?? '/root/.codex'
       const finalConfig = config ?? {}

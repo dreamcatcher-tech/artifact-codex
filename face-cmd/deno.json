@@ -1,0 +1,15 @@
+{
+  "name": "@artifact/face-cmd",
+  "exports": "./main.ts",
+  "tasks": {
+    "watch": "deno test -A --watch",
+    "test": "deno test -A",
+    "lint": "deno lint --fix",
+    "fmt": "deno fmt",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+  },
+  "imports": {
+    "@std/path": "jsr:@std/path@^1.1.2",
+    "@std/expect": "jsr:@std/expect@^1.0.17"
+  }
+}

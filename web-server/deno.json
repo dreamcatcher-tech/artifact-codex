@@ -6,7 +6,8 @@
     "test": "deno test -A",
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
-    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+    "ok": "deno check && deno task test && deno fmt --check && deno lint",
+    "web": "bash test.sh"
   },
   "imports": {
     "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",

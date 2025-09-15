@@ -686,6 +686,12 @@
       "npm:debug@^4.4.1"
     ],
     "members": {
+      "face-cmd": {
+        "dependencies": [
+          "jsr:@std/expect@^1.0.17",
+          "jsr:@std/path@^1.1.2"
+        ]
+      },
       "face-codex": {
         "dependencies": [
           "jsr:@std/expect@^1.0.17",

@@ -34,10 +34,10 @@ export type Face = {
   awaitInteraction: (
     id: string,
     opts?: FaceWaitOptions,
-  ) => Promise<string>
-  cancel: (id: string) => Promise<void>
-  destroy: () => Promise<void>
-  status: () => Promise<FaceStatus>
+  ) => Promise<string> | string
+  cancel: (id: string) => Promise<void> | void
+  destroy: () => Promise<void> | void
+  status: () => Promise<FaceStatus> | FaceStatus
 }
 
 export type FaceOptions = {
