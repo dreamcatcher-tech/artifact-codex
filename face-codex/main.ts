@@ -12,6 +12,7 @@ type CodexConfig = { test?: boolean }
 export function startFaceCodex(
   opts: FaceOptions & { config?: CodexConfig } = {},
 ): Face {
+  console.log('startFaceCodex:', opts)
   const startedAt = new Date()
   let closed = false
   let count = 0
@@ -160,7 +161,7 @@ export function startFaceCodex(
         SESSION: tmuxSession,
         SOCKET: tmuxSocket,
         TTYD_PORT: String(port),
-        HOST,
+        HOST: extHost,
         TTYD_HOST: extHost,
         WRITEABLE: 'on',
       }
@@ -214,7 +215,7 @@ export function startFaceCodex(
   }
 
   // Fire and forget; preserve original lightweight semantics if not launching
-  maybeLaunch()
+  const launchPromise = maybeLaunch()
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
@@ -312,7 +313,7 @@ export function startFaceCodex(
   }
 
   async function status() {
-    await Promise.resolve()
+    await launchPromise
     return {
       startedAt: startedAt.toISOString(),
       closed,

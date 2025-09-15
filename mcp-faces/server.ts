@@ -44,13 +44,8 @@ export const readFaceOutput = z.object({
     interactions: z.number(),
     lastInteractionId: z.string().optional(),
     pid: z.number().optional(),
-    home: z.string().optional(),
     config: z.string().optional(),
     workspace: z.string().optional(),
-    processExited: z.boolean().optional(),
-    exitCode: z.number().nullable().optional(),
-    notifications: z.number().optional(),
-    lastNotificationRaw: z.string().optional(),
   }),
   views: z.array(faceViewSchema),
 })
@@ -105,7 +100,7 @@ export function createFacesServer(
     {
       title: 'Create Face',
       description:
-        `Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target your own Agent ID.`,
+        `Creates a Face of the specified kind for the given Agent id. Returns a faceId. Use "@self" as agentId to target your own Agent ID.  Use read_face with the faceId to await the creation of the face and get its status.`,
       inputSchema: createFaceInput.shape,
       outputSchema: createFaceOutput.shape,
     },
@@ -117,7 +112,7 @@ export function createFacesServer(
     {
       title: 'Read Face',
       description:
-        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target your own Agent ID.  This will include the status of the face, the views that are available that may be accessed via a browser url, and the last interaction id if there has been one.',
+        'Await the creation of a Face by id for the given Agent id and retrieve its status. Use "@self" as agentId to target your own Agent ID.  This will include the status of the face, the views that are available that may be accessed via a browser url, and the last interaction id if there has been one.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },

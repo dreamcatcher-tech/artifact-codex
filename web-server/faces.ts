@@ -118,7 +118,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       }
       const id = getFaceId()
       const finalWorkspace = workspace ?? Deno.cwd()
-      const finalHome = home ?? Deno.env.get('CODEX_HOME') ?? '/root/.codex'
+      const finalHome = home ?? Deno.env.get('CODEX_HOME') ?? '~/.codex'
       const finalConfig = config ?? {}
       const face = faceKinds[faceKindId].creator({
         home: finalHome,
