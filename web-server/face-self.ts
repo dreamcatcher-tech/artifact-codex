@@ -45,7 +45,6 @@ export function createVirtualFace(_opts: FaceOptions = {}): Face {
   }
 
   function destroy() {
-    throw new Error(msg)
   }
 
   async function status() {

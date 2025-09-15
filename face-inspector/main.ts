@@ -262,11 +262,5 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     throw new Error('face-inspector has no pending interactions')
   }
 
-  return {
-    interaction,
-    awaitInteraction,
-    cancel,
-    status,
-    destroy,
-  }
+  return { interaction, awaitInteraction, cancel, status, destroy }
 }

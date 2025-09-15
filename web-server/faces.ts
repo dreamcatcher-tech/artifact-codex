@@ -17,10 +17,10 @@ type FaceKind = {
 }
 type FaceId = string
 
-const selfKindId = '@self system'
+const SELF_KIND_ID = '@self system'
 
 const faceKinds: Record<string, FaceKind> = {
-  [selfKindId]: {
+  [SELF_KIND_ID]: {
     title: '@self system',
     description:
       'the read only face that shows the process that the face management server runs on.  THIS CANNOT BE INSTANTIATED, DESTROYED, OR INTERACTED WITH',
@@ -61,7 +61,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
   const virtualFace = createVirtualFace()
   const virtualFaceId = getFaceId()
   faces.set(virtualFaceId, virtualFace)
-  faceIdToKind.set(virtualFaceId, selfKindId)
+  faceIdToKind.set(virtualFaceId, SELF_KIND_ID)
 
   return {
     list_faces: async (): Promise<CallToolResult> => {
@@ -109,6 +109,9 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
     create_face: (
       { faceKindId, home, workspace, hostname, config },
     ): Promise<CallToolResult> => {
+      if (faceKindId === SELF_KIND_ID) {
+        throw new Error('@self system face cannot be instantiated')
+      }
       if (!faceKinds[faceKindId]) {
         const kinds = Object.keys(faceKinds).join(', ')
         throw new Error(`Unknown kind: ${faceKindId} - use one of ${kinds}`)
@@ -142,6 +145,9 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       return toStructured({ status, views })
     },
     destroy_face: async ({ faceId }): Promise<CallToolResult> => {
+      if (faceId === virtualFaceId) {
+        throw new Error('@self system face cannot be destroyed')
+      }
       const face = faces.get(faceId)
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
