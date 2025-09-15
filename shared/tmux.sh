@@ -9,7 +9,7 @@ SOCKET=${SOCKET-}
 TTYD_PORT=${TTYD_PORT-}
 WINDOW_TITLE=${WINDOW_TITLE-}
 TTYD_HOST=${TTYD_HOST-}
-# Optional: when set truthy, enables ttyd read-only mode
+# Optional: when set truthy, enables ttyd interactive mode
 WRITEABLE=${WRITEABLE-}
 
 have() { command -v "$1" >/dev/null 2>&1; }
