@@ -25,12 +25,8 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
   // Child process + runtime state
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
-  const CLIENT_PORT = 8080
-  const SERVER_PORT = 9000
-  const views: FaceView[] = [
-    { name: 'client', port: CLIENT_PORT, protocol: 'http' },
-    { name: 'server', port: SERVER_PORT, protocol: 'http' },
-  ] as const
+  const externalHost = opts.hostname ?? HOST
+  let views: FaceView[] = []
 
   // readiness gate: status() resolves after the face is ready
   let readyResolve: (() => void) | null = null
@@ -94,42 +90,130 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     }
 
     const config = opts.config ?? {}
-    const args = config.test
-      ? ['echo', 'ok']
-      : ['npx', '-y', '@modelcontextprotocol/inspector']
 
-    const env: Record<string, string> = {
-      // inspector related
-      CLIENT_PORT: String(CLIENT_PORT),
-      SERVER_PORT: String(SERVER_PORT),
-      HOST: '0.0.0.0',
-      ALLOWED_ORIGINS: '*',
-      MCP_AUTO_OPEN_ENABLED: 'false',
-
-      // tmux.sh related
-      WINDOW_TITLE: 'Inspector',
-      SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
-      SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
-      TTYD_PORT: String(0),
+    // Test mode: do not spawn external processes; just set stub views
+    if (config.test) {
+      const base = 10000
+      views = [
+        {
+          name: 'terminal',
+          port: base,
+          protocol: 'http',
+          url: `http://${externalHost}:${base}`,
+        },
+        {
+          name: 'client',
+          port: base + 1,
+          protocol: 'http',
+          url: `http://${externalHost}:${base + 1}`,
+        },
+      ]
+      markReady()
+      return
     }
 
+    // Real launch: try sequential port triplets until ttyd + UI bind successfully.
     const thisDir = dirname(fromFileUrl(import.meta.url))
     const repoRoot = dirname(thisDir)
     const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
-    const cmd = new Deno.Command(tmuxScript, {
-      args,
-      cwd: workspaceDir,
-      stdin: 'inherit',
-      stdout: 'inherit',
-      stderr: 'inherit',
-      env,
-    })
-    child = cmd.spawn()
-    pid = child.pid
+    const windowTitle = 'Inspector'
 
-    if (!config.test) {
-      await waitForPorts([CLIENT_PORT])
+    const startBase = 10000
+    const maxTries = 50
+    let launched = false
+    for (let attempt = 0; attempt < maxTries && !launched; attempt++) {
+      const base = startBase + attempt * 3
+      const ttydPort = base
+      const uiPort = base + 1
+      const apiPort = base + 2
+
+      const env: Record<string, string> = {
+        // Network binds
+        HOST,
+        ALLOWED_ORIGINS: '*',
+        MCP_AUTO_OPEN_ENABLED: 'false',
+        // Encourage common dev servers to use our chosen port/host
+        PORT: String(uiPort),
+        CLIENT_PORT: String(uiPort),
+        SERVER_PORT: String(apiPort),
+        MCP_PROXY_FULL_ADDRESS: `http://${externalHost}:${apiPort}`,
+
+        // tmux.sh related (explicitly read-only by leaving WRITEABLE off)
+        WINDOW_TITLE: windowTitle,
+        SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
+        SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
+        TTYD_PORT: String(ttydPort),
+        TTYD_HOST: externalHost,
+      }
+
+      const args = ['npx', '-y', '@modelcontextprotocol/inspector']
+      const cmd = new Deno.Command(tmuxScript, { args, cwd: workspaceDir, env })
+      const proc = cmd.spawn()
+
+      // Wait for ttyd or process exit (port conflict)
+      const ttydOk = await Promise.race([
+        waitForPorts([ttydPort], 8_000).then(() => true).catch(() => false),
+        proc.status.then(() => false),
+      ])
+      if (!ttydOk) {
+        try {
+          proc.kill('SIGTERM')
+        } catch {
+          // ignore
+        }
+        try {
+          await proc.status
+        } catch {
+          // ignore
+        }
+        continue
+      }
+
+      // Now wait for UI to bind on the chosen port. If it fails (e.g., port in use
+      // and the tool refuses to start), retry with the next triplet.
+      const uiOk = await waitForPorts([uiPort], 30_000).then(() => true).catch(
+        () => false,
+      )
+      if (!uiOk) {
+        try {
+          proc.kill('SIGTERM')
+        } catch {
+          // ignore
+        }
+        try {
+          await proc.status
+        } catch {
+          // ignore
+        }
+        continue
+      }
+
+      // Success
+      child = proc
+      pid = proc.pid
+      views = [
+        {
+          name: 'terminal',
+          port: ttydPort,
+          protocol: 'http',
+          url: `http://${externalHost}:${ttydPort}`,
+        },
+        {
+          name: 'client',
+          port: uiPort,
+          protocol: 'http',
+          url: `http://${externalHost}:${uiPort}`,
+        },
+      ]
+      launched = true
     }
+
+    if (!launched) {
+      throw new Error(
+        'Failed to launch face-inspector: no available port triplet starting at 10000',
+      )
+    }
+
     markReady()
   }
 
@@ -151,7 +235,11 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     } catch {
       // ignore
     }
-    await Promise.resolve()
+    try {
+      await child?.status
+    } catch {
+      // ignore
+    }
   }
 
   async function status(): Promise<FaceStatus> {

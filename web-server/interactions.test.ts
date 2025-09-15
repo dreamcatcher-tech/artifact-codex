@@ -26,7 +26,7 @@ Deno.test('tools/call list_interactions returns ids for a face', async () => {
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = createdFace.structuredContent?.faceId!
 
@@ -51,7 +51,7 @@ Deno.test('tools/call create_interaction returns an interaction id', async () =>
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = createdFace.structuredContent?.faceId
 
@@ -69,7 +69,7 @@ Deno.test('tools/call read_interaction returns result and removes id', async () 
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = createdFace.structuredContent?.faceId!
   const createdIx = await client.callTool({
@@ -95,7 +95,7 @@ Deno.test('tools/call read_interaction returns MCP error for error input', async
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = createdFace.structuredContent?.faceId!
 
@@ -145,7 +145,7 @@ Deno.test('tools/call destroy_interaction cancels and removes an id', async () =
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = createdFace.structuredContent?.faceId!
   const createdIx = await client.callTool({

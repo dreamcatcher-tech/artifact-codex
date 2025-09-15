@@ -2,6 +2,7 @@ export type FaceView = {
   name: string
   port: number
   protocol: 'http'
+  url: string
 }
 
 export type FaceStatus = {
@@ -44,6 +45,11 @@ export type FaceOptions = {
   workspace?: string
   /** Absolute path to the Face home directory used for app config/cache/scratch. */
   home?: string
+  /**
+   * External hostname to use when generating URLs for views exposed by the face.
+   * Useful when running behind a reverse proxy so links are correct for users.
+   */
+  hostname?: string
   /** Arbitrary configuration map for face-kind specific options */
   config?: Record<string, unknown>
 }

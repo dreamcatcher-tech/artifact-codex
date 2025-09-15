@@ -29,38 +29,14 @@ export function createRemoteFacesHandlers(
     list_faces: ({ agentId }: { agentId: string }): Promise<CallToolResult> => {
       return callRemote(agentId, 'list_faces', { agentId })
     },
-    create_face: (
-      {
-        agentId,
-        faceKind,
-        home,
-        workspace,
-        config,
-      }: {
-        agentId: string
-        faceKind: string
-        home?: string
-        workspace?: string
-        config?: Record<string, unknown>
-      },
-    ): Promise<CallToolResult> => {
-      return callRemote(agentId, 'create_face', {
-        agentId,
-        faceKind,
-        home,
-        workspace,
-        config,
-      })
+    create_face: (params): Promise<CallToolResult> => {
+      return callRemote(params.agentId, 'create_face', params)
     },
-    read_face: (
-      { agentId, faceId }: { agentId: string; faceId: string },
-    ): Promise<CallToolResult> => {
-      return callRemote(agentId, 'read_face', { agentId, faceId })
+    read_face: (params): Promise<CallToolResult> => {
+      return callRemote(params.agentId, 'read_face', params)
     },
-    destroy_face: (
-      { agentId, faceId }: { agentId: string; faceId: string },
-    ): Promise<CallToolResult> => {
-      return callRemote(agentId, 'destroy_face', { agentId, faceId })
+    destroy_face: (params): Promise<CallToolResult> => {
+      return callRemote(params.agentId, 'destroy_face', params)
     },
   }
 }

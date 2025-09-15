@@ -22,7 +22,7 @@ Deno.test('tools/call list_faces returns available kinds', async () => {
   }) as { structuredContent?: ListFacesOutput }
   const kinds = result.structuredContent?.face_kinds ?? []
   expect(Array.isArray(kinds)).toBe(true)
-  const kindNames = kinds.map((k) => k.faceKind)
+  const kindNames = kinds.map((k) => k.faceKindId)
   expect(kindNames).toContain('test')
   const live = result.structuredContent?.live_faces
   expect(Array.isArray(live)).toBe(true)
@@ -33,7 +33,7 @@ Deno.test('tools/call create_face returns a face id', async () => {
   const { client } = fixtures
   const result = await client.callTool({
     name: 'create_face',
-    arguments: { agentId: 'agent123', faceKind: 'test' },
+    arguments: { agentId: 'agent123', faceKindId: 'test' },
   }) as { structuredContent?: { faceId?: string } }
   const faceId = result.structuredContent?.faceId
   expect(typeof faceId).toBe('string')

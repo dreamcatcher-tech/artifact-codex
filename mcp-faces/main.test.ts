@@ -46,7 +46,7 @@ Deno.test('proxy list_faces forwards to remote server', async () => {
   }
   const kinds = result.structuredContent?.face_kinds ?? []
   expect(Array.isArray(kinds)).toBe(true)
-  const kindNames = kinds.map((k) => k.faceKind)
+  const kindNames = kinds.map((k) => k.faceKindId)
   expect(kindNames).toContain('test')
   const live = result.structuredContent?.live_faces
   expect(Array.isArray(live)).toBe(true)
@@ -57,7 +57,7 @@ Deno.test('proxy create_face returns faceId via remote', async () => {
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const created = await handlers.create_face({
     agentId: 'in-memory',
-    faceKind: 'test',
+    faceKindId: 'test',
   }) as { structuredContent?: { faceId?: string } }
   const faceId = created.structuredContent?.faceId
   expect(typeof faceId).toBe('string')

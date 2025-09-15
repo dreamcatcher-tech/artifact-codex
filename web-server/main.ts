@@ -64,7 +64,7 @@ export function createApp() {
 if (import.meta.main) {
   Debug.enable('@artifact/*')
   const port = Number(Deno.env.get('PORT') ?? 8080)
-  const hostname = Deno.env.get('HOST') ?? '0.0.0.0'
+  const hostname = '0.0.0.0'
   const { app } = createApp()
   log('serve: starting on :%d', port)
   Deno.serve({ port, hostname, reusePort: false }, app.fetch)

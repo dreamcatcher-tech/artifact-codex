@@ -3,17 +3,25 @@ import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 // Output schemas aligned with @artifact/web-server faces.ts
+const faceViewSchema = z.object({
+  name: z.string(),
+  port: z.number(),
+  protocol: z.literal('http'),
+  url: z.string(),
+})
+
 export const listFacesOutput = z.object({
   face_kinds: z.array(z.object({
-    faceKind: z.string(),
+    faceKindId: z.string(),
     title: z.string().optional(),
     description: z.string().optional(),
   })),
   live_faces: z.array(z.object({
     faceId: z.string(),
-    faceKind: z.string(),
+    faceKindId: z.string(),
     title: z.string().optional(),
     description: z.string().optional(),
+    views: z.array(faceViewSchema),
   })),
 })
 
@@ -21,9 +29,10 @@ export type ListFacesOutput = z.infer<typeof listFacesOutput>
 
 export const createFaceInput = z.object({
   agentId: z.string(),
-  faceKind: z.string(),
+  faceKindId: z.string(),
   home: z.string().optional(),
   workspace: z.string().optional(),
+  hostname: z.string().optional(),
 })
 
 export const createFaceOutput = z.object({ faceId: z.string() })
@@ -42,12 +51,8 @@ export const readFaceOutput = z.object({
     exitCode: z.number().nullable().optional(),
     notifications: z.number().optional(),
     lastNotificationRaw: z.string().optional(),
-    views: z.array(z.object({
-      name: z.string(),
-      port: z.number(),
-      protocol: z.literal('http'),
-    })).optional(),
   }),
+  views: z.array(faceViewSchema),
 })
 
 export const destroyFaceOutput = z.object({
@@ -64,9 +69,10 @@ export type FacesHandlers = {
   list_faces: ToolHandler<{ agentId: string }>
   create_face: ToolHandler<{
     agentId: string
-    faceKind: string
+    faceKindId: string
     home?: string
     workspace?: string
+    hostname?: string
     config?: Record<string, unknown>
   }>
   read_face: ToolHandler<{ agentId: string; faceId: string }>
@@ -87,7 +93,7 @@ export function createFacesServer(
     {
       title: 'List Faces',
       description:
-        'Lists available face kinds for a given Agent id. Use "@self" as agentId to target the currently running agent via the local web server',
+        'Lists available face kinds for a given Agent id. Use "@self" as agentId to target the currently running agent via the local web server. face_kinds are the faces that can be created by calling create_face with the faceKindId.  live_faces are the faces that are currently running, the status of which can be read by calling read_face with the faceId.',
       inputSchema: { agentId: z.string() },
       outputSchema: listFacesOutput.shape,
     },
@@ -111,7 +117,7 @@ export function createFacesServer(
     {
       title: 'Read Face',
       description:
-        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target your own Agent ID.',
+        'Reads status about a Face by id for the given Agent id. Use "@self" as agentId to target your own Agent ID.  This will include the status of the face, the views that are available that may be accessed via a browser url, and the last interaction id if there has been one.',
       inputSchema: { agentId: z.string(), faceId: z.string() },
       outputSchema: readFaceOutput.shape,
     },

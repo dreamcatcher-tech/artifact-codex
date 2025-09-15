@@ -1,15 +1,13 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Face, FaceOptions } from '@artifact/shared'
+import type { Face, FaceOptions, FaceView } from '@artifact/shared'
 import { HOST } from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 
 /**
  * Start a lightweight in-memory "face" that echoes interactions and tracks status.
  */
-type CodexConfig = {
-  test?: boolean
-}
+type CodexConfig = { test?: boolean }
 
 export function startFaceCodex(
   opts: FaceOptions & { config?: CodexConfig } = {},
@@ -24,10 +22,30 @@ export function startFaceCodex(
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
   let configDir: string | undefined
-  let workspaceDir: string | undefined
+  let cwd: string | undefined
   let lastNotificationRaw: string | undefined
   let notifications = 0
   let pendingNotifyWatcher: Promise<void> | null = null
+  let views: FaceView[] | undefined
+  let tmuxSession: string | undefined
+  let tmuxSocket: string | undefined
+  let tmuxWindow: string | undefined
+
+  type Pending = {
+    id: string
+    resolve: (raw: string) => void
+    reject: (err: unknown) => void
+    canceled: boolean
+  }
+  const pendingQueue: Pending[] = []
+  const pendingById = new Map<string, Pending>()
+  const backlog: string[] = []
+
+  // Optional: allow tests to set a notify directory without launching child
+  const notifyDirOverride = (opts.config as Record<string, unknown> | undefined)
+    ?.notifyDir as
+      | string
+      | undefined
 
   async function ensureConfigIfNeeded() {
     // Only act when both directories are provided (implies launch)
@@ -83,80 +101,116 @@ export function startFaceCodex(
     await Deno.writeTextFile(outPathCodex, template)
   }
 
+  async function isTcpListening(port: number): Promise<boolean> {
+    try {
+      const conn = await Deno.connect({ hostname: HOST, port })
+      try {
+        conn.close()
+      } catch {
+        // ignore
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function waitForPort(port: number, timeoutMs = 8000) {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      if (await isTcpListening(port)) return true
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    return false
+  }
+
   async function maybeLaunch() {
     if (!opts.workspace || !opts.home) return
     await ensureConfigIfNeeded()
-    workspaceDir = opts.workspace
+    cwd = opts.workspace
     // Must not create directories; error if missing
     try {
-      const st = await Deno.stat(workspaceDir)
+      const st = await Deno.stat(cwd)
       if (!st.isDirectory) {
-        throw new Error(`workspace is not a directory: ${workspaceDir}`)
+        throw new Error(`workspace is not a directory: ${cwd}`)
       }
     } catch {
-      throw new Error(`workspace directory not found: ${workspaceDir}`)
+      throw new Error(`workspace directory not found: ${cwd}`)
     }
 
     const cfg = (opts.config ?? {}) as CodexConfig
-    let cmd: Deno.Command
-    if (cfg.test) {
-      // Test mode: run mock-app directly so we can pipe stdin for the test.
-      const thisDir = dirname(fromFileUrl(import.meta.url))
-      const mock = join(thisDir, 'mock-app.ts')
-      const args = [
-        'run',
-        '-A',
-        mock,
-        '--notify',
-        join(thisDir, 'notify.ts'),
-        '--dir',
-        String(configDir!),
-      ]
-      cmd = new Deno.Command(Deno.execPath(), {
-        args,
-        cwd: workspaceDir,
-        env: { ...Deno.env.toObject(), CODEX_HOME: configDir! },
-        stdin: 'piped',
-        stdout: 'inherit',
-        stderr: 'inherit',
-      })
-    } else {
-      // Real mode: use the generic tmux+ttyd script from shared.
-      const thisDir = dirname(fromFileUrl(import.meta.url))
-      const repoRoot = dirname(thisDir)
-      const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
+    const thisDir = dirname(fromFileUrl(import.meta.url))
+    const repoRoot = dirname(thisDir)
+    const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
 
-      const env = {
+    // Pre-assign tmux identifiers so we can use send-keys reliably
+    tmuxSession = `face-codex-${crypto.randomUUID().slice(0, 8)}`
+    tmuxSocket = `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`
+    tmuxWindow = 'Codex'
+    const extHost = opts.hostname ?? HOST
+
+    // Try sequential ports starting at 10000 until ttyd is listening
+    const startPort = 10000
+    let launched = false
+    for (let port = startPort; port < startPort + 200 && !launched; port += 1) {
+      const env: Record<string, string> = {
         ...Deno.env.toObject(),
         CODEX_HOME: configDir!,
-        WINDOW_TITLE: 'Codex',
-        SESSION: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
-        SOCKET: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
-        PORT: String(17860),
-        TTYD_PORT: String(17860),
+        WINDOW_TITLE: tmuxWindow,
+        SESSION: tmuxSession,
+        SOCKET: tmuxSocket,
+        TTYD_PORT: String(port),
         HOST,
+        TTYD_HOST: extHost,
         WRITEABLE: 'on',
       }
+      const args = cfg.test
+        ? [
+          'deno',
+          'run',
+          '-A',
+          join(thisDir, 'mock-app.ts'),
+          '--notify',
+          join(thisDir, 'notify.ts'),
+          '--dir',
+          String(configDir!),
+        ]
+        : ['npx', '-y', '@openai/codex', '--cd', cwd]
 
-      cmd = new Deno.Command(tmuxScript, {
-        args: ['npx', '-y', '@openai/codex', '--cd', workspaceDir],
-        cwd: workspaceDir,
-        env,
-        stdin: 'inherit',
-        stdout: 'inherit',
-        stderr: 'inherit',
-      })
-    }
-
-    child = cmd.spawn()
-    pid = child.pid // Observe exit asynchronously
-    ;(async () => {
-      try {
-        await child!.status
-      } finally {
-        destroy()
+      const cmd = new Deno.Command(tmuxScript, { args, cwd, env })
+      const proc = cmd.spawn()
+      const ok = await Promise.race([
+        waitForPort(port, 5000),
+        proc.status.then(() => false),
+      ])
+      if (ok) {
+        child = proc
+        pid = proc.pid
+        views = [{
+          name: 'terminal',
+          port,
+          protocol: 'http',
+          url: `http://${extHost}:${port}`,
+        }]
+        launched = true
+      } else {
+        try {
+          proc.kill('SIGTERM')
+        } catch {
+          // ignore
+        }
+        try {
+          await proc.status
+        } catch {
+          // ignore
+        }
       }
-    })()
+    }
+    if (!launched) {
+      throw new Error(
+        'Failed to launch ttyd via tmux on available port starting at 10000',
+      )
+    }
   }
 
   // Fire and forget; preserve original lightweight semantics if not launching
@@ -166,34 +220,69 @@ export function startFaceCodex(
     if (closed) throw new Error('face is closed')
   }
 
+  function deliver(raw: string) {
+    // Prefer delivering to earliest non-canceled waiter; else queue
+    while (pendingQueue.length) {
+      const p = pendingQueue.shift()!
+      pendingById.delete(p.id)
+      if (!p.canceled) {
+        p.resolve(raw)
+        return
+      }
+    }
+    backlog.push(raw)
+  }
+
   function interaction(input: string) {
     assertOpen()
     const id = crypto.randomUUID()
     count += 1
     lastId = id
 
-    // record a settled result for waiters (echo)
-    active.set(id, Promise.resolve(input))
-    // If a custom runner is active, push input to its stdin
-    if (child?.stdin) {
-      const bytes = new TextEncoder().encode(String(input) + '\n')
-      ;(async () => {
-        try {
-          const w = child!.stdin!.getWriter()
-          await w.write(bytes)
-          w.releaseLock()
-        } catch (_) {
-          // ignore write errors (process may have exited)
+    // Record a promise that resolves with next notify payload
+    const p = new Promise<string>((resolve, reject) => {
+      const pending: Pending = { id, resolve, reject, canceled: false }
+      if (backlog.length) {
+        const raw = backlog.shift()!
+        resolve(raw)
+      } else {
+        pendingQueue.push(pending)
+        pendingById.set(id, pending)
+      }
+    })
+    active.set(id, p)
+    ;(async () => {
+      try {
+        if (tmuxSession && tmuxSocket && tmuxWindow) {
+          const cmd = new Deno.Command('tmux', {
+            args: [
+              '-L',
+              String(tmuxSocket),
+              'send-keys',
+              '-t',
+              `${tmuxSession}:${tmuxWindow}`,
+              String(input),
+              'C-m',
+            ],
+            stdout: 'inherit',
+            stderr: 'inherit',
+          })
+          await cmd.output()
         }
-      })()
-    }
+      } catch (_) {
+        // ignore
+      }
+    })()
     // Start a single-use watcher for notify.json on first interaction after idle
-    if (configDir && !pendingNotifyWatcher) {
+    if ((configDir || notifyDirOverride) && !pendingNotifyWatcher) {
+      if (!configDir && notifyDirOverride) configDir = notifyDirOverride
+      const watchDir = (configDir ?? notifyDirOverride) as string
       pendingNotifyWatcher = startNotifyWatcher(
-        configDir,
+        watchDir,
         (raw) => {
           lastNotificationRaw = raw
           notifications += 1
+          deliver(raw)
         },
       ).finally(() => {
         pendingNotifyWatcher = null
@@ -209,18 +298,13 @@ export function startFaceCodex(
     closed = true
     if (child) {
       try {
-        // Close stdin if we piped it (prevents test leak warning)
+        // Try graceful SIGTERM, then force kill after a short delay
+        child.kill('SIGTERM')
         try {
-          if (child.stdin) {
-            const w = child.stdin.getWriter()
-            await w.close()
-            w.releaseLock()
-          }
+          await child.status
         } catch (_) {
           // ignore
         }
-        // Try graceful SIGTERM, then force kill after a short delay
-        child.kill('SIGTERM')
       } catch (_) {
         // ignore
       }
@@ -236,9 +320,10 @@ export function startFaceCodex(
       lastInteractionId: lastId,
       pid,
       config: configDir,
-      workspace: workspaceDir,
+      workspace: cwd,
       notifications,
       lastNotificationRaw,
+      views,
     }
   }
 
@@ -254,9 +339,18 @@ export function startFaceCodex(
 
   function cancel(id: string) {
     const rec = active.get(id)
-    // TODO throw in an abort controller when its running so we can cancel it
     if (!rec) throw new Error(`unknown interaction id: ${id}`)
     active.delete(id)
+    const pending = pendingById.get(id)
+    if (pending) {
+      pending.canceled = true
+      pendingById.delete(id)
+      try {
+        pending.reject(new Error('canceled'))
+      } catch {
+        // ignore
+      }
+    }
     return Promise.resolve()
   }
 

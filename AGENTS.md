@@ -11,6 +11,12 @@ THIS FOLDER
 
 To verify the code works, run `deno task ok`.
 
+To fix formatting errors quickly, run `deno fmt`.
+
+To check types quickly, run `deno check`.
+
+To fix lint errors quickly, run `deno lint --fix`
+
 Whenever you change code, never leave comments saying what you changed - we
 don't need that, we keep track of that in git commit messages, not in the code.
 
@@ -28,3 +34,30 @@ try {
 Whenever you see a task like `deno task dev` be very careful running it since it
 is designed to never exit, as it runs a web server. If you must run this command
 you will need to use a timeout or something to exit it.
+
+## Avoid Async IIFEs
+
+Do not use anonymous Immediately Invoked Function Expressions (IIFEs), including
+async versions like `;(async () => { ... })()` for side‑effects. Instead, define
+a clearly named function and call it by name.
+
+Bad:
+
+```ts
+;(async () => {
+  // work
+})()
+```
+
+Good:
+
+```ts
+async function sendKeysViaTmux(/* args */) {
+  // work
+}
+
+await sendKeysViaTmux() /* args */
+```
+
+Benefits: clearer stack traces, easier testing and reuse, and no hidden
+top‑level side effects.
