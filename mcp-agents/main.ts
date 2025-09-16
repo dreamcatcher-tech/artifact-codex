@@ -141,7 +141,7 @@ server.registerTool(
   {
     title: 'Create Agent',
     description:
-      'Creates a new Agent for the current Computer using the image of the current Agent',
+      'Creates a new Agent for the current Computer using the image of the current Agent.  This is an expensive operation compared to creating a new face, so be sure that the request warrants a whole new agent, not just a new face on @self, remembering that @self is the current agent you are running on.',
     inputSchema: {
       // Leave basic type validation here; enforce name pattern in handler for richer UX
       name: z.string(),

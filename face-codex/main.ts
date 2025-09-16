@@ -51,6 +51,7 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
   let lastNotificationRaw: string | undefined
   let notifications = 0
   let pendingNotifyWatcher: Promise<void> | null = null
+  let notifyWatcherAbort: AbortController | null = null
   let configDir: string | undefined
   let cwd: string | undefined
 
@@ -61,10 +62,15 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
 
   async function launchIfNeeded() {
     const prepared = await prepareLaunchDirectories(opts)
-    if (!prepared) return
+    if (!prepared) {
+      ensureNotifyWatcher()
+      return
+    }
 
     configDir = prepared.home
     cwd = prepared.workspace
+
+    ensureNotifyWatcher()
 
     const host = opts.hostname ?? HOST
     const cfg = opts.config ?? {}
@@ -108,9 +114,11 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
   }
 
   function ensureNotifyWatcher() {
-    if (pendingNotifyWatcher) return
+    if (closed || pendingNotifyWatcher) return
     const dir = configDir ?? notifyDirOverride
     if (!dir) return
+    const controller = new AbortController()
+    notifyWatcherAbort = controller
     pendingNotifyWatcher = startNotifyWatcher(
       dir,
       (raw) => {
@@ -118,8 +126,14 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
         notifications += 1
         deliver(raw)
       },
+      'notify.json',
+      controller.signal,
     ).finally(() => {
+      if (notifyWatcherAbort === controller) {
+        notifyWatcherAbort = null
+      }
       pendingNotifyWatcher = null
+      ensureNotifyWatcher()
     })
     pendingNotifyWatcher.catch(() => {
       // ignore
@@ -162,6 +176,9 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
 
   async function destroy() {
     closed = true
+    const watcher = pendingNotifyWatcher
+    notifyWatcherAbort?.abort()
+    notifyWatcherAbort = null
     const child = launchState.child
     if (child) {
       try {
@@ -178,6 +195,13 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
     if (configDir) {
       await removeHomeDirectory(configDir)
       configDir = undefined
+    }
+    if (watcher) {
+      try {
+        await watcher
+      } catch {
+        // ignore
+      }
     }
   }
 

@@ -14,6 +14,9 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 
 ## Code rules
 
+Always value terseness and brevity over preserving legacy options in code - this
+is a greenfields project so you never need to worry about legacy.
+
 To verify the code works, run `deno task ok`.
 
 To fix formatting errors quickly, run `deno fmt`.
