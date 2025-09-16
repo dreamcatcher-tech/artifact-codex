@@ -46,7 +46,7 @@ if (import.meta.main) {
     Deno.exit(1)
   }
   const line = await readOneLine()
-  const msg = String(line ?? '')
+  const msg = String(line ?? '').trim()
   const payload = JSON.stringify({
     type: 'agent-turn-complete',
     'turn-id': 'mock-' + crypto.randomUUID(),

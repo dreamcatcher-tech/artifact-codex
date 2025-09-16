@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { HOST } from '@artifact/shared'
+import { findAvailablePort, HOST } from '@artifact/shared'
 import { createApp } from './main.ts'
 import NodeWS from 'ws'
 
@@ -78,10 +78,6 @@ function startWSEcho(port: number) {
   }
 }
 
-function randomPort(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
-
 async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('ws timeout')), timeoutMs)
@@ -101,7 +97,11 @@ async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
 }
 
 Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
-  const HTTP_PORT = randomPort(30500, 30600)
+  const HTTP_PORT = await findAvailablePort({
+    min: 30500,
+    max: 30600,
+    hostname: HOST,
+  })
   const LISTEN = 18080
   await using _upstream = startHTTPEcho(HTTP_PORT)
   await using _appSrv = startApp(LISTEN)
@@ -114,7 +114,11 @@ Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
 })
 
 Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
-  const WS_PORT = randomPort(30650, 30750)
+  const WS_PORT = await findAvailablePort({
+    min: 30650,
+    max: 30750,
+    hostname: HOST,
+  })
   const LISTEN = 18081
   await using _upstream = startWSEcho(WS_PORT)
   await using _appSrv = startApp(LISTEN)

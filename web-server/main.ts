@@ -111,15 +111,12 @@ const createDefaultFacePort = async (app: Hono) => {
 
   const workspace = dirname(dirname(fromFileUrl(import.meta.url)))
 
-  const home = await Deno.makeTempDir({ prefix: 'face-codex-' })
-
   const { structuredContent } = await client.callTool({
     name: 'create_face',
     arguments: {
       agentId: '@self',
       faceKindId: 'codex',
       workspace,
-      home,
       hostname: HOST,
     },
   }) as { structuredContent?: { faceId?: string } }

@@ -1,10 +1,9 @@
-model = "gpt-5-codex"
+model = "gpt-5"
 model_provider = "openai"
 model_reasoning_effort = "low"
 model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-preferred_auth_method = "apikey"
 
 [tools]
 web_search = true
@@ -25,3 +24,12 @@ args = []
 [mcp_servers.mcp-interactions]
 command = "/headers/mcp-interactions/main.ts"
 args = []
+
+notify = [
+    "deno",
+    "run",
+    "--allow-write=/home/ubuntu/.codex",
+    "/workspaces/artifact-codex/face-codex/notify.ts",
+    "--dir",
+    "/home/ubuntu/.codex",
+]

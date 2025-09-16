@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
-import { HOST } from '@artifact/shared'
+import { findAvailablePorts, HOST, waitForPort } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -36,35 +36,6 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     if (readyResolve) {
       readyResolve()
       readyResolve = null
-    }
-  }
-
-  async function isTcpListening(port: number): Promise<boolean> {
-    try {
-      const conn = await Deno.connect({ hostname: HOST, port })
-      try {
-        conn.close()
-      } catch (_) {
-        // ignore close error
-      }
-      return true
-    } catch (_) {
-      return false
-    }
-  }
-
-  async function waitForPorts(ports: number[], timeoutMs = 60_000) {
-    const start = Date.now()
-    const remaining = new Set(ports)
-    while (remaining.size > 0) {
-      for (const p of Array.from(remaining)) {
-        if (await isTcpListening(p)) remaining.delete(p)
-      }
-      if (remaining.size === 0) break
-      if (Date.now() - start > timeoutMs) {
-        throw new Error('Timeout waiting for ports to be listening')
-      }
-      await new Promise((r) => setTimeout(r, 200))
     }
   }
 
@@ -118,14 +89,20 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
     const windowTitle = 'Inspector'
 
-    const startBase = 10000
+    const minPort = 10000
     const maxTries = 50
+    const maxPort = minPort + maxTries * 3
+    const exclude = new Set<number>()
     let launched = false
     for (let attempt = 0; attempt < maxTries && !launched; attempt++) {
-      const base = startBase + attempt * 3
-      const ttydPort = base
-      const uiPort = base + 1
-      const apiPort = base + 2
+      const ports = await findAvailablePorts(3, {
+        min: minPort,
+        max: maxPort,
+        exclude: [...exclude],
+        hostname: HOST,
+      })
+      ports.sort((a, b) => a - b)
+      const [ttydPort, uiPort, apiPort] = ports
 
       const env: Record<string, string> = {
         // Network binds
@@ -152,7 +129,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
 
       // Wait for ttyd or process exit (port conflict)
       const ttydOk = await Promise.race([
-        waitForPorts([ttydPort], 8_000).then(() => true).catch(() => false),
+        waitForPort(ttydPort, { hostname: HOST, timeoutMs: 8_000 }),
         proc.status.then(() => false),
       ])
       if (!ttydOk) {
@@ -166,14 +143,17 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
         } catch {
           // ignore
         }
+        ports.forEach((p) => exclude.add(p))
         continue
       }
 
       // Now wait for UI to bind on the chosen port. If it fails (e.g., port in use
       // and the tool refuses to start), retry with the next triplet.
-      const uiOk = await waitForPorts([uiPort], 30_000).then(() => true).catch(
-        () => false,
-      )
+      const uiOk = await waitForPort(uiPort, {
+        hostname: HOST,
+        timeoutMs: 30_000,
+        intervalMs: 200,
+      })
       if (!uiOk) {
         try {
           proc.kill('SIGTERM')
@@ -185,6 +165,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
         } catch {
           // ignore
         }
+        ports.forEach((p) => exclude.add(p))
         continue
       }
 

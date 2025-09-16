@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceView } from '@artifact/shared'
-import { HOST } from '@artifact/shared'
+import { findAvailablePort, HOST, waitForPort } from '@artifact/shared'
 
 type CmdConfig = {
   /** Command and args to run inside tmux. Example: ["bash", "-lc", "htop"] */
@@ -34,29 +34,6 @@ export function startFaceCmd(
     if (closed) throw new Error('face is closed')
   }
 
-  async function isTcpListening(port: number): Promise<boolean> {
-    try {
-      const conn = await Deno.connect({ hostname: HOST, port })
-      try {
-        conn.close()
-      } catch {
-        // ignore
-      }
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async function waitForPort(port: number, timeoutMs = 8000) {
-    const start = Date.now()
-    while (Date.now() - start < timeoutMs) {
-      if (await isTcpListening(port)) return true
-      await new Promise((r) => setTimeout(r, 50))
-    }
-    return false
-  }
-
   async function maybeLaunch() {
     if (!opts.workspace) return
     const cfg = (opts.config ?? {}) as Partial<CmdConfig>
@@ -84,8 +61,16 @@ export function startFaceCmd(
     const extHost = opts.hostname ?? HOST
 
     const startPort = 10000
+    const exclude = new Set<number>()
+    const maxAttempts = 200
     let launched = false
-    for (let port = startPort; port < startPort + 200 && !launched; port += 1) {
+    for (let attempt = 0; attempt < maxAttempts && !launched; attempt += 1) {
+      const port = await findAvailablePort({
+        min: startPort,
+        max: startPort + 199,
+        exclude: [...exclude],
+        hostname: HOST,
+      })
       const env: Record<string, string> = {
         ...Deno.env.toObject(),
         WINDOW_TITLE: tmuxWindow,
@@ -100,7 +85,7 @@ export function startFaceCmd(
       const cmd = new Deno.Command(tmuxScript, { args, cwd, env })
       const proc = cmd.spawn()
       const ok = await Promise.race([
-        waitForPort(port, 5000),
+        waitForPort(port, { hostname: HOST, timeoutMs: 5000 }),
         proc.status.then(() => false),
       ])
       if (ok) {
@@ -124,6 +109,7 @@ export function startFaceCmd(
         } catch {
           // ignore
         }
+        exclude.add(port)
       }
     }
     if (!launched) {

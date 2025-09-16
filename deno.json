@@ -15,6 +15,7 @@
     "ok": "deno task --filter='@artifact/' ok"
   },
   "imports": {
+    "@openjs/port-free": "jsr:@openjs/port-free@^1.0.0",
     "debug": "npm:debug@^4.4.3"
   },
   "fmt": {
