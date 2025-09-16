@@ -10,3 +10,11 @@ function parsePort(v: string | undefined): number | null {
 export function portFromHeaders(req: HonoRequest): number | null {
   return parsePort(req.header('fly-forwarded-port'))
 }
+
+export function isWebSocketRequest(req: HonoRequest): boolean {
+  return req.header('upgrade')?.toLowerCase() === 'websocket'
+}
+
+export function isMcpRequest(req: HonoRequest): boolean {
+  return req.query('mcp') !== undefined
+}

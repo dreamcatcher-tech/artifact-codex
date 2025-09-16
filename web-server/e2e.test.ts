@@ -13,23 +13,30 @@ function safe<T>(fn: () => T) {
   }
 }
 
-function serveOn(port: number, handler: Deno.ServeHandler) {
+function serveOn(
+  port: number,
+  handler: Deno.ServeHandler,
+  close?: () => Promise<void>,
+) {
   const ac = new AbortController()
   const srv = Deno.serve(
     { hostname: HOST, port, signal: ac.signal },
     handler,
   )
   return {
-    [Symbol.asyncDispose]: () => {
+    [Symbol.asyncDispose]: async () => {
       ac.abort()
+      if (close) {
+        await close()
+      }
       return srv.finished
     },
   }
 }
 
 function startApp(listen: number) {
-  const { app } = createApp()
-  return serveOn(listen, app.fetch)
+  const { app, close } = createApp()
+  return serveOn(listen, app.fetch, close)
 }
 
 function startHTTPEcho(port: number) {

@@ -3,7 +3,7 @@ import { withApp } from './fixture.ts'
 import type { ListFacesOutput } from '@artifact/mcp-faces'
 
 Deno.test('tools/list exposes face tools', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const list = await client.listTools()
   const names = (list.tools ?? []).map((t) => t.name)
@@ -14,7 +14,7 @@ Deno.test('tools/list exposes face tools', async () => {
 })
 
 Deno.test('tools/call list_faces returns available kinds', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const result = await client.callTool({
     name: 'list_faces',
@@ -29,7 +29,7 @@ Deno.test('tools/call list_faces returns available kinds', async () => {
 })
 
 Deno.test('tools/call create_face returns a face id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const result = await client.callTool({
     name: 'create_face',
@@ -41,7 +41,7 @@ Deno.test('tools/call create_face returns a face id', async () => {
 })
 
 Deno.test('tools/call read_face returns error for unknown id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const res = await client.callTool({
     name: 'read_face',
@@ -51,7 +51,7 @@ Deno.test('tools/call read_face returns error for unknown id', async () => {
 })
 
 Deno.test('tools/call destroy_face returns error for unknown id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const res = await client.callTool({
     name: 'destroy_face',

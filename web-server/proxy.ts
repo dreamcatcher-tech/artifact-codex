@@ -15,26 +15,12 @@ const HOP_BY_HOP = [
 
 // In-VM router: rely only on Fly-Forwarded-Port
 
-function parsePort(v: string | null): number | null {
-  if (!v) return null
-  if (!/^\d{1,5}$/.test(v)) return null
-  const n = Number(v)
-  return n >= 1 && n <= 65535 ? n : null
-}
-
 function stripHopByHop(h: Headers) {
   for (const k of HOP_BY_HOP) h.delete(k)
 }
 
-// No cookie or query param routing
-
-function portFromHeaders(h: Headers): number | null {
-  return parsePort(h.get('fly-forwarded-port'))
-}
-
-export async function proxyHTTP(req: Request): Promise<Response> {
+export async function proxyHTTP(req: Request, port: number): Promise<Response> {
   const inUrl = new URL(req.url)
-  const port = portFromHeaders(req.headers)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
   const qs = inUrl.searchParams.toString()
@@ -92,9 +78,8 @@ export async function proxyHTTP(req: Request): Promise<Response> {
   }
 }
 
-export function proxyWS(req: Request): Response {
+export function proxyWS(req: Request, port: number): Response {
   const inUrl = new URL(req.url)
-  const port = portFromHeaders(req.headers)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
   const qs = inUrl.searchParams.toString()

@@ -2,7 +2,7 @@ import { expect } from '@std/expect'
 import { withApp } from './fixture.ts'
 
 Deno.test('MCP initialize handshake via SDK client', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const info = client.getServerVersion()
   expect(info?.name).toBe('web-server')
@@ -11,7 +11,7 @@ Deno.test('MCP initialize handshake via SDK client', async () => {
 })
 
 Deno.test('tools/list exposes face + interaction tools', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const list = await client.listTools()
   const names = (list.tools ?? []).map((t) => t.name)
@@ -22,7 +22,7 @@ Deno.test('tools/list exposes face + interaction tools', async () => {
 })
 
 Deno.test('tools/call list_interactions returns ids for a face', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
@@ -47,7 +47,7 @@ Deno.test('tools/call list_interactions returns ids for a face', async () => {
 })
 
 Deno.test('tools/call create_interaction returns an interaction id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
@@ -65,7 +65,7 @@ Deno.test('tools/call create_interaction returns an interaction id', async () =>
 })
 
 Deno.test('tools/call read_interaction returns result and removes id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
@@ -91,7 +91,7 @@ Deno.test('tools/call read_interaction returns result and removes id', async () 
 })
 
 Deno.test('tools/call read_interaction returns MCP error for error input', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',
@@ -121,7 +121,7 @@ Deno.test('tools/call read_interaction returns MCP error for error input', async
 })
 
 Deno.test('tools/call read_interaction returns error for unknown id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const res = await client.callTool({
     name: 'read_interaction',
@@ -131,7 +131,7 @@ Deno.test('tools/call read_interaction returns error for unknown id', async () =
 })
 
 Deno.test('tools/call destroy_interaction returns error for unknown id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const res = await client.callTool({
     name: 'destroy_interaction',
@@ -141,7 +141,7 @@ Deno.test('tools/call destroy_interaction returns error for unknown id', async (
 })
 
 Deno.test('tools/call destroy_interaction cancels and removes an id', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const createdFace = await client.callTool({
     name: 'create_face',

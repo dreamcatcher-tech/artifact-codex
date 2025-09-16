@@ -27,7 +27,8 @@ export async function withApp() {
     fetch,
     client,
     baseUrl,
-    [Symbol.dispose]: () => {
+    [Symbol.asyncDispose]: async () => {
+      await client.close()
       close()
     },
   }

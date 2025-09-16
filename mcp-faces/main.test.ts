@@ -39,7 +39,7 @@ Deno.test('tools/list includes face tools', async () => {
 // to the faces proxy so remote calls go to /mcp on that app.
 
 Deno.test('proxy list_faces forwards to remote server', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const result = await handlers.list_faces({ agentId: 'in-memory' }) as {
     structuredContent?: ListFacesOutput
@@ -53,7 +53,7 @@ Deno.test('proxy list_faces forwards to remote server', async () => {
 })
 
 Deno.test('proxy create_face returns faceId via remote', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const created = await handlers.create_face({
     agentId: 'in-memory',
@@ -65,7 +65,7 @@ Deno.test('proxy create_face returns faceId via remote', async () => {
 })
 
 Deno.test('proxy read/destroy on unknown id return errors', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const read = await handlers.read_face({
     agentId: 'in-memory',

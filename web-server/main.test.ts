@@ -2,7 +2,7 @@ import { expect } from '@std/expect'
 import { withApp } from './fixture.ts'
 
 Deno.test('MCP initialize handshake via SDK client', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const info = client.getServerVersion()
   expect(info?.name).toBe('web-server')
@@ -11,7 +11,7 @@ Deno.test('MCP initialize handshake via SDK client', async () => {
 })
 
 Deno.test('tools/list exposes face + interaction tools', async () => {
-  using fixtures = await withApp()
+  await using fixtures = await withApp()
   const { client } = fixtures
   const list = await client.listTools()
   const names = (list.tools ?? []).map((t) => t.name)

@@ -10,6 +10,7 @@ import Debug from 'debug'
 type FaceId = string
 
 export const mcpHandler = () => {
+  let closed = false
   const log = Debug('@artifact/web-server:mcp')
   const facesStore = new Map<FaceId, Face>()
   const faces = createFaces(facesStore)
@@ -17,6 +18,9 @@ export const mcpHandler = () => {
 
   const servers = new Set<McpServer>()
   const handler = async (c: Context) => {
+    if (closed) {
+      throw new Error('MCP handler closed')
+    }
     log('MCP handler start %s %s', c.req.method, c.req.path)
     const server = new McpServer({ name: 'web-server', version: '0.0.1' })
     createFacesServer(server, faces)
@@ -33,7 +37,12 @@ export const mcpHandler = () => {
     return transport.handleRequest(c)
   }
 
-  const close = () => {
+  const close = async () => {
+    if (closed) {
+      throw new Error('MCP handler already closed')
+    }
+    closed = true
+
     log(
       'MCP handler closing: servers=%d faces=%d',
       servers.size,
@@ -43,10 +52,9 @@ export const mcpHandler = () => {
       server.close()
     }
     servers.clear()
-    for (const face of facesStore.values()) {
-      face.destroy()
-    }
+    const promises = facesStore.values().map((face) => face.destroy())
     facesStore.clear()
+    await Promise.all(promises)
     log('MCP handler closed')
   }
 
