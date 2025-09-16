@@ -77,7 +77,7 @@ export function createInteractionsServer(
       description:
         'Reads info about an Interaction by id for the given Agent id, including status. Use "@self" as agentId to target the current agent.',
       inputSchema: { agentId: z.string(), interactionId: z.string() },
-      outputSchema: { result: z.string() },
+      outputSchema: { result: z.string(), input: z.string() },
     },
     (args, extra) => handlers.read_interaction(args, extra),
   )

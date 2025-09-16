@@ -5,7 +5,7 @@ import type { Face } from '@artifact/shared'
 import Debug from 'debug'
 type FaceId = string
 type InteractionId = string
-type InteractionRecord = { faceId: FaceId; id: string }
+type InteractionRecord = { faceId: FaceId; id: string; input: string }
 
 export const createInteractions = (
   faces: Map<FaceId, Face>,
@@ -32,7 +32,7 @@ export const createInteractions = (
       }
       const { id } = face.interaction(input)
       const interactionId = `${faceId}_${id}`
-      interactions.set(interactionId, { faceId, id })
+      interactions.set(interactionId, { faceId, id, input })
       log(
         'create_interaction: face=%s input=%j -> %s',
         faceId,
@@ -57,7 +57,7 @@ export const createInteractions = (
           interactionId,
           result,
         )
-        return toStructured({ result })
+        return toStructured({ result, input: interaction.input })
       } finally {
         interactions.delete(interactionId)
       }
