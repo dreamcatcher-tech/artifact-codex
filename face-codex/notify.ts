@@ -18,7 +18,7 @@ export const AgentTurnCompleteSchema = z.object({
   type: z.literal('agent-turn-complete'),
   'turn-id': z.string(),
   'input-messages': z.array(z.string()),
-  'last-assistant-message': z.string(),
+  'last-assistant-message': z.string().nullable().optional(),
 })
 
 export type AgentTurnComplete = z.infer<typeof AgentTurnCompleteSchema>
@@ -41,7 +41,11 @@ export async function handleNotification(
 
   const outPath = join(opts.dir, 'notify.json')
 
-  const payload = new TextEncoder().encode(JSON.stringify(parsed.data))
+  const normalized = {
+    ...parsed.data,
+    'last-assistant-message': parsed.data['last-assistant-message'] ?? null,
+  }
+  const payload = new TextEncoder().encode(JSON.stringify(normalized))
   let file: Deno.FsFile | undefined
   try {
     file = Deno.openSync(outPath, { createNew: true, write: true })

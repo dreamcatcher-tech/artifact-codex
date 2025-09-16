@@ -13,15 +13,20 @@ const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
 const REPO_ROOT = dirname(MODULE_DIR)
 const TEMPLATE_PATH = join(MODULE_DIR, 'codex.config.toml')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
+const NOTIFY_MARKER_LINE = 'notify = "__CODEX_NOTIFY__"'
 const DREAMCATCHER_DIR = '.dreamcatcher'
 const FACE_HOME_BUCKET = 'face-codex'
 const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY'
 
 const TEMPLATE_REWRITES: Record<string, string> = {
-  '/headers/mcp-computers/main.ts': join(REPO_ROOT, 'mcp-computers', 'main.ts'),
-  '/headers/mcp-agents/main.ts': join(REPO_ROOT, 'mcp-agents', 'main.ts'),
-  '/headers/mcp-faces/main.ts': join(REPO_ROOT, 'mcp-faces', 'main.ts'),
-  '/headers/mcp-interactions/main.ts': join(
+  '__MCP_COMPUTERS_COMMAND__': join(
+    REPO_ROOT,
+    'mcp-computers',
+    'main.ts',
+  ),
+  '__MCP_AGENTS_COMMAND__': join(REPO_ROOT, 'mcp-agents', 'main.ts'),
+  '__MCP_FACES_COMMAND__': join(REPO_ROOT, 'mcp-faces', 'main.ts'),
+  '__MCP_INTERACTIONS_COMMAND__': join(
     REPO_ROOT,
     'mcp-interactions',
     'main.ts',
@@ -115,13 +120,12 @@ function applyRewrites(template: string): string {
 function ensureNotifyBlock(template: string, configDir: string): string {
   const notifyArgs = [NOTIFY_SCRIPT, '--dir', configDir]
   const serialized = notifyArgs.map((part) => JSON.stringify(part)).join(', ')
-  const block = `\nnotify = [${serialized}]\n`
-  const pattern = /\nnotify\s*=\s*\[[\s\S]*?\](?:\n|$)/
-  if (pattern.test(template)) {
-    return template.replace(pattern, block)
+  const line = `notify = [${serialized}]`
+  if (!template.includes(NOTIFY_MARKER_LINE)) {
+    throw new Error('notify block not found in template')
   }
-  const prefix = template.endsWith('\n') ? template.slice(0, -1) : template
-  return `${prefix}${block}`
+  const replaced = template.replace(NOTIFY_MARKER_LINE, line)
+  return replaced
 }
 
 function createEnvResolver(

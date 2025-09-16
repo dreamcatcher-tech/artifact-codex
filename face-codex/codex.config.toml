@@ -5,22 +5,24 @@ model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
+notify = "__CODEX_NOTIFY__"
+
 [tools]
 web_search = true
 view_image = true
 
 [mcp_servers.mcp-computers]
-command = "/headers/mcp-computers/main.ts"
+command = "__MCP_COMPUTERS_COMMAND__"
 args = []
 
 [mcp_servers.mcp-agents]
-command = "/headers/mcp-agents/main.ts"
+command = "__MCP_AGENTS_COMMAND__"
 args = []
 
 [mcp_servers.mcp-faces]
-command = "/headers/mcp-faces/main.ts"
+command = "__MCP_FACES_COMMAND__"
 args = []
 
 [mcp_servers.mcp-interactions]
-command = "/headers/mcp-interactions/main.ts"
+command = "__MCP_INTERACTIONS_COMMAND__"
 args = []

@@ -12,6 +12,36 @@ Deno.test('writes notification JSON in specified dir', async () => {
   expect(JSON.parse(content)).toEqual(JSON.parse(input))
 })
 
+Deno.test('accepts null last assistant message', async () => {
+  const dir = await Deno.makeTempDir()
+  const input =
+    '{"type":"agent-turn-complete","turn-id":"abc","input-messages":[],"last-assistant-message":null}'
+  await handleNotification(input, { dir })
+  const file = join(dir, 'notify.json')
+  const content = await Deno.readTextFile(file)
+  expect(JSON.parse(content)).toEqual({
+    type: 'agent-turn-complete',
+    'turn-id': 'abc',
+    'input-messages': [],
+    'last-assistant-message': null,
+  })
+})
+
+Deno.test('accepts missing last assistant message', async () => {
+  const dir = await Deno.makeTempDir()
+  const input =
+    '{"type":"agent-turn-complete","turn-id":"def","input-messages":["foo"]}'
+  await handleNotification(input, { dir })
+  const file = join(dir, 'notify.json')
+  const content = await Deno.readTextFile(file)
+  expect(JSON.parse(content)).toEqual({
+    type: 'agent-turn-complete',
+    'turn-id': 'def',
+    'input-messages': ['foo'],
+    'last-assistant-message': null,
+  })
+})
+
 Deno.test('throws on invalid payload (missing fields)', async () => {
   const dir = await Deno.makeTempDir()
   const bad = '{"type":"agent-turn-complete","turn-id":"x"}'

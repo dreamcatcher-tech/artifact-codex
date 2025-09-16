@@ -6,8 +6,13 @@ https://modelcontextprotocol.io/specification/2025-06-18
 Repo for the npm package @modelcontextprotocol/sdk contains many examples and
 can be found at: https://github.com/modelcontextprotocol/typescript-sdk
 
+## .refs folder
+
 The .refs folder contains code for reference only NEVER MODIFY ANYTHING INSIDE
-THIS FOLDER
+THIS FOLDER. If you ever want to know about the inner workings of codex, then
+you can read thru the code inside `.refs/codex/codex-rs/`.
+
+## Code rules
 
 To verify the code works, run `deno task ok`.
 
