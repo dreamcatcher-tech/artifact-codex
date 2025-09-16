@@ -66,11 +66,17 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
     configDir = prepared.home
     cwd = prepared.workspace
 
-    const tmux = createTmuxIds()
-    launchState.tmux = tmux
-
     const host = opts.hostname ?? HOST
     const cfg = opts.config ?? {}
+
+    const launchMode = cfg.launch ?? 'tmux'
+    if (launchMode === 'disabled') {
+      launchState.views = []
+      return
+    }
+
+    const tmux = createTmuxIds()
+    launchState.tmux = tmux
 
     const result = await launchCodexProcess({
       cfg,
@@ -168,6 +174,10 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
       } catch {
         // ignore
       }
+    }
+    if (configDir) {
+      await removeHomeDirectory(configDir)
+      configDir = undefined
     }
   }
 
@@ -318,6 +328,15 @@ function createTmuxIds(): TmuxIds {
     session: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
     socket: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
     window: 'Codex',
+  }
+}
+
+async function removeHomeDirectory(path: string) {
+  try {
+    await Deno.remove(path, { recursive: true })
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return
+    throw err
   }
 }
 

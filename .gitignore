@@ -136,3 +136,4 @@ vite.config.ts.timestamp-*
 codex-rs/target/
 .fly
 .deno
+.faces/

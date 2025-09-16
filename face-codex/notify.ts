@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run
+#!/usr/bin/env -S deno run -A
 import { join } from '@std/path'
 
 /**

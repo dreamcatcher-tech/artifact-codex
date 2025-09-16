@@ -1,7 +1,12 @@
 import { dirname, fromFileUrl, join, resolve } from '@std/path'
 import type { FaceOptions } from '@artifact/shared'
 
-export type CodexConfig = { test?: boolean }
+export type CodexConfig = {
+  test?: boolean
+  env?: Record<string, string>
+  getEnv?: (key: string) => string | undefined
+  launch?: 'tmux' | 'disabled'
+}
 export type CodexFaceOptions = FaceOptions & { config?: CodexConfig }
 
 const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
@@ -10,6 +15,7 @@ const TEMPLATE_PATH = join(MODULE_DIR, 'codex.config.toml')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
 const DREAMCATCHER_DIR = '.dreamcatcher'
 const FACE_HOME_BUCKET = 'face-codex'
+const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY'
 
 const TEMPLATE_REWRITES: Record<string, string> = {
   '/headers/mcp-computers/main.ts': join(REPO_ROOT, 'mcp-computers', 'main.ts'),
@@ -36,6 +42,7 @@ export async function prepareLaunchDirectories(
   await requireDirectory(workspace, 'workspace')
   const home = resolveHomePath(opts.home, workspace)
   await ensureHomeDirectory(home)
+  await writeAuthFile(home, opts)
   await writeConfigTemplate(home)
   return { workspace, home }
 }
@@ -106,14 +113,7 @@ function applyRewrites(template: string): string {
 }
 
 function ensureNotifyBlock(template: string, configDir: string): string {
-  const notifyArgs = [
-    'deno',
-    'run',
-    `--allow-write=${configDir}`,
-    NOTIFY_SCRIPT,
-    '--dir',
-    configDir,
-  ]
+  const notifyArgs = [NOTIFY_SCRIPT, '--dir', configDir]
   const serialized = notifyArgs.map((part) => JSON.stringify(part)).join(', ')
   const block = `\nnotify = [${serialized}]\n`
   const pattern = /\nnotify\s*=\s*\[[\s\S]*?\](?:\n|$)/
@@ -122,4 +122,29 @@ function ensureNotifyBlock(template: string, configDir: string): string {
   }
   const prefix = template.endsWith('\n') ? template.slice(0, -1) : template
   return `${prefix}${block}`
+}
+
+function createEnvResolver(
+  opts: CodexFaceOptions,
+): (key: string) => string | undefined {
+  const cfg = opts.config
+  if (cfg?.getEnv) {
+    return cfg.getEnv
+  }
+  if (cfg?.env) {
+    const env = cfg.env
+    return (key: string) => env[key]
+  }
+  return (key: string) => Deno.env.get(key)
+}
+
+async function writeAuthFile(configDir: string, opts: CodexFaceOptions) {
+  const getEnv = createEnvResolver(opts)
+  const apiKey = getEnv(OPENAI_API_KEY_ENV)
+  if (!apiKey) {
+    throw new Error(`environment variable required: ${OPENAI_API_KEY_ENV}`)
+  }
+  const payload = JSON.stringify({ [OPENAI_API_KEY_ENV]: apiKey }, null, 2)
+  const outPath = join(configDir, 'auth.json')
+  await Deno.writeTextFile(outPath, `${payload}\n`)
 }

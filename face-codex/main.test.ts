@@ -2,6 +2,38 @@ import { expect } from '@std/expect'
 import { startFaceCodex } from './main.ts'
 import { join } from '@std/path'
 
+Deno.test('destroy removes home directory when prepared', async () => {
+  const workspace = await Deno.makeTempDir()
+  const face = startFaceCodex({
+    workspace,
+    config: {
+      getEnv: (key) => key === 'OPENAI_API_KEY' ? 'test-key' : undefined,
+      launch: 'disabled',
+    },
+  })
+  let destroyed = false
+  try {
+    const statusBefore = await face.status()
+    const home = statusBefore.home
+    if (!home) {
+      throw new Error('expected home directory')
+    }
+    expect(await pathExists(home)).toBe(true)
+    await face.destroy()
+    destroyed = true
+    expect(await pathExists(home)).toBe(false)
+  } finally {
+    if (!destroyed) {
+      try {
+        await face.destroy()
+      } catch {
+        // ignore
+      }
+    }
+    await Deno.remove(workspace, { recursive: true })
+  }
+})
+
 Deno.test('start returns object with required methods', async () => {
   const face = startFaceCodex()
   try {
@@ -54,3 +86,13 @@ Deno.test('close makes face reject new interactions and sets closed', async () =
   const s2 = await face.status()
   expect(s2.closed).toBe(true)
 })
+
+async function pathExists(path: string) {
+  try {
+    await Deno.stat(path)
+    return true
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return false
+    throw err
+  }
+}
