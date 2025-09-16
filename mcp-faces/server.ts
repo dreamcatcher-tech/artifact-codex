@@ -45,6 +45,7 @@ export const readFaceOutput = z.object({
     lastInteractionId: z.string().optional(),
     pid: z.number().optional(),
     config: z.string().optional(),
+    home: z.string().optional(),
     workspace: z.string().optional(),
   }),
   views: z.array(faceViewSchema),

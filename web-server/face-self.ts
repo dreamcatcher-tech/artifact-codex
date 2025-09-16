@@ -56,6 +56,8 @@ export function createVirtualFace(_opts: FaceOptions = {}): Face {
       lastInteractionId: undefined,
       pid: Deno.pid,
       views,
+      home: env('HOME'),
+      workspace: Deno.cwd(),
     }
   }
 

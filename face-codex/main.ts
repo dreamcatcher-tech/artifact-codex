@@ -183,7 +183,8 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
       lastInteractionId: lastId,
       pid: launchState.pid,
       config: configDir,
-      workspace: cwd,
+      home: configDir,
+      workspace: cwd ?? opts.workspace,
       notifications,
       lastNotificationRaw,
       views: launchState.views,
@@ -320,9 +321,17 @@ function createTmuxIds(): TmuxIds {
   }
 }
 
+const ENTER_DELAY_MS = 150
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
 async function sendKeysViaTmux(tmux: TmuxIds, input: string) {
   const trimmed = input.trim()
-  const args = [
+  const baseArgs = [
     '-L',
     tmux.socket,
     'send-keys',
@@ -330,13 +339,18 @@ async function sendKeysViaTmux(tmux: TmuxIds, input: string) {
     `${tmux.session}:${tmux.window}`,
   ]
   if (trimmed.length > 0) {
-    args.push(trimmed)
+    const typeCommand = new Deno.Command('tmux', {
+      args: [...baseArgs, trimmed],
+      stdout: 'inherit',
+      stderr: 'inherit',
+    })
+    await typeCommand.output()
+    await sleep(ENTER_DELAY_MS)
   }
-  args.push('C-m')
-  const command = new Deno.Command('tmux', {
-    args,
+  const enterCommand = new Deno.Command('tmux', {
+    args: [...baseArgs, 'C-m'],
     stdout: 'inherit',
     stderr: 'inherit',
   })
-  await command.output()
+  await enterCommand.output()
 }

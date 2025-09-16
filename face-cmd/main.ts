@@ -196,7 +196,8 @@ export function startFaceCmd(
       interactions,
       lastInteractionId,
       pid,
-      workspace: cwd,
+      home: opts.home,
+      workspace: cwd ?? opts.workspace,
       views,
     }
   }

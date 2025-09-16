@@ -234,6 +234,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
       pid,
       views,
       config: opts.home ? join(opts.home) : undefined,
+      home: opts.home ? join(opts.home) : undefined,
       workspace: opts.workspace ? join(opts.workspace) : undefined,
     }
   }

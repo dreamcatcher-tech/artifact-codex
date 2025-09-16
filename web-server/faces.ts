@@ -2,6 +2,7 @@ import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { Face, FaceOptions } from '@artifact/shared'
 import { HOST, toStructured } from '@artifact/shared'
+import { join } from '@std/path'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
 import { startFaceCodex } from '@artifact/face-codex'
@@ -118,7 +119,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       }
       const id = getFaceId()
       const finalWorkspace = workspace ?? Deno.cwd()
-      const finalHome = home ?? Deno.env.get('CODEX_HOME') ?? '~/.codex'
+      const finalHome = resolveFaceHome(home, faceKindId)
       const finalConfig = config ?? {}
       const face = faceKinds[faceKindId].creator({
         home: finalHome,
@@ -159,4 +160,27 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       return toStructured({ deleted: true })
     },
   }
+}
+
+function resolveFaceHome(home: string | undefined, faceKindId: string) {
+  if (home && home !== '') {
+    return validateHome(home)
+  }
+  const envHome = Deno.env.get('CODEX_HOME')
+  if (envHome && envHome !== '') {
+    return validateHome(envHome)
+  }
+  return defaultFaceHome(faceKindId)
+}
+
+function defaultFaceHome(faceKindId: string) {
+  const base = join(Deno.cwd(), '.faces', faceKindId)
+  return join(base, crypto.randomUUID())
+}
+
+function validateHome(path: string) {
+  if (path.startsWith('~')) {
+    throw new Error('home paths under ~ are not permitted')
+  }
+  return path
 }

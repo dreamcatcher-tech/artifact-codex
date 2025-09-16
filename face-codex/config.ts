@@ -1,4 +1,4 @@
-import { dirname, fromFileUrl, join } from '@std/path'
+import { dirname, fromFileUrl, join, resolve } from '@std/path'
 import type { FaceOptions } from '@artifact/shared'
 
 export type CodexConfig = { test?: boolean }
@@ -34,8 +34,7 @@ export async function prepareLaunchDirectories(
   if (!workspace) return undefined
 
   await requireDirectory(workspace, 'workspace')
-  const envHome = Deno.env.get('HOME') ?? Deno.env.get('USERPROFILE')
-  const home = resolveHomePath(opts.home, envHome)
+  const home = resolveHomePath(opts.home, workspace)
   await ensureHomeDirectory(home)
   await writeConfigTemplate(home)
   return { workspace, home }
@@ -43,35 +42,22 @@ export async function prepareLaunchDirectories(
 
 function resolveHomePath(
   provided: string | undefined,
-  envHome: string | undefined,
+  workspace: string,
 ): string {
   if (!provided || provided === '') {
-    if (!envHome) {
-      throw new Error('home directory not provided and HOME is unset')
-    }
     return join(
-      envHome,
+      workspace,
       DREAMCATCHER_DIR,
       FACE_HOME_BUCKET,
       crypto.randomUUID(),
     )
   }
 
-  if (provided === '~') {
-    if (!envHome) {
-      throw new Error('~ cannot be resolved because HOME is unset')
-    }
-    return envHome
+  if (provided.startsWith('~')) {
+    throw new Error('home paths under ~ are not permitted')
   }
 
-  if (provided.startsWith('~/')) {
-    if (!envHome) {
-      throw new Error('~/ paths require HOME to be set')
-    }
-    return join(envHome, provided.slice(2))
-  }
-
-  return provided
+  return resolve(workspace, provided)
 }
 
 async function ensureHomeDirectory(path: string) {
@@ -120,7 +106,6 @@ function applyRewrites(template: string): string {
 }
 
 function ensureNotifyBlock(template: string, configDir: string): string {
-  if (/\nnotify\s*=/.test(template)) return template
   const notifyArgs = [
     'deno',
     'run',
@@ -130,5 +115,11 @@ function ensureNotifyBlock(template: string, configDir: string): string {
     configDir,
   ]
   const serialized = notifyArgs.map((part) => JSON.stringify(part)).join(', ')
-  return `${template}\nnotify = [${serialized}]\n`
+  const block = `\nnotify = [${serialized}]\n`
+  const pattern = /\nnotify\s*=\s*\[[\s\S]*?\](?:\n|$)/
+  if (pattern.test(template)) {
+    return template.replace(pattern, block)
+  }
+  const prefix = template.endsWith('\n') ? template.slice(0, -1) : template
+  return `${prefix}${block}`
 }

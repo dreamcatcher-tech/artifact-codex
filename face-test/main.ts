@@ -6,7 +6,7 @@ import type { Face, FaceOptions } from '@artifact/shared'
  * - Returns the same string on interaction.
  * - Special input: "error" throws to test error handling.
  */
-export function startFaceTest(_opts: FaceOptions = {}): Face {
+export function startFaceTest(opts: FaceOptions = {}): Face {
   const startedAt = new Date()
   let closed = false
   let count = 0
@@ -59,6 +59,8 @@ export function startFaceTest(_opts: FaceOptions = {}): Face {
       closed,
       interactions: count,
       lastInteractionId: lastId,
+      home: opts.home,
+      workspace: opts.workspace,
     }
   }
 

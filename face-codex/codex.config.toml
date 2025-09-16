@@ -24,12 +24,3 @@ args = []
 [mcp_servers.mcp-interactions]
 command = "/headers/mcp-interactions/main.ts"
 args = []
-
-notify = [
-    "deno",
-    "run",
-    "--allow-write=/home/ubuntu/.codex",
-    "/workspaces/artifact-codex/face-codex/notify.ts",
-    "--dir",
-    "/home/ubuntu/.codex",
-]

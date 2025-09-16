@@ -7,7 +7,8 @@
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint",
-    "web": "bash test.sh"
+    "web": "bash test.sh",
+    "dev": "deno run -A --watch main.ts"
   },
   "imports": {
     "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",
