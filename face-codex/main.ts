@@ -38,14 +38,6 @@ type LaunchState = {
   tmux?: TmuxIds
 }
 
-let interactionIdSequence = 0
-
-function allocateInteractionId(): string {
-  const id = String(interactionIdSequence)
-  interactionIdSequence += 1
-  return id
-}
-
 export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
   console.log('startFaceCodex:', opts)
   const startedAt = new Date()
@@ -67,6 +59,7 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
     ?.notifyDir as string | undefined
 
   const launchState: LaunchState = {}
+  const seenInteractionIds = new Set<string>()
 
   async function launchIfNeeded() {
     const prepared = await prepareLaunchDirectories(opts)
@@ -169,9 +162,12 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
     })
   }
 
-  function interaction(input: string) {
+  function interaction(id: string, input: string) {
     assertOpen()
-    const id = allocateInteractionId()
+    if (seenInteractionIds.has(id)) {
+      throw new Error(`duplicate interaction id: ${id}`)
+    }
+    seenInteractionIds.add(id)
     count += 1
     lastId = id
 

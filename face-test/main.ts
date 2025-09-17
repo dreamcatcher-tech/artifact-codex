@@ -6,14 +6,6 @@ import type { Face, FaceOptions } from '@artifact/shared'
  * - Returns the same string on interaction.
  * - Special input: "error" throws to test error handling.
  */
-let interactionIdSequence = 0
-
-function allocateInteractionId(): string {
-  const id = String(interactionIdSequence)
-  interactionIdSequence += 1
-  return id
-}
-
 export function startFaceTest(opts: FaceOptions = {}): Face {
   const startedAt = new Date()
   let closed = false
@@ -25,10 +17,14 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
   }
 
   const active = new Map<string, { promise: Promise<string>; error?: Error }>()
+  const seenIds = new Set<string>()
 
-  function interaction(input: string) {
+  function interaction(id: string, input: string) {
     assertOpen()
-    const id = allocateInteractionId()
+    if (seenIds.has(id)) {
+      throw new Error(`duplicate interaction id: ${id}`)
+    }
+    seenIds.add(id)
     const promise: Promise<string> = Promise
       .resolve()
       .then(() => {
@@ -45,7 +41,6 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
     active.set(id, record)
     lastId = id
     count += 1
-    return { id }
   }
 
   function cancel(id: string) {

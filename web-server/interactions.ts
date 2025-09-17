@@ -7,7 +7,6 @@ type FaceId = string
 type InteractionId = string
 type InteractionRecord = {
   faceId: FaceId
-  faceInteractionId: string
   input: string
 }
 
@@ -42,9 +41,9 @@ export const createInteractions = (
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
-      const { id: faceInteractionId } = face.interaction(input)
       const interactionId = allocateInteractionId()
-      interactions.set(interactionId, { faceId, faceInteractionId, input })
+      face.interaction(interactionId, input)
+      interactions.set(interactionId, { faceId, input })
       log(
         'create_interaction: face=%s input=%j -> %s',
         faceId,
@@ -63,9 +62,7 @@ export const createInteractions = (
         if (!face) {
           throw new Error(`Face not found: ${interaction.faceId}`)
         }
-        const result = await face.awaitInteraction(
-          interaction.faceInteractionId,
-        )
+        const result = await face.awaitInteraction(interactionId)
         log(
           'read_interaction: %s -> result=%j (deleting)',
           interactionId,
@@ -85,7 +82,7 @@ export const createInteractions = (
       if (!face) {
         throw new Error(`Face not found: ${interaction.faceId}`)
       }
-      await face.cancel(interaction.faceInteractionId)
+      await face.cancel(interactionId)
       interactions.delete(interactionId)
       log('destroy_interaction: %s (deleted)', interactionId)
       return toStructured({ ok: true })

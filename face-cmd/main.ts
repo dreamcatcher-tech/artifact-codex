@@ -10,14 +10,6 @@ type CmdConfig = {
   title?: string
 }
 
-let interactionIdSequence = 0
-
-function allocateInteractionId(): string {
-  const id = String(interactionIdSequence)
-  interactionIdSequence += 1
-  return id
-}
-
 export function startFaceCmd(
   opts: FaceOptions = {},
 ): Face {
@@ -37,6 +29,7 @@ export function startFaceCmd(
 
   // Simple interaction bookkeeping: resolve immediately after send-keys
   const active = new Map<string, Promise<string>>()
+  const seenInteractionIds = new Set<string>()
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
@@ -130,9 +123,12 @@ export function startFaceCmd(
   // Fire-and-forget launch
   maybeLaunch()
 
-  function interaction(input: string) {
+  function interaction(id: string, input: string) {
     assertOpen()
-    const id = allocateInteractionId()
+    if (seenInteractionIds.has(id)) {
+      throw new Error(`duplicate interaction id: ${id}`)
+    }
+    seenInteractionIds.add(id)
     interactions += 1
     lastInteractionId = id
 
@@ -160,7 +156,6 @@ export function startFaceCmd(
       return 'ok'
     })()
     active.set(id, p)
-    return { id }
   }
 
   async function awaitInteraction(id: string): Promise<string> {

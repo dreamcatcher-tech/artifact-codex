@@ -15,7 +15,8 @@ Deno.test('inspector face basic methods and non-interactive behavior', async () 
     expect(s.closed).toBe(false)
     expect(s.interactions).toBe(0)
     expect(s.views).toHaveLength(2)
-    expect(() => face.interaction('ping')).toThrow()
+    const msg = 'face-inspector is non-interactive'
+    expect(() => face.interaction('0', 'ping')).toThrow(msg)
   } finally {
     await face.destroy()
   }

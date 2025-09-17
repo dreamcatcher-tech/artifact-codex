@@ -201,7 +201,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
   // fire-and-forget launch
   maybeLaunch()
 
-  function interaction(): { id: string } {
+  function interaction(): never {
     throw new Error('face-inspector is non-interactive')
   }
 

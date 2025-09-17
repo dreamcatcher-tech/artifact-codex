@@ -17,17 +17,17 @@ Deno.test('start returns Face with basic methods', async () => {
   }
 })
 
-Deno.test('interaction returns id; awaitInteraction returns result', async () => {
+Deno.test('interaction stores provided id; awaitInteraction returns result', async () => {
   const face = startFaceTest()
   try {
-    const out = face.interaction('hello world')
-    expect(typeof out.id).toBe('string')
-    const res = await face.awaitInteraction(out.id)
+    const id = '0'
+    face.interaction(id, 'hello world')
+    const res = await face.awaitInteraction(id)
     expect(res).toBe('hello world')
 
     const s = await face.status()
     expect(s.interactions).toBe(1)
-    expect(s.lastInteractionId).toBe(out.id)
+    expect(s.lastInteractionId).toBe(id)
   } finally {
     await face.destroy()
   }
@@ -36,8 +36,9 @@ Deno.test('interaction returns id; awaitInteraction returns result', async () =>
 Deno.test('error path: awaitInteraction rejects with error', async () => {
   const face = startFaceTest()
   try {
-    const out = face.interaction('error')
-    await expect(face.awaitInteraction(out.id)).rejects.toThrow(
+    const id = '1'
+    face.interaction(id, 'error')
+    await expect(face.awaitInteraction(id)).rejects.toThrow(
       'intentional test error',
     )
   } finally {
@@ -50,7 +51,7 @@ Deno.test('close marks closed and prevents interactions', async () => {
   await face.destroy()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)
-  expect(() => face.interaction('ping')).toThrow()
+  expect(() => face.interaction('2', 'ping')).toThrow()
   // idempotent close
   await face.destroy()
   const s2 = await face.status()

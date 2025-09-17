@@ -110,20 +110,19 @@ Deno.test('interaction resolves awaitInteraction', async () => {
   const dir = await Deno.makeTempDir()
   const face = startFaceCodex({ config: { notifyDir: dir } })
   try {
-    const out = face.interaction('hello')
-    expect(typeof out.id).toBe('string')
-    expect(/^\d+$/.test(out.id)).toBe(true)
+    const id = '0'
+    face.interaction(id, 'hello')
 
     const payload =
       '{"type":"agent-turn-complete","turn-id":"t1","input-messages":["hello"],"last-assistant-message":"ok"}'
     await Deno.writeTextFile(join(dir, 'notify.json'), payload)
 
-    const res = await face.awaitInteraction(out.id)
+    const res = await face.awaitInteraction(id)
     expect(res).toBe(payload)
 
     const s = await face.status()
     expect(s.interactions).toBe(1)
-    expect(s.lastInteractionId).toBe(out.id)
+    expect(s.lastInteractionId).toBe(id)
     expect(s.notifications).toBe(1)
     expect(s.lastNotificationRaw).toBe(payload)
   } finally {
@@ -136,7 +135,7 @@ Deno.test('close makes face reject new interactions and sets closed', async () =
   await face.destroy()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)
-  expect(() => face.interaction('x')).toThrow()
+  expect(() => face.interaction('1', 'x')).toThrow()
   // idempotent
   await face.destroy()
   const s2 = await face.status()

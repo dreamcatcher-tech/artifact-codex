@@ -32,7 +32,7 @@ export function createVirtualFace(_opts: FaceOptions = {}): Face {
   const msg =
     'face-self cannot be interacted with, lest it kill the ability for any face to operate'
 
-  function interaction(): { id: string } {
+  function interaction(): never {
     throw new Error(msg)
   }
 

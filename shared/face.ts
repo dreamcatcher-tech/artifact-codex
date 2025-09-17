@@ -30,7 +30,7 @@ export type FaceWaitOptions = {
 }
 
 export type Face = {
-  interaction: (input: string) => { id: string }
+  interaction: (id: string, input: string) => void
   awaitInteraction: (
     id: string,
     opts?: FaceWaitOptions,
