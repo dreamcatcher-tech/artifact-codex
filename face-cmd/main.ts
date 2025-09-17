@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceView } from '@artifact/shared'
-import { findAvailablePort, HOST, waitForPort } from '@artifact/shared'
+import { findAvailablePort, HOST, idCheck, waitForPort } from '@artifact/shared'
 
 type CmdConfig = {
   /** Command and args to run inside tmux. Example: ["bash", "-lc", "htop"] */
@@ -29,7 +29,7 @@ export function startFaceCmd(
 
   // Simple interaction bookkeeping: resolve immediately after send-keys
   const active = new Map<string, Promise<string>>()
-  const seenInteractionIds = new Set<string>()
+  const guardUniqueInteractionId = idCheck('interaction id')
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
@@ -125,10 +125,7 @@ export function startFaceCmd(
 
   function interaction(id: string, input: string) {
     assertOpen()
-    if (seenInteractionIds.has(id)) {
-      throw new Error(`duplicate interaction id: ${id}`)
-    }
-    seenInteractionIds.add(id)
+    guardUniqueInteractionId(id)
     interactions += 1
     lastInteractionId = id
 

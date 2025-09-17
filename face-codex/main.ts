@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceView } from '@artifact/shared'
-import { findAvailablePort, HOST, waitForPort } from '@artifact/shared'
+import { findAvailablePort, HOST, idCheck, waitForPort } from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 import {
   type CodexConfig,
@@ -59,7 +59,7 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
     ?.notifyDir as string | undefined
 
   const launchState: LaunchState = {}
-  const seenInteractionIds = new Set<string>()
+  const guardUniqueInteractionId = idCheck('interaction id')
 
   async function launchIfNeeded() {
     const prepared = await prepareLaunchDirectories(opts)
@@ -164,10 +164,7 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
 
   function interaction(id: string, input: string) {
     assertOpen()
-    if (seenInteractionIds.has(id)) {
-      throw new Error(`duplicate interaction id: ${id}`)
-    }
-    seenInteractionIds.add(id)
+    guardUniqueInteractionId(id)
     count += 1
     lastId = id
 

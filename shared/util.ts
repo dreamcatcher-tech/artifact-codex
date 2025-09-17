@@ -31,6 +31,15 @@ export function isValidFlyName(name: string): boolean {
 }
 
 /**
- * Create a simple lifecycle promise + resolver. The promise resolves once
- * `settle()` is called. Useful for keeping a process alive until shutdown.
+ * Returns a closure that tracks seen ids and throws if invoked with a
+ * previously observed value.
  */
+export function idCheck(label = 'id') {
+  const seen = new Set<string>()
+  return (id: string) => {
+    if (seen.has(id)) {
+      throw new Error(`duplicate ${label}: ${id}`)
+    }
+    seen.add(id)
+  }
+}

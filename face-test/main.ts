@@ -1,5 +1,6 @@
 #!/usr/bin/env -S deno run
 import type { Face, FaceOptions } from '@artifact/shared'
+import { idCheck } from '@artifact/shared'
 
 /**
  * A minimal Face that echoes inputs. Used for exercising error paths.
@@ -17,14 +18,11 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
   }
 
   const active = new Map<string, { promise: Promise<string>; error?: Error }>()
-  const seenIds = new Set<string>()
+  const guardUniqueInteractionId = idCheck('interaction id')
 
   function interaction(id: string, input: string) {
     assertOpen()
-    if (seenIds.has(id)) {
-      throw new Error(`duplicate interaction id: ${id}`)
-    }
-    seenIds.add(id)
+    guardUniqueInteractionId(id)
     const promise: Promise<string> = Promise
       .resolve()
       .then(() => {
