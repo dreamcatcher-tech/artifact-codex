@@ -1,5 +1,0 @@
-{
-  "terminal.integrated.env.linux": {
-    "RUST_BACKTRACE": "0"
-  }
-}

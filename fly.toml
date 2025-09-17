@@ -3,6 +3,8 @@
 
 app = 'universal-compute'
 primary_region = 'syd'
+swap_size_mb = 2048
+
 
 [processes]
 '/' = '' # Root agent receives all requests
