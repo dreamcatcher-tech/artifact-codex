@@ -27,7 +27,6 @@ export function startFaceCmd(
   // tmux/ttyd state
   let views: FaceView[] | undefined
   let tmuxSession: string | undefined
-  let tmuxWindow: string | undefined
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
   let cwd: string | undefined
@@ -58,7 +57,6 @@ export function startFaceCmd(
     }
 
     tmuxSession = `face-cmd-${crypto.randomUUID().slice(0, 8)}`
-    tmuxWindow = (cfg.title ?? '').trim() || 'Command'
     const extHost = opts.hostname ?? HOST
 
     const startPort = 10000
@@ -74,7 +72,6 @@ export function startFaceCmd(
       })
       const env: Record<string, string> = {
         ...Deno.env.toObject(),
-        WINDOW_TITLE: tmuxWindow,
         SESSION: tmuxSession,
         TTYD_PORT: String(port),
         HOST,
@@ -83,10 +80,7 @@ export function startFaceCmd(
       }
       const { child: proc } = await launchTmuxTerminal({
         command: [...cfg.command],
-        ids: {
-          session: tmuxSession,
-          window: tmuxWindow,
-        },
+        session: tmuxSession,
         ttydPort: port,
         ttydHost: extHost,
         cwd,
@@ -139,11 +133,8 @@ export function startFaceCmd(
 
     const p = (async () => {
       try {
-        if (tmuxSession && tmuxWindow) {
-          await sendKeysViaTmux({
-            session: tmuxSession,
-            window: tmuxWindow,
-          }, String(input))
+        if (tmuxSession) {
+          await sendKeysViaTmux(tmuxSession, String(input))
         }
       } catch {
         // ignore

@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Face, FaceView, TmuxIds } from '@artifact/shared'
+import type { Face, FaceView } from '@artifact/shared'
 import {
   findAvailablePort,
   HOST,
@@ -34,7 +34,7 @@ type LaunchState = {
   child?: Deno.ChildProcess
   pid?: number
   views?: FaceView[]
-  tmux?: TmuxIds
+  tmuxSession?: string
 }
 
 export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
@@ -81,15 +81,15 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
       return
     }
 
-    const tmux = createTmuxIds()
-    launchState.tmux = tmux
+    const tmuxSession = createTmuxSession()
+    launchState.tmuxSession = tmuxSession
 
     const result = await launchCodexProcess({
       cfg,
       configDir,
       workspace: cwd,
       host,
-      tmux,
+      tmuxSession,
     })
 
     launchState.child = result.child
@@ -154,9 +154,9 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
   }
 
   function queueSendKeys(input: string) {
-    const tmux = launchState.tmux
-    if (!tmux) return
-    sendKeysViaTmux(tmux, input).catch(() => {
+    const tmuxSession = launchState.tmuxSession
+    if (!tmuxSession) return
+    sendKeysViaTmux(tmuxSession, input).catch(() => {
       // ignore
     })
   }
@@ -266,7 +266,7 @@ type LaunchArgs = {
   configDir: string
   workspace: string
   host: string
-  tmux: TmuxIds
+  tmuxSession: string
 }
 
 type LaunchResult = {
@@ -276,7 +276,7 @@ type LaunchResult = {
 }
 
 async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
-  const { cfg, configDir, workspace, host, tmux } = args
+  const { cfg, configDir, workspace, host, tmuxSession } = args
   const exclude = new Set<number>()
   const maxAttempts = PORT_SPAN
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -290,8 +290,7 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
     const env: Record<string, string> = {
       ...Deno.env.toObject(),
       CODEX_HOME: configDir,
-      WINDOW_TITLE: tmux.window,
-      SESSION: tmux.session,
+      SESSION: tmuxSession,
       TTYD_PORT: String(port),
       HOST: host,
       TTYD_HOST: host,
@@ -312,7 +311,7 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
 
     const { child } = await launchTmuxTerminal({
       command: cmdArgs,
-      ids: tmux,
+      session: tmuxSession,
       ttydPort: port,
       ttydHost: host,
       cwd: workspace,
@@ -349,11 +348,8 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
   )
 }
 
-function createTmuxIds(): TmuxIds {
-  return {
-    session: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
-    window: 'Codex',
-  }
+function createTmuxSession(): string {
+  return `face-codex-${crypto.randomUUID().slice(0, 8)}`
 }
 
 async function removeHomeDirectory(path: string) {

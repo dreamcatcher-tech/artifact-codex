@@ -6,14 +6,9 @@ const ENTER_DELAY_MS = 150
 export const SHARED_TMUX_SOCKET = Deno.env.get('ARTIFACT_TMUX_SOCKET') ??
   'artifact-tmux'
 
-export interface TmuxIds {
-  session: string
-  window: string
-}
-
 export interface LaunchTmuxTerminalOptions {
   command: string[]
-  ids: TmuxIds
+  session: string
   ttydPort: number
   ttydHost: string
   cwd?: string
@@ -42,7 +37,7 @@ interface CommandOptions {
 export async function launchTmuxTerminal(
   options: LaunchTmuxTerminalOptions,
 ): Promise<LaunchTmuxTerminalResult> {
-  const { command, ids, ttydPort, ttydHost } = options
+  const { command, session, ttydPort, ttydHost } = options
   if (!Array.isArray(command) || command.length === 0) {
     throw new Error('command must be a non-empty string[]')
   }
@@ -54,14 +49,24 @@ export async function launchTmuxTerminal(
   const shell = options.shell ?? Deno.env.get('SHELL') ?? '/usr/bin/bash'
   const writeable = Boolean(options.writeable)
 
-  const createdSession = await ensureTmuxSession({ ids, shell, cwd, env })
+  const createdSession = await ensureTmuxSession({
+    session,
+    shell,
+    cwd,
+    env,
+  })
   if (createdSession) {
     const quoted = shellQuote(command)
-    await sendRawKeys(ids, quoted, { cwd, env })
-    await sendEnter(ids, { cwd, env })
+    await sendRawKeys(session, quoted, { cwd, env })
+    await sendEnter(session, { cwd, env })
   }
 
-  const ttydArgs = buildTtydArgs({ ids, shell, ttydPort, writeable })
+  const ttydArgs = buildTtydArgs({
+    session,
+    shell,
+    ttydPort,
+    writeable,
+  })
   const child = new Deno.Command('ttyd', {
     args: ttydArgs,
     cwd,
@@ -75,18 +80,18 @@ export async function launchTmuxTerminal(
 }
 
 export async function sendKeysViaTmux(
-  ids: TmuxIds,
+  session: string,
   input: string,
   opts: { cwd?: string; env?: Record<string, string>; enterDelayMs?: number } =
     {},
 ): Promise<void> {
   const trimmed = input.trim()
   if (trimmed.length > 0) {
-    await sendRawKeys(ids, trimmed, opts)
+    await sendRawKeys(session, trimmed, opts)
     const delay = opts.enterDelayMs ?? ENTER_DELAY_MS
     if (delay > 0) await sleep(delay)
   }
-  await sendEnter(ids, opts)
+  await sendEnter(session, opts)
 }
 
 export function parseWritable(value: string | undefined): boolean {
@@ -122,13 +127,13 @@ async function requireBinary(name: string): Promise<void> {
 
 async function ensureTmuxSession(
   options: {
-    ids: TmuxIds
+    session: string
     shell: string
     cwd?: string
     env?: Record<string, string>
   },
 ): Promise<boolean> {
-  if (await hasTmuxSession(options.ids, options)) return false
+  if (await hasTmuxSession(options.session, options)) return false
   await run('tmux', {
     args: [
       '-L',
@@ -138,9 +143,7 @@ async function ensureTmuxSession(
       'new-session',
       '-Ad',
       '-s',
-      options.ids.session,
-      '-n',
-      options.ids.window,
+      options.session,
       options.shell,
       '-il',
     ],
@@ -154,11 +157,11 @@ async function ensureTmuxSession(
 }
 
 async function hasTmuxSession(
-  ids: TmuxIds,
+  session: string,
   options: { cwd?: string; env?: Record<string, string> },
 ): Promise<boolean> {
   const status = await run('tmux', {
-    args: ['-L', SHARED_TMUX_SOCKET, 'has-session', '-t', ids.session],
+    args: ['-L', SHARED_TMUX_SOCKET, 'has-session', '-t', session],
     cwd: options.cwd,
     env: options.env,
     stdout: 'null',
@@ -168,7 +171,7 @@ async function hasTmuxSession(
 }
 
 async function sendRawKeys(
-  ids: TmuxIds,
+  session: string,
   raw: string,
   options: { cwd?: string; env?: Record<string, string> },
 ) {
@@ -178,7 +181,7 @@ async function sendRawKeys(
       SHARED_TMUX_SOCKET,
       'send-keys',
       '-t',
-      `${ids.session}:${ids.window}`,
+      `${session}:0`,
       raw,
     ],
     cwd: options.cwd,
@@ -190,7 +193,7 @@ async function sendRawKeys(
 }
 
 async function sendEnter(
-  ids: TmuxIds,
+  session: string,
   options: { cwd?: string; env?: Record<string, string> },
 ) {
   await run('tmux', {
@@ -199,7 +202,7 @@ async function sendEnter(
       SHARED_TMUX_SOCKET,
       'send-keys',
       '-t',
-      `${ids.session}:${ids.window}`,
+      `${session}:0`,
       'C-m',
     ],
     cwd: options.cwd,
@@ -211,7 +214,7 @@ async function sendEnter(
 }
 
 function buildTtydArgs(options: {
-  ids: TmuxIds
+  session: string
   shell: string
   ttydPort: number
   writeable: boolean
@@ -225,9 +228,7 @@ function buildTtydArgs(options: {
     'new-session',
     '-A',
     '-s',
-    options.ids.session,
-    '-n',
-    options.ids.window,
+    options.session,
     options.shell,
     '-il',
   )
@@ -272,7 +273,6 @@ async function main() {
   }
 
   const session = requireEnv('SESSION')
-  const window = requireEnv('WINDOW_TITLE')
   const ttydHost = requireEnv('TTYD_HOST')
   const ttydPort = parsePort(requireEnv('TTYD_PORT'))
   const writeable = parseWritable(Deno.env.get('WRITEABLE'))
@@ -283,7 +283,7 @@ async function main() {
   console.log(`ttyd: http://${ttydHost}:${ttydPort}`)
   const { child } = await launchTmuxTerminal({
     command: args,
-    ids: { session, window },
+    session,
     ttydPort,
     ttydHost,
     cwd,

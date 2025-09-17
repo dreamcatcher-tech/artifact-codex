@@ -86,4 +86,4 @@ fi
 # Use the caller's absolute working directory for codex's own --cd argument
 CWD_ABS="$(pwd -P)"
 
-exec npx -y @openai/codex --cd "$CWD_ABS" "$@"
+exec /usr/bin/time -f "\n\tPeak RAM: %M kbytes\n" npx -y @openai/codex --cd "$CWD_ABS" "$@"

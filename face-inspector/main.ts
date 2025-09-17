@@ -88,9 +88,6 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
       return
     }
 
-    // Real launch: try sequential port triplets until ttyd + UI bind successfully.
-    const windowTitle = 'Inspector'
-
     const minPort = 10000
     const maxTries = 50
     const maxPort = minPort + maxTries * 3
@@ -119,7 +116,6 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
         MCP_PROXY_FULL_ADDRESS: `http://${externalHost}:${apiPort}`,
 
         // tmux launcher related (explicitly read-only by leaving WRITEABLE off)
-        WINDOW_TITLE: windowTitle,
         SESSION: session,
         TTYD_PORT: String(ttydPort),
         TTYD_HOST: externalHost,
@@ -127,10 +123,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
 
       const { child: proc } = await launchTmuxTerminal({
         command: ['npx', '-y', '@modelcontextprotocol/inspector'],
-        ids: {
-          session,
-          window: windowTitle,
-        },
+        session,
         ttydPort,
         ttydHost: externalHost,
         cwd: workspaceDir,
