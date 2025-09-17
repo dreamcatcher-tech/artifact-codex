@@ -1,7 +1,14 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Face, FaceView } from '@artifact/shared'
-import { findAvailablePort, HOST, idCheck, waitForPort } from '@artifact/shared'
+import type { Face, FaceView, TmuxIds } from '@artifact/shared'
+import {
+  findAvailablePort,
+  HOST,
+  idCheck,
+  launchTmuxTerminal,
+  sendKeysViaTmux,
+  waitForPort,
+} from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 import {
   type CodexConfig,
@@ -11,8 +18,6 @@ import {
 import { load } from '@std/dotenv'
 const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
 await load({ envPath: join(MODULE_DIR, '/.env'), export: true })
-const REPO_ROOT = dirname(MODULE_DIR)
-const TMUX_SCRIPT = join(REPO_ROOT, 'shared', 'tmux.sh')
 const MOCK_APP_SCRIPT = join(MODULE_DIR, 'mock-app.ts')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
 const PORT_START = 10000
@@ -23,12 +28,6 @@ type Pending = {
   resolve: (raw: string) => void
   reject: (err: unknown) => void
   canceled: boolean
-}
-
-type TmuxIds = {
-  session: string
-  socket: string
-  window: string
 }
 
 type LaunchState = {
@@ -293,7 +292,6 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
       CODEX_HOME: configDir,
       WINDOW_TITLE: tmux.window,
       SESSION: tmux.session,
-      SOCKET: tmux.socket,
       TTYD_PORT: String(port),
       HOST: host,
       TTYD_HOST: host,
@@ -312,12 +310,15 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
       ]
       : ['npx', '-y', '@openai/codex', '--cd', workspace]
 
-    const command = new Deno.Command(TMUX_SCRIPT, {
-      args: cmdArgs,
+    const { child } = await launchTmuxTerminal({
+      command: cmdArgs,
+      ids: tmux,
+      ttydPort: port,
+      ttydHost: host,
       cwd: workspace,
       env,
+      writeable: true,
     })
-    const child = command.spawn()
     const ready = await Promise.race([
       waitForPort(port, { hostname: host, timeoutMs: 5000 }),
       child.status.then(() => false),
@@ -351,7 +352,6 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
 function createTmuxIds(): TmuxIds {
   return {
     session: `face-codex-${crypto.randomUUID().slice(0, 8)}`,
-    socket: `face-codex-sock-${crypto.randomUUID().slice(0, 8)}`,
     window: 'Codex',
   }
 }
@@ -363,38 +363,4 @@ async function removeHomeDirectory(path: string) {
     if (err instanceof Deno.errors.NotFound) return
     throw err
   }
-}
-
-const ENTER_DELAY_MS = 150
-
-async function sleep(ms: number) {
-  await new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-async function sendKeysViaTmux(tmux: TmuxIds, input: string) {
-  const trimmed = input.trim()
-  const baseArgs = [
-    '-L',
-    tmux.socket,
-    'send-keys',
-    '-t',
-    `${tmux.session}:${tmux.window}`,
-  ]
-  if (trimmed.length > 0) {
-    const typeCommand = new Deno.Command('tmux', {
-      args: [...baseArgs, trimmed],
-      stdout: 'inherit',
-      stderr: 'inherit',
-    })
-    await typeCommand.output()
-    await sleep(ENTER_DELAY_MS)
-  }
-  const enterCommand = new Deno.Command('tmux', {
-    args: [...baseArgs, 'C-m'],
-    stdout: 'inherit',
-    stderr: 'inherit',
-  })
-  await enterCommand.output()
 }

@@ -1,7 +1,12 @@
 #!/usr/bin/env -S deno run
-import { dirname, fromFileUrl, join } from '@std/path'
+import { join } from '@std/path'
 import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
-import { findAvailablePorts, HOST, waitForPort } from '@artifact/shared'
+import {
+  findAvailablePorts,
+  HOST,
+  launchTmuxTerminal,
+  waitForPort,
+} from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -84,9 +89,6 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
     }
 
     // Real launch: try sequential port triplets until ttyd + UI bind successfully.
-    const thisDir = dirname(fromFileUrl(import.meta.url))
-    const repoRoot = dirname(thisDir)
-    const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
     const windowTitle = 'Inspector'
 
     const minPort = 10000
@@ -104,6 +106,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
       ports.sort((a, b) => a - b)
       const [ttydPort, uiPort, apiPort] = ports
 
+      const session = `face-inspector-${crypto.randomUUID().slice(0, 8)}`
       const env: Record<string, string> = {
         // Network binds
         HOST,
@@ -115,17 +118,24 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
         SERVER_PORT: String(apiPort),
         MCP_PROXY_FULL_ADDRESS: `http://${externalHost}:${apiPort}`,
 
-        // tmux.sh related (explicitly read-only by leaving WRITEABLE off)
+        // tmux launcher related (explicitly read-only by leaving WRITEABLE off)
         WINDOW_TITLE: windowTitle,
-        SESSION: `face-inspector-${crypto.randomUUID().slice(0, 8)}`,
-        SOCKET: `face-inspector-sock-${crypto.randomUUID().slice(0, 8)}`,
+        SESSION: session,
         TTYD_PORT: String(ttydPort),
         TTYD_HOST: externalHost,
       }
 
-      const args = ['npx', '-y', '@modelcontextprotocol/inspector']
-      const cmd = new Deno.Command(tmuxScript, { args, cwd: workspaceDir, env })
-      const proc = cmd.spawn()
+      const { child: proc } = await launchTmuxTerminal({
+        command: ['npx', '-y', '@modelcontextprotocol/inspector'],
+        ids: {
+          session,
+          window: windowTitle,
+        },
+        ttydPort,
+        ttydHost: externalHost,
+        cwd: workspaceDir,
+        env,
+      })
 
       // Wait for ttyd or process exit (port conflict)
       const ttydOk = await Promise.race([

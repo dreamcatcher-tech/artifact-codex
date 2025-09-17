@@ -11,7 +11,7 @@ function env(name: string): string | undefined {
 }
 
 /**
- * Create a Face that represents the tmux.sh invocation that launched this
+ * Create a Face that represents the tmux + ttyd launcher that started this
  * web-server process. It does not spawn new processes; it only references the
  * existing tmux session/socket and the ttyd port.
  */

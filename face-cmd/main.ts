@@ -1,7 +1,13 @@
 #!/usr/bin/env -S deno run
-import { dirname, fromFileUrl, join } from '@std/path'
 import type { Face, FaceOptions, FaceView } from '@artifact/shared'
-import { findAvailablePort, HOST, idCheck, waitForPort } from '@artifact/shared'
+import {
+  findAvailablePort,
+  HOST,
+  idCheck,
+  launchTmuxTerminal,
+  sendKeysViaTmux,
+  waitForPort,
+} from '@artifact/shared'
 
 type CmdConfig = {
   /** Command and args to run inside tmux. Example: ["bash", "-lc", "htop"] */
@@ -21,7 +27,6 @@ export function startFaceCmd(
   // tmux/ttyd state
   let views: FaceView[] | undefined
   let tmuxSession: string | undefined
-  let tmuxSocket: string | undefined
   let tmuxWindow: string | undefined
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
@@ -52,12 +57,7 @@ export function startFaceCmd(
       throw new Error(`workspace directory not found: ${cwd}`)
     }
 
-    const thisDir = dirname(fromFileUrl(import.meta.url))
-    const repoRoot = dirname(thisDir)
-    const tmuxScript = join(repoRoot, 'shared', 'tmux.sh')
-
     tmuxSession = `face-cmd-${crypto.randomUUID().slice(0, 8)}`
-    tmuxSocket = `face-cmd-sock-${crypto.randomUUID().slice(0, 8)}`
     tmuxWindow = (cfg.title ?? '').trim() || 'Command'
     const extHost = opts.hostname ?? HOST
 
@@ -76,15 +76,23 @@ export function startFaceCmd(
         ...Deno.env.toObject(),
         WINDOW_TITLE: tmuxWindow,
         SESSION: tmuxSession,
-        SOCKET: tmuxSocket,
         TTYD_PORT: String(port),
         HOST,
         TTYD_HOST: extHost,
         WRITEABLE: 'on',
       }
-      const args = [...cfg.command]
-      const cmd = new Deno.Command(tmuxScript, { args, cwd, env })
-      const proc = cmd.spawn()
+      const { child: proc } = await launchTmuxTerminal({
+        command: [...cfg.command],
+        ids: {
+          session: tmuxSession,
+          window: tmuxWindow,
+        },
+        ttydPort: port,
+        ttydHost: extHost,
+        cwd,
+        env,
+        writeable: true,
+      })
       const ok = await Promise.race([
         waitForPort(port, { hostname: HOST, timeoutMs: 5000 }),
         proc.status.then(() => false),
@@ -131,21 +139,11 @@ export function startFaceCmd(
 
     const p = (async () => {
       try {
-        if (tmuxSession && tmuxSocket && tmuxWindow) {
-          const cmd = new Deno.Command('tmux', {
-            args: [
-              '-L',
-              String(tmuxSocket),
-              'send-keys',
-              '-t',
-              `${tmuxSession}:${tmuxWindow}`,
-              String(input),
-              'C-m',
-            ],
-            stdout: 'inherit',
-            stderr: 'inherit',
-          })
-          await cmd.output()
+        if (tmuxSession && tmuxWindow) {
+          await sendKeysViaTmux({
+            session: tmuxSession,
+            window: tmuxWindow,
+          }, String(input))
         }
       } catch {
         // ignore

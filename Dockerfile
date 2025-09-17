@@ -48,7 +48,6 @@ RUN apt-get update && \
   htop \
   nnn \
   tmux \
-  fish \
   lsof \
   ttyd && \
   rm -rf /var/lib/apt/lists/*
@@ -71,17 +70,6 @@ RUN deno install --quiet
 
 WORKDIR /workspace
 
-RUN chsh -s /usr/bin/fish
-
-ENV SESSION="root-session"
-ENV SOCKET="root-socket"
 ENV PORT="8080"
-ENV TTYD_PORT="8100"
-ENV WINDOW_TITLE="root-window"
-ENV TTYD_HOST="127.0.0.1"
-ENV WRITEABLE="off"
 
-
-
-ENTRYPOINT ["/headers/shared/tmux.sh"]
-CMD ["deno", "run", "-A", "/headers/web-server/main.ts"]
+ENTRYPOINT ["deno", "run", "-A", "/headers/web-server/main.ts"]
