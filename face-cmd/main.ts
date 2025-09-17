@@ -10,6 +10,14 @@ type CmdConfig = {
   title?: string
 }
 
+let interactionIdSequence = 0
+
+function allocateInteractionId(): string {
+  const id = String(interactionIdSequence)
+  interactionIdSequence += 1
+  return id
+}
+
 export function startFaceCmd(
   opts: FaceOptions = {},
 ): Face {
@@ -124,7 +132,7 @@ export function startFaceCmd(
 
   function interaction(input: string) {
     assertOpen()
-    const id = crypto.randomUUID()
+    const id = allocateInteractionId()
     interactions += 1
     lastInteractionId = id
 

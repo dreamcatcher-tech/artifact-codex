@@ -38,6 +38,14 @@ type LaunchState = {
   tmux?: TmuxIds
 }
 
+let interactionIdSequence = 0
+
+function allocateInteractionId(): string {
+  const id = String(interactionIdSequence)
+  interactionIdSequence += 1
+  return id
+}
+
 export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
   console.log('startFaceCodex:', opts)
   const startedAt = new Date()
@@ -163,7 +171,7 @@ export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
 
   function interaction(input: string) {
     assertOpen()
-    const id = crypto.randomUUID()
+    const id = allocateInteractionId()
     count += 1
     lastId = id
 

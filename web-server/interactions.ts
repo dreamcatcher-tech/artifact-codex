@@ -5,7 +5,19 @@ import type { Face } from '@artifact/shared'
 import Debug from 'debug'
 type FaceId = string
 type InteractionId = string
-type InteractionRecord = { faceId: FaceId; id: string; input: string }
+type InteractionRecord = {
+  faceId: FaceId
+  faceInteractionId: string
+  input: string
+}
+
+let interactionIdSequence = 0
+
+function allocateInteractionId(): InteractionId {
+  const id = String(interactionIdSequence)
+  interactionIdSequence += 1
+  return id
+}
 
 export const createInteractions = (
   faces: Map<FaceId, Face>,
@@ -30,9 +42,9 @@ export const createInteractions = (
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
-      const { id } = face.interaction(input)
-      const interactionId = `${faceId}_${id}`
-      interactions.set(interactionId, { faceId, id, input })
+      const { id: faceInteractionId } = face.interaction(input)
+      const interactionId = allocateInteractionId()
+      interactions.set(interactionId, { faceId, faceInteractionId, input })
       log(
         'create_interaction: face=%s input=%j -> %s',
         faceId,
@@ -51,7 +63,9 @@ export const createInteractions = (
         if (!face) {
           throw new Error(`Face not found: ${interaction.faceId}`)
         }
-        const result = await face.awaitInteraction(interaction.id)
+        const result = await face.awaitInteraction(
+          interaction.faceInteractionId,
+        )
         log(
           'read_interaction: %s -> result=%j (deleting)',
           interactionId,
@@ -71,7 +85,7 @@ export const createInteractions = (
       if (!face) {
         throw new Error(`Face not found: ${interaction.faceId}`)
       }
-      await face.cancel(interaction.id)
+      await face.cancel(interaction.faceInteractionId)
       interactions.delete(interactionId)
       log('destroy_interaction: %s (deleted)', interactionId)
       return toStructured({ ok: true })

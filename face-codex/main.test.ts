@@ -112,7 +112,7 @@ Deno.test('interaction resolves awaitInteraction', async () => {
   try {
     const out = face.interaction('hello')
     expect(typeof out.id).toBe('string')
-    expect(out.id.length).toBeGreaterThan(8)
+    expect(/^\d+$/.test(out.id)).toBe(true)
 
     const payload =
       '{"type":"agent-turn-complete","turn-id":"t1","input-messages":["hello"],"last-assistant-message":"ok"}'

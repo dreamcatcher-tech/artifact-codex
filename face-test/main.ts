@@ -6,6 +6,14 @@ import type { Face, FaceOptions } from '@artifact/shared'
  * - Returns the same string on interaction.
  * - Special input: "error" throws to test error handling.
  */
+let interactionIdSequence = 0
+
+function allocateInteractionId(): string {
+  const id = String(interactionIdSequence)
+  interactionIdSequence += 1
+  return id
+}
+
 export function startFaceTest(opts: FaceOptions = {}): Face {
   const startedAt = new Date()
   let closed = false
@@ -20,7 +28,7 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
 
   function interaction(input: string) {
     assertOpen()
-    const id = count.toString()
+    const id = allocateInteractionId()
     const promise: Promise<string> = Promise
       .resolve()
       .then(() => {

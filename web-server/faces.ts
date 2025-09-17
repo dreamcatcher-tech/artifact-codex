@@ -18,6 +18,14 @@ type FaceKind = {
 }
 type FaceId = string
 
+let faceIdSequence = 0
+
+function allocateFaceId(): FaceId {
+  const id = `face-${faceIdSequence}`
+  faceIdSequence += 1
+  return id
+}
+
 const SELF_KIND_ID = '@self system'
 
 const faceKinds: Record<string, FaceKind> = {
@@ -54,13 +62,10 @@ const faceKinds: Record<string, FaceKind> = {
 export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
   const log = Debug('@artifact/web-server:faces')
 
-  let idCounter = 0
   const faceIdToKind = new Map<FaceId, string>()
 
-  const getFaceId = () => `face-${idCounter++}`
-
   const virtualFace = createVirtualFace()
-  const virtualFaceId = getFaceId()
+  const virtualFaceId = allocateFaceId()
   faces.set(virtualFaceId, virtualFace)
   faceIdToKind.set(virtualFaceId, SELF_KIND_ID)
 
@@ -117,7 +122,7 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
         const kinds = Object.keys(faceKinds).join(', ')
         throw new Error(`Unknown kind: ${faceKindId} - use one of ${kinds}`)
       }
-      const id = getFaceId()
+      const id = allocateFaceId()
       const finalWorkspace = workspace ?? Deno.cwd()
       const finalHome = resolveFaceHome(home, faceKindId)
       const finalConfig = config ?? {}
