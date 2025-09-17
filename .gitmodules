@@ -1,8 +1,11 @@
 [submodule "codex"]
 	path = .refs/codex
-    url = git@github.com:dreamcatcher-tech/codex.git
+	url = git@github.com:dreamcatcher-tech/codex.git
 
 [submodule "codex-universal"]
 	path = .refs/codex-universal
-    url = org-14957082@github.com:openai/codex-universal.git
+	url = org-14957082@github.com:openai/codex-universal.git
 
+[submodule "pup"]
+	path = .refs/pup
+	url = git@github.com:Hexagon/pup.git
