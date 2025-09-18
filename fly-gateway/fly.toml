@@ -1,0 +1,19 @@
+# fly.toml app configuration file generated for nfs-proto on 2025-09-18T01:16:46Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'nfs-proto'
+primary_region = 'syd'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[[mounts]]
+  source = 'nfsdata'
+  destination = '/data'
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
