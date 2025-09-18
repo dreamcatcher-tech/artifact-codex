@@ -6,7 +6,8 @@
   },
 
   "mounts": [
-    "source=${localEnv:HOME}/.codex,target=/tmp/host-codex,type=bind,consistency=cached,readonly"
+    "source=${localEnv:HOME}/.codex,target=/tmp/host-codex,type=bind,consistency=cached,readonly",
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
 
   "remoteUser": "ubuntu",
@@ -25,8 +26,12 @@
       ]
     }
   },
+  "containerEnv": {
+    "DOCKER_HOST": "unix:///var/run/docker.sock"
+  },
   "remoteEnv": {
     "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
   },
-  "postCreateCommand": "bash .devcontainer/postCreate.sh"
+  "postCreateCommand": "bash .devcontainer/postCreate.sh postCreate",
+  "postStartCommand": "bash .devcontainer/postCreate.sh postStart"
 }

@@ -47,6 +47,7 @@ RUN apt-get update && \
   nano \
   htop \
   nnn \
+  nfs-common \
   tmux \
   lsof \
   ttyd && \

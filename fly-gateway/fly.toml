@@ -7,13 +7,27 @@ app = 'nfs-proto'
 primary_region = 'syd'
 
 [build]
-  dockerfile = 'Dockerfile'
+dockerfile = 'Dockerfile'
 
-[[mounts]]
-  source = 'nfsdata'
-  destination = '/data'
+[[services]]
+internal_port = 2049
+protocol = 'tcp'
+
+[[services.ports]]
+port = 2049
+
+[[services.machine_checks]]
+entrypoint = ["/bin/bash", "-lc"]
+command = ["/self-mount-check.sh"]
+timeout = "60s"
+kill_signal = "SIGKILL"
+kill_timeout = "5s"
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
+memory = '1gb'
+cpu_kind = 'shared'
+cpus = 1
+
+[[mounts]]
+source = 'nfsdata'
+destination = '/data'

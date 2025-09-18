@@ -14,6 +14,8 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 
 ## Code rules
 
+never git add anything unless explicitly told to.
+
 Always value terseness and brevity over preserving legacy options in code - this
 is a greenfields project so you never need to worry about legacy.
 
