@@ -33,13 +33,47 @@ function restore(key: string, value: string | undefined) {
   }
 }
 
-Deno.test('unauthorized request is rejected', async () => {
+Deno.test('unauthorized JSON request is rejected', async () => {
   const cleanup = setClerkEnv()
   try {
     const app = createApp()
-    const res = await app.request('/')
+    const res = await app.request('http://localhost/', {
+      headers: { accept: 'application/json' },
+    })
     expect(res.status).toBe(401)
     expect(await res.json()).toEqual({ error: 'unauthenticated' })
+  } finally {
+    cleanup()
+  }
+})
+
+Deno.test('redirects unauthorized request to Clerk sign-in', async () => {
+  const cleanup = setClerkEnv()
+  try {
+    const app = createApp()
+    const res = await app.request('http://localhost/', {
+      headers: { accept: 'text/plain' },
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe(
+      'https://quick-pheasant-58.clerk.accounts.dev/sign-in?redirect_url=http://localhost/',
+    )
+  } finally {
+    cleanup()
+  }
+})
+
+Deno.test('redirects to sign-up when requested', async () => {
+  const cleanup = setClerkEnv()
+  try {
+    const app = createApp()
+    const res = await app.request('http://localhost/?flow=sign-up', {
+      headers: { accept: 'text/plain' },
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe(
+      'https://quick-pheasant-58.clerk.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
+    )
   } finally {
     cleanup()
   }
