@@ -23,6 +23,13 @@ If you have done something that might affect how the fly apps work, be sure to
 deploy or build using the fly.io infrastructure, until you are satisfied things
 work correctly.
 
+you can use the command `fly logs -c fly.<config name>.toml` to check the logs
+of the app.
+
+you can ssh in or send commands in using
+`fly ssh console -c fly.<config name>.toml` which enables you to execute remote
+commands.
+
 ## Fly deployment tips
 
 - Keep the single `.dockerignore` at the repo root; Fly only reads the root
