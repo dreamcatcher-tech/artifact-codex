@@ -1,5 +1,4 @@
 #!/usr/bin/env -S deno run -A
-import { dirname, fromFileUrl } from '@std/path'
 import { readFaceOutput } from '@artifact/mcp-faces'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -109,7 +108,7 @@ const createDefaultFacePort = async (app: Hono) => {
   const transport = new StreamableHTTPClientTransport(new URL(baseUrl), opts)
   await client.connect(transport)
 
-  const workspace = dirname(dirname(fromFileUrl(import.meta.url)))
+  const workspace = Deno.cwd()
 
   const { structuredContent } = await client.callTool({
     name: 'create_face',
