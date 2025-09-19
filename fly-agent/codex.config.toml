@@ -1,0 +1,28 @@
+model = "gpt-5"
+model_provider = "openai"
+model_reasoning_effort = "low"
+model_verbosity = "low"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+notify = "__CODEX_NOTIFY__"
+
+[tools]
+web_search = true
+view_image = true
+
+[mcp_servers.mcp-computers]
+command = "__MCP_COMPUTERS_COMMAND__"
+args = []
+
+[mcp_servers.mcp-agents]
+command = "__MCP_AGENTS_COMMAND__"
+args = []
+
+[mcp_servers.mcp-faces]
+command = "__MCP_FACES_COMMAND__"
+args = []
+
+[mcp_servers.mcp-interactions]
+command = "__MCP_INTERACTIONS_COMMAND__"
+args = []

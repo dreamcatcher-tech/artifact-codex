@@ -5,9 +5,11 @@
 
 app = 'nfs-proto'
 primary_region = 'syd'
+# swap stops the suspend feature from working
+# swap_size_mb = 2048
 
 [build]
-dockerfile = 'Dockerfile'
+dockerfile = 'fly-nfs/Dockerfile'
 
 [[services]]
 internal_port = 2049

@@ -61,14 +61,19 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno
 
 RUN npm i -g npm
 RUN npm i -g @openai/codex
-COPY fly-agent/codex.config.toml /root/.codex/config.toml
-COPY fly-agent/entrypoint.sh /entrypoint.sh
-COPY fly-agent/scripts/mount-nfs.sh /usr/local/bin/mount-nfs.sh
-COPY fly-agent/scripts/self-mount-check.sh /usr/local/bin/self-mount-check.sh
-RUN chmod +x /entrypoint.sh /usr/local/bin/mount-nfs.sh /usr/local/bin/self-mount-check.sh
 
 # Copy only what's needed to run the MCP web server
 COPY . /headers
+
+RUN set -eux; \
+  SRC="/headers"; \
+  if [ ! -f "${SRC}/entrypoint.sh" ]; then \
+    SRC="${SRC}/fly-agent"; \
+  fi; \
+  install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
+  install -Dm755 "${SRC}/entrypoint.sh" /entrypoint.sh; \
+  install -Dm755 "${SRC}/scripts/mount-nfs.sh" /usr/local/bin/mount-nfs.sh; \
+  install -Dm755 "${SRC}/scripts/self-mount-check.sh" /usr/local/bin/self-mount-check.sh
 
 # Pre-cache Deno deps for faster cold starts
 RUN deno install --quiet

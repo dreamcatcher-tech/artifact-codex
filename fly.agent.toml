@@ -3,7 +3,8 @@
 
 app = 'universal-compute'
 primary_region = 'syd'
-swap_size_mb = 2048
+# swap stops the suspend feature from working
+# swap_size_mb = 2048
 
 
 [processes]
@@ -17,7 +18,7 @@ FLY_NFS_MOUNT_DIR = '/mnt/fly-nfs'
 FLY_NFS_EXPORT_PATH = '/data'
 
 [build]
-dockerfile = 'Dockerfile'
+dockerfile = 'fly-agent/Dockerfile'
 
 [http_service]
 processes = ['/']
