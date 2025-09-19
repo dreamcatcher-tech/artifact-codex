@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "start": "deno run -A main.ts",
+    "dev": "deno run -A --watch main.ts",
+    "test": "deno test -A"
+  },
+  "imports": {
+    "@hono/clerk-auth": "jsr:@hono/clerk-auth@^3.0.3",
+    "@hono/hono": "jsr:@hono/hono@^4.9.8",
+    "@std/expect": "jsr:@std/expect@^1.0.17"
+  }
+}

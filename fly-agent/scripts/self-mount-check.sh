@@ -15,15 +15,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-SOURCE="${FLY_NFS_SOURCE:-}" 
-if [ -z "${SOURCE}" ] && [ -n "${FLY_TEST_MACHINE_IP:-}" ]; then
-  SOURCE="${FLY_TEST_MACHINE_IP}"
-fi
+SOURCE="${FLY_NFS_SOURCE:-}"
 if [ -z "${SOURCE}" ]; then
   if [ -n "${FLY_NFS_HOST:-}" ]; then
     SOURCE="${FLY_NFS_HOST}"
   elif [ -n "${FLY_NFS_APP:-}" ]; then
     SOURCE="${FLY_NFS_APP}.internal"
+  elif [ -n "${FLY_TEST_MACHINE_IP:-}" ]; then
+    SOURCE="${FLY_TEST_MACHINE_IP}"
   else
     SOURCE="nfs-proto.internal"
   fi

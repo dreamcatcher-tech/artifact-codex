@@ -9,7 +9,8 @@
     "face-inspector",
     "face-test",
     "web-server",
-    "shared"
+    "shared",
+    "fly-auth"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok"

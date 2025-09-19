@@ -74,6 +74,12 @@ Whenever you see a task like `deno task dev` be very careful running it since it
 is designed to never exit, as it runs a web server. If you must run this command
 you will need to use a timeout or something to exit it.
 
+when installing packages on deno, always use the deno install tool, like
+`deno install jsr:@std/expect` or `deno install npm:debug`.
+
+for tests, use expect from `jsr:@std/expect` which can be imported like this:
+`import { expect } from '@std/expect'`
+
 ## Avoid Async IIFEs
 
 Do not use anonymous Immediately Invoked Function Expressions (IIFEs), including
