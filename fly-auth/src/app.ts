@@ -75,12 +75,14 @@ function appendRedirectBack(target: string, requestUrl: string): string {
   try {
     const next = new URL(target)
     const back = new URL(requestUrl)
-    const params = new URLSearchParams(next.search)
-    params.set('redirect_url', back.toString())
-    next.search = params.toString()
-    return next.toString()
+    const existing = next.search ? next.search.slice(1) : ''
+    const redirectParam = `redirect_url=${back.toString()}`
+    const query = existing ? `${existing}&${redirectParam}` : redirectParam
+    const base = `${next.origin}${next.pathname}`
+    return `${base}?${query}${next.hash ?? ''}`
   } catch {
-    return target
+    const separator = target.includes('?') ? '&' : '?'
+    return `${target}${separator}redirect_url=${requestUrl}`
   }
 }
 
@@ -96,7 +98,7 @@ function resolveClerkRedirects(): ClerkRedirects {
   )
   if (!base) return {}
 
-  const normalized = ensureHttpScheme(base)
+  const normalized = normalizeFrontendBase(base)
   return {
     signIn: joinUrl(normalized, '/sign-in'),
     signUp: joinUrl(normalized, '/sign-up'),
@@ -132,13 +134,6 @@ function deriveFrontendBaseUrl(publishableKey: string): string | undefined {
   }
 }
 
-function ensureHttpScheme(candidate: string): string {
-  if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
-    return candidate
-  }
-  return `https://${candidate}`
-}
-
 function joinUrl(base: string, path: string): string {
   try {
     const url = new URL(base)
@@ -148,4 +143,22 @@ function joinUrl(base: string, path: string): string {
     const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
     return `${trimmed}${path}`
   }
+}
+
+function normalizeFrontendBase(candidate: string): string {
+  const withScheme = ensureScheme(candidate)
+  try {
+    const parsed = new URL(withScheme)
+    parsed.hostname = parsed.hostname.replace('clerk.accounts.', 'accounts.')
+    return parsed.origin
+  } catch {
+    return withScheme
+  }
+}
+
+function ensureScheme(candidate: string): string {
+  if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+    return candidate
+  }
+  return `https://${candidate}`
 }

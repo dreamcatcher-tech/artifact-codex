@@ -56,7 +56,7 @@ Deno.test('redirects unauthorized request to Clerk sign-in', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://quick-pheasant-58.clerk.accounts.dev/sign-in?redirect_url=http://localhost/',
+      'https://quick-pheasant-58.accounts.dev/sign-in?redirect_url=http://localhost/',
     )
   } finally {
     cleanup()
@@ -72,7 +72,7 @@ Deno.test('redirects to sign-up when requested', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://quick-pheasant-58.clerk.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
+      'https://quick-pheasant-58.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
     )
   } finally {
     cleanup()
