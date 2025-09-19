@@ -16,9 +16,9 @@ RUN ln -sf /proc/self/mounts /etc/mtab
 # Volume mountpoint (Fly will mount here)
 RUN mkdir -p /data
 
-COPY ganesha.conf /etc/ganesha/ganesha.conf
-COPY entrypoint.sh /entrypoint.sh
-COPY scripts/self-mount-check.sh /self-mount-check.sh
+COPY fly-nfs/ganesha.conf /etc/ganesha/ganesha.conf
+COPY fly-nfs/entrypoint.sh /entrypoint.sh
+COPY fly-nfs/scripts/self-mount-check.sh /self-mount-check.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /self-mount-check.sh
 

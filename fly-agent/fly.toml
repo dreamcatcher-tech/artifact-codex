@@ -10,6 +10,12 @@ swap_size_mb = 2048
 '/' = '' # Root agent receives all requests
 # agents process group is made ad hoc
 
+[env]
+FLY_NFS_APP = 'nfs-proto'
+FLY_NFS_HOST = 'nfs-proto.internal'
+FLY_NFS_MOUNT_DIR = '/mnt/fly-nfs'
+FLY_NFS_EXPORT_PATH = '/data'
+
 [build]
 dockerfile = 'Dockerfile'
 
@@ -38,3 +44,10 @@ min_machines_running = 0
 handlers = ["tls", "http"]
 start_port = 3000
 end_port = 30000
+
+[[services.machine_checks]]
+entrypoint = ["/bin/bash", "-lc"]
+command = ["/usr/local/bin/self-mount-check.sh"]
+timeout = '60s'
+kill_signal = 'SIGKILL'
+kill_timeout = '5s'

@@ -61,7 +61,11 @@ RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno
 
 RUN npm i -g npm
 RUN npm i -g @openai/codex
-COPY codex.config.toml /root/.codex/config.toml
+COPY fly-agent/codex.config.toml /root/.codex/config.toml
+COPY fly-agent/entrypoint.sh /entrypoint.sh
+COPY fly-agent/scripts/mount-nfs.sh /usr/local/bin/mount-nfs.sh
+COPY fly-agent/scripts/self-mount-check.sh /usr/local/bin/self-mount-check.sh
+RUN chmod +x /entrypoint.sh /usr/local/bin/mount-nfs.sh /usr/local/bin/self-mount-check.sh
 
 # Copy only what's needed to run the MCP web server
 COPY . /headers
@@ -73,4 +77,4 @@ WORKDIR /workspace
 
 ENV PORT="8080"
 
-ENTRYPOINT ["deno", "run", "-A", "/headers/web-server/main.ts"]
+ENTRYPOINT ["/entrypoint.sh"]
