@@ -63,13 +63,10 @@ RUN npm i -g npm
 RUN npm i -g @openai/codex
 
 # Copy only what's needed to run the MCP web server
-COPY . /headers
+COPY . /agent
 
 RUN set -eux; \
-  SRC="/headers"; \
-  if [ ! -f "${SRC}/entrypoint.sh" ]; then \
-    SRC="${SRC}/fly-agent"; \
-  fi; \
+  SRC="/agent/fly-agent"; \
   install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
   install -Dm755 "${SRC}/entrypoint.sh" /entrypoint.sh; \
   install -Dm755 "${SRC}/scripts/mount-nfs.sh" /usr/local/bin/mount-nfs.sh; \

@@ -6,6 +6,6 @@
 	path = .refs/codex-universal
 	url = org-14957082@github.com:openai/codex-universal.git
 
-[submodule "pup"]
-	path = .refs/pup
-	url = git@github.com:Hexagon/pup.git
+[submodule "napps"]
+	path = .refs/napps
+	url = git@github.com:dreamcatcher-tech/napps.git

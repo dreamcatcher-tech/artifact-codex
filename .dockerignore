@@ -1,0 +1,20 @@
+# Files and directories that should not be sent to Docker build contexts
+.git
+.gitignore
+.refs
+node_modules
+**/target
+**/*.rs.bk
+**/*.snap
+**/*.snap.new
+*.log
+*.tmp
+*.swp
+.DS_Store
+.env
+.env.*
+!.env.example
+**/.insta
+**/.cache
+**/.pytest_cache
+**/.venv

@@ -12,6 +12,28 @@ The .refs folder contains code for reference only NEVER MODIFY ANYTHING INSIDE
 THIS FOLDER. If you ever want to know about the inner workings of codex, then
 you can read thru the code inside `.refs/codex/codex-rs/`.
 
+## Deployment to fly.io
+
+This project contains multiple fly apps, and the config files for them are all
+in the root under fly.*.toml. To deploy these apps, use:
+
+`fly deploy --config fly.<config name>.toml`
+
+If you have done something that might affect how the fly apps work, be sure to
+deploy or build using the fly.io infrastructure, until you are satisfied things
+work correctly.
+
+## Fly deployment tips
+
+- Keep the single `.dockerignore` at the repo root; Fly only reads the root
+  file, so move any per-app rules there and make sure heavy directories like
+  `node_modules/` stay excluded.
+- If the builder is still uploading massive contexts, run `du -sh * | sort -h`
+  to surface directories that should be ignored before redeploying.
+- `fly deploy --config fly.<name>.toml` may run longer than two minutes when
+  pushing larger layers—rerun without artificial timeouts and watch the Fly
+  dashboard for status.
+
 ## Code rules
 
 never git add anything unless explicitly told to.
