@@ -64,6 +64,10 @@ RUN npm i -g @openai/codex
 
 # Copy only what's needed to run the MCP web server
 COPY . /agent
+WORKDIR /agent
+
+# Pre-cache Deno deps for faster cold starts
+RUN deno install --quiet
 
 RUN set -eux; \
   SRC="/agent/fly-agent"; \
@@ -71,9 +75,6 @@ RUN set -eux; \
   install -Dm755 "${SRC}/entrypoint.sh" /entrypoint.sh; \
   install -Dm755 "${SRC}/scripts/mount-nfs.sh" /usr/local/bin/mount-nfs.sh; \
   install -Dm755 "${SRC}/scripts/self-mount-check.sh" /usr/local/bin/self-mount-check.sh
-
-# Pre-cache Deno deps for faster cold starts
-RUN deno install --quiet
 
 WORKDIR /workspace
 

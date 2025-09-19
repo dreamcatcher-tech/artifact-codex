@@ -30,4 +30,4 @@ if [ "$#" -gt 0 ]; then
   exec "$@"
 fi
 
-exec deno run -A /headers/web-server/main.ts
+exec deno run -A /agent/web-server/main.ts
