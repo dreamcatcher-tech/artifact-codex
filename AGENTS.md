@@ -21,7 +21,8 @@ in the root under fly.*.toml. To deploy these apps, use:
 
 If you have done something that might affect how the fly apps work, be sure to
 deploy or build using the fly.io infrastructure, until you are satisfied things
-work correctly.
+work correctly. You are in charge of the fly installation, so use this liberally
+to test and to do experiments with.
 
 you can use the command `fly logs -c fly.<config name>.toml` to check the logs
 of the app.
@@ -40,6 +41,8 @@ commands.
 - `fly deploy --config fly.<name>.toml` may run longer than two minutes when
   pushing larger layers—rerun without artificial timeouts and watch the Fly
   dashboard for status.
+- if you configre the line `auto_stop_machines = 'suspend'` be sure to use
+  'suspend' and not stop, as this is a new feature and is preferred.
 
 ## Code rules
 
@@ -79,6 +82,16 @@ when installing packages on deno, always use the deno install tool, like
 
 for tests, use expect from `jsr:@std/expect` which can be imported like this:
 `import { expect } from '@std/expect'`
+
+## Deno configuration
+
+- Keep all `imports` entries in the root `deno.json` only; project-level
+  `deno.json` files should never define their own import map.
+- When you need a new dependency, run `deno install <spec>` (for example
+  `deno install jsr:@std/expect`) from the repo root so the root import map and
+  `deno.lock` stay in sync.
+- Any projects within the workspace do not need to be mentioned in the import
+  map, as this is something that deno workspaces handle for us
 
 ## Avoid Async IIFEs
 

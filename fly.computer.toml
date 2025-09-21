@@ -1,6 +1,7 @@
-# fly.toml app configuration file for fly-computer (created 2025-09-20)
+# fly.toml app configuration file generated for fly-computer on 2025-09-21T03:20:38Z
 #
-# See https://fly.io/docs/reference/configuration/ for details.
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
 app = 'fly-computer'
 primary_region = 'syd'
@@ -8,17 +9,8 @@ primary_region = 'syd'
 [build]
 dockerfile = 'fly-computer/Dockerfile'
 
-[env]
-FLY_NFS_APP = 'nfs-proto'
-FLY_NFS_HOST = 'nfs-proto.internal'
-FLY_NFS_MOUNT_DIR = '/mnt/fly-nfs'
-FLY_NFS_EXPORT_PATH = '/data'
-FLY_COMPUTER_REGISTRY_SUBDIR = 'computers'
-# Provide FLY_COMPUTER_TARGET_APP and FLY_COMPUTER_AGENT_IMAGE via secrets/env
-
 [http_service]
 internal_port = 8080
-force_https = true
 auto_stop_machines = 'suspend'
 auto_start_machines = true
 min_machines_running = 0

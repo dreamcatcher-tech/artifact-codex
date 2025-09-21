@@ -78,3 +78,19 @@ Deno.test('redirects to sign-up when requested', async () => {
     cleanup()
   }
 })
+
+Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
+  const cleanup = setClerkEnv()
+  try {
+    const app = createApp()
+    const res = await app.request('http://SCOPED--Sub-Part.example.test/', {
+      headers: { accept: 'text/plain' },
+    })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe(
+      'https://quick-pheasant-58.accounts.dev/sign-in?redirect_url=http://scoped--sub-part.example.test/',
+    )
+  } finally {
+    cleanup()
+  }
+})

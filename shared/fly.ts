@@ -1,3 +1,5 @@
+import { readFlyMachineRuntimeEnv } from './env.ts'
+
 export type ListMachinesBag = {
   appName: string
   token: string
@@ -273,10 +275,8 @@ export async function probeTokenScope(
   let derivedApp = (appName ?? '').trim()
   if (!derivedApp) {
     try {
-      // lazy env access avoids crashing without --allow-env
-      // deno-lint-ignore no-explicit-any
-      const D = (globalThis as any).Deno as typeof Deno | undefined
-      derivedApp = D?.env?.get?.('FLY_APP_NAME')?.trim?.() ?? ''
+      const { FLY_APP_NAME } = readFlyMachineRuntimeEnv()
+      derivedApp = FLY_APP_NAME ? FLY_APP_NAME.trim() : ''
     } catch {
       /* ignore */
     }

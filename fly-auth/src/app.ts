@@ -4,6 +4,7 @@ import {
   clerkMiddleware,
   getAuth,
 } from '@hono/clerk-auth'
+import { agentToSubdomain, subdomainToAgent } from '@artifact/shared'
 
 type CreateAppOptions = {
   redirectUrl?: string
@@ -72,17 +73,17 @@ function resolveRedirectUrl(
 }
 
 function appendRedirectBack(target: string, requestUrl: string): string {
+  const sanitizedBack = normalizeRedirectBack(requestUrl)
   try {
     const next = new URL(target)
-    const back = new URL(requestUrl)
     const existing = next.search ? next.search.slice(1) : ''
-    const redirectParam = `redirect_url=${back.toString()}`
+    const redirectParam = `redirect_url=${sanitizedBack}`
     const query = existing ? `${existing}&${redirectParam}` : redirectParam
     const base = `${next.origin}${next.pathname}`
     return `${base}?${query}${next.hash ?? ''}`
   } catch {
     const separator = target.includes('?') ? '&' : '?'
-    return `${target}${separator}redirect_url=${requestUrl}`
+    return `${target}${separator}redirect_url=${sanitizedBack}`
   }
 }
 
@@ -161,4 +162,26 @@ function ensureScheme(candidate: string): string {
     return candidate
   }
   return `https://${candidate}`
+}
+
+function normalizeRedirectBack(requestUrl: string): string {
+  try {
+    const url = new URL(requestUrl)
+    const hostname = url.hostname
+    if (!shouldSanitizeHostname(hostname)) return url.toString()
+    const labels = hostname.split('.')
+    if (labels.length === 0) return url.toString()
+    labels[0] = agentToSubdomain(subdomainToAgent(labels[0]))
+    url.hostname = labels.join('.')
+    return url.toString()
+  } catch {
+    return requestUrl
+  }
+}
+
+function shouldSanitizeHostname(hostname: string): boolean {
+  if (!hostname) return false
+  if (hostname.includes(':')) return false
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return false
+  return true
 }

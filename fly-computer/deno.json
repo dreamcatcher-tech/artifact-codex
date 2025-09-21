@@ -3,10 +3,5 @@
     "start": "deno run -A main.ts",
     "dev": "deno run -A --watch main.ts",
     "test": "deno test -A"
-  },
-  "imports": {
-    "@std/expect": "jsr:@std/expect@^1.0.17",
-    "@std/fs": "jsr:@std/fs@^1.0.8",
-    "@std/path": "jsr:@std/path@^1.0.6"
   }
 }

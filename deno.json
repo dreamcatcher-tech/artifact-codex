@@ -17,14 +17,27 @@
     "ok": "deno task --filter='@artifact/' ok"
   },
   "imports": {
+    "@hono/clerk-auth": "jsr:@hono/clerk-auth@^3.0.3",
+    "@hono/hono": "jsr:@hono/hono@^4.9.8",
+    "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.18.1",
     "@openjs/port-free": "jsr:@openjs/port-free@^1.0.0",
-    "debug": "npm:debug@^4.4.3"
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.5",
+    "@std/expect": "jsr:@std/expect@^1.0.17",
+    "@std/path": "jsr:@std/path@^1.1.2",
+    "@std/ulid": "jsr:@std/ulid@^1.0.0",
+    "debug": "npm:debug@^4.4.3",
+    "serialize-error": "npm:serialize-error@^12.0.0",
+    "ws": "npm:ws@^8.18.3",
+    "zod": "npm:zod@^3.25.76"
   },
   "fmt": {
     "semiColons": false,
     "singleQuote": true,
     "lineWidth": 80,
-    "exclude": [".refs/"]
+    "exclude": [
+      ".refs/"
+    ]
   },
   "lint": {
     "rules": {
@@ -33,6 +46,8 @@
       ]
     }
   },
-  "exclude": [".refs/"],
+  "exclude": [
+    ".refs/"
+  ],
   "nodeModulesDir": "auto"
 }

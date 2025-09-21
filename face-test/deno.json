@@ -7,8 +7,5 @@
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
-  },
-  "imports": {
-    "@std/expect": "jsr:@std/expect@^1.0.17"
   }
 }
