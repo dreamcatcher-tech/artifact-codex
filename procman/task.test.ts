@@ -1,6 +1,6 @@
 import { expect } from '@std/expect'
 
-import { Task } from './task.ts'
+import { runCommand, Task, TaskError } from './task.ts'
 
 Deno.test('Task runs a command and captures output', async () => {
   const task = new Task({
@@ -35,6 +35,42 @@ Deno.test('Task supports piping stdin content', async () => {
 
   expect(result.stdout.trim()).toBe('hello world')
   expect(result.success).toBe(true)
+})
+
+Deno.test('Task throws TaskError when check enabled and command fails', async () => {
+  const task = new Task({
+    id: 'fail',
+    command: 'deno',
+    args: ['eval', 'Deno.exit(2)'],
+    check: true,
+  })
+
+  await expect(task.run()).rejects.toBeInstanceOf(TaskError)
+})
+
+Deno.test('Task start returns handle with status promise', async () => {
+  const task = new Task({
+    id: 'sleep',
+    command: 'deno',
+    args: ['eval', 'await new Promise((r) => setTimeout(r, 10));'],
+  })
+
+  const handle = await task.start()
+  const result = await handle.status
+
+  expect(result.success).toBe(true)
+  expect(task.pid).toBeNull()
+})
+
+Deno.test('Task respects stdio configuration', async () => {
+  const result = await runCommand({
+    command: 'deno',
+    args: ['eval', "console.error('oops'); console.log('hi')"],
+    stdio: { stdout: 'inherit', stderr: 'piped' },
+  })
+
+  expect(result.stdout).toBe('')
+  expect(result.stderr).toContain('oops')
 })
 
 Deno.test('Task validation fails when command is missing', async () => {

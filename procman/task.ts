@@ -1,15 +1,26 @@
 import { join } from '@std/path/join'
 
 import {
+  CommandRunOptions,
   TaskExitEvent,
+  TaskHandle,
   TaskOptions,
   TaskOutputEvent,
   TaskResult,
   TaskState,
   TaskStateEvent,
+  TaskStdioOptions,
 } from './types.ts'
 
 const encoder = new TextEncoder()
+
+type ResolvedStdio = Required<TaskStdioOptions>
+
+const DEFAULT_STDIO: ResolvedStdio = {
+  stdin: 'null',
+  stdout: 'piped',
+  stderr: 'piped',
+}
 
 async function ensureCommandAvailable(command: string): Promise<string> {
   const resolved = await resolveCommand(command)
@@ -98,6 +109,24 @@ async function readStream(
 
 function ensureArray(value: string | string[]): string[] {
   return Array.isArray(value) ? value : [value]
+}
+
+interface SpawnContext {
+  child: Deno.ChildProcess
+  stdoutPromise: Promise<string>
+  stderrPromise: Promise<string>
+  stdinWriter?: WritableStreamDefaultWriter<Uint8Array>
+  startedAt: Date
+  stdio: ResolvedStdio
+}
+
+export class TaskError extends Error {
+  constructor(public readonly result: TaskResult) {
+    const code = result.code === null ? 'unknown' : String(result.code)
+    const signal = result.signal ?? 'none'
+    super(`Task '${result.id}' failed (code=${code}, signal=${signal})`)
+    this.name = 'TaskError'
+  }
 }
 
 async function resolveCommand(command: string): Promise<string | null> {
@@ -194,10 +223,11 @@ export class Task extends EventTarget {
     const delayMs = this.options.restart?.delayMs ?? 0
     let last: TaskResult | undefined
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const result = await this.executeOnce()
+      const context = await this.spawnOnce(false)
+      const result = await this.waitForCompletion(context)
       last = result
+      this.dispatchExit(result)
       if (result.success) {
-        this.dispatchExit(result)
         return result
       }
       if (attempt + 1 < maxAttempts) {
@@ -210,8 +240,29 @@ export class Task extends EventTarget {
     if (!last) {
       throw new Error('Task execution failed without producing a result')
     }
-    this.dispatchExit(last)
+    if (this.options.check && !last.success) {
+      throw new TaskError(last)
+    }
     return last
+  }
+
+  async start(): Promise<TaskHandle> {
+    await this.validate()
+    const context = await this.spawnOnce(true)
+    const status = this.waitForCompletion(context).then((result) => {
+      this.dispatchExit(result)
+      if (this.options.check && !result.success) {
+        throw new TaskError(result)
+      }
+      return result
+    })
+    return {
+      id: this.id,
+      pid: context.child.pid,
+      status,
+      stdin: context.stdinWriter,
+      stop: (signal?: Deno.Signal) => this.stop(signal),
+    }
   }
 
   stop(signal: Deno.Signal = this.options.stopSignal ?? 'SIGTERM'): void {
@@ -237,7 +288,7 @@ export class Task extends EventTarget {
     return this.run()
   }
 
-  private async executeOnce(): Promise<TaskResult> {
+  private async spawnOnce(keepStdinOpen: boolean): Promise<SpawnContext> {
     if (!this.commandPath) {
       throw new Error('Task must be validated before running')
     }
@@ -248,18 +299,14 @@ export class Task extends EventTarget {
     this.attempt += 1
     const startedAt = new Date()
     this.updateState('running')
-    const captureOutput = !this.options.inheritStdio
+    const stdio = this.resolveStdio()
     const command = new Deno.Command(this.commandPath, {
       args: this.options.args ?? [],
       cwd: this.options.cwd,
       env: this.options.env,
-      stdin: this.options.stdin !== undefined
-        ? 'piped'
-        : this.options.inheritStdio
-        ? 'inherit'
-        : 'null',
-      stdout: captureOutput ? 'piped' : 'inherit',
-      stderr: captureOutput ? 'piped' : 'inherit',
+      stdin: stdio.stdin,
+      stdout: stdio.stdout,
+      stderr: stdio.stderr,
     })
 
     const child = command.spawn()
@@ -270,18 +317,20 @@ export class Task extends EventTarget {
       }),
     )
 
-    const stdoutPromise = captureOutput
+    const stdoutPromise = stdio.stdout === 'piped'
       ? readStream(
         child.stdout,
         (chunk) => this.dispatchOutput('stdout', chunk),
       )
       : Promise.resolve('')
-    const stderrPromise = captureOutput
+    const stderrPromise = stdio.stderr === 'piped'
       ? readStream(
         child.stderr,
         (chunk) => this.dispatchOutput('stderr', chunk),
       )
       : Promise.resolve('')
+
+    let stdinWriter: WritableStreamDefaultWriter<Uint8Array> | undefined
 
     if (this.options.stdin !== undefined && child.stdin) {
       const writer = child.stdin.getWriter()
@@ -300,12 +349,49 @@ export class Task extends EventTarget {
       if (closeError) {
         throw closeError
       }
+    } else if (stdio.stdin === 'piped' && child.stdin) {
+      const writer = child.stdin.getWriter()
+      if (keepStdinOpen) {
+        stdinWriter = writer
+      } else {
+        const closeError = await closeWriter(writer)
+        if (closeError) {
+          throw closeError
+        }
+      }
     }
 
-    const status = await child.status
+    return {
+      child,
+      stdoutPromise,
+      stderrPromise,
+      stdinWriter,
+      startedAt,
+      stdio,
+    }
+  }
+
+  private resolveStdio(): ResolvedStdio {
+    const configured: TaskStdioOptions = this.options.stdio ?? {}
+    const resolved: ResolvedStdio = {
+      stdin: configured.stdin ?? DEFAULT_STDIO.stdin,
+      stdout: configured.stdout ?? DEFAULT_STDIO.stdout,
+      stderr: configured.stderr ?? DEFAULT_STDIO.stderr,
+    }
+    if (this.options.stdin !== undefined) {
+      resolved.stdin = 'piped'
+    }
+    return resolved
+  }
+
+  private async waitForCompletion(context: SpawnContext): Promise<TaskResult> {
+    const status = await context.child.status
     const endedAt = new Date()
-    const stdout = await stdoutPromise.catch(() => '')
-    const stderr = await stderrPromise.catch(() => '')
+    const stdout = await context.stdoutPromise.catch(() => '')
+    const stderr = await context.stderrPromise.catch(() => '')
+    if (context.stdinWriter) {
+      await closeWriter(context.stdinWriter)
+    }
     this.child = undefined
 
     const state = status.success
@@ -324,8 +410,8 @@ export class Task extends EventTarget {
       signal: status.signal ?? null,
       stdout,
       stderr,
-      pid: child.pid,
-      startedAt,
+      pid: context.child.pid,
+      startedAt: context.startedAt,
       endedAt,
       attempts: this.attempt,
     }
@@ -356,4 +442,12 @@ export class Task extends EventTarget {
     const detail: TaskExitEvent = { id: this.id, result }
     this.dispatchEvent(new CustomEvent('exit', { detail }))
   }
+}
+
+export async function runCommand(
+  options: CommandRunOptions,
+): Promise<TaskResult> {
+  const { id = crypto.randomUUID(), ...rest } = options
+  const task = new Task({ id, ...rest })
+  return await task.run()
 }

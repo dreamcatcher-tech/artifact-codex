@@ -48,7 +48,7 @@ end_port = 30000
 
 [[services.machine_checks]]
 entrypoint = ["/bin/bash", "-lc"]
-command = ["/usr/local/bin/self-mount-check.sh"]
+command = ["deno run -A --config /agent/deno.json /agent/fly-agent/scripts/self-mount-check.ts"]
 timeout = '60s'
 kill_signal = 'SIGKILL'
 kill_timeout = '5s'
