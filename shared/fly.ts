@@ -276,7 +276,7 @@ export async function probeTokenScope(
   if (!derivedApp) {
     try {
       const { FLY_APP_NAME } = readFlyMachineRuntimeEnv()
-      derivedApp = FLY_APP_NAME ? FLY_APP_NAME.trim() : ''
+      derivedApp = FLY_APP_NAME
     } catch {
       /* ignore */
     }

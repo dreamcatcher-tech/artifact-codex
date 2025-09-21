@@ -27,31 +27,32 @@ export async function loadEnvFromShared(
 
 export type FlyMachineRuntimeEnv = {
   /** Unique Fly app name used for identification and 6PN internal DNS (e.g. syd.$FLY_APP_NAME.internal). */
-  FLY_APP_NAME: string | undefined
+  FLY_APP_NAME: string
   /** Machine identifier used by flyctl, the Machines API, and visible in machine logs. */
-  FLY_MACHINE_ID: string | undefined
+  FLY_MACHINE_ID: string
   /** Allocation identifier; identical to the machine's FLY_MACHINE_ID value. */
-  FLY_ALLOC_ID: string | undefined
+  FLY_ALLOC_ID: string
   /** Three-letter region code where the Machine runs (for example: ams); not the Fly-Region HTTP header. */
-  FLY_REGION: string | undefined
+  FLY_REGION: string
   /** Outbound IPv6 public address assigned to the Machine by Fly networking. */
-  FLY_PUBLIC_IP: string | undefined
+  FLY_PUBLIC_IP: string
   /** Docker image reference used when creating the Machine, such as registry.fly.io/your-app:tag. */
-  FLY_IMAGE_REF: string | undefined
+  FLY_IMAGE_REF: string
   /** Version identifier for the Machine configuration; updates when the config or image changes. */
-  FLY_MACHINE_VERSION: string | undefined
+  FLY_MACHINE_VERSION: string
   /** IPv6 address on Fly's 6PN private network for this Machine. */
-  FLY_PRIVATE_IP: string | undefined
+  FLY_PRIVATE_IP: string
   /** Fly Launch process group associated with the Machine when configured. */
-  FLY_PROCESS_GROUP: string | undefined
+  FLY_PROCESS_GROUP: string
   /** Memory allocated to the Machine in megabytes, matching dashboard and fly machine status output. */
-  FLY_VM_MEMORY_MB: string | undefined
+  FLY_VM_MEMORY_MB: string
   /** Primary region configured through fly.toml or deployment flags for this app. */
-  PRIMARY_REGION: string | undefined
+  PRIMARY_REGION: string
 }
 
 export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
-  const get = (name: string) => Deno.env.get(name)
+  const get = (name: keyof FlyMachineRuntimeEnv) =>
+    (Deno.env.get(name) ?? '').trim()
   return {
     FLY_APP_NAME: get('FLY_APP_NAME'),
     FLY_MACHINE_ID: get('FLY_MACHINE_ID'),

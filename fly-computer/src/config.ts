@@ -49,8 +49,8 @@ function resolveRegistryRoot(
   }
 
   const mountDir = overrides.mountDir ?? '/mnt/computer'
-  const flyAppName = overrides.flyAppName ?? (flyEnv.FLY_APP_NAME ?? '')
-  if (!flyAppName.trim()) {
+  const flyAppName = overrides.flyAppName ?? flyEnv.FLY_APP_NAME
+  if (!flyAppName) {
     throw new Error(
       'Missing FLY_APP_NAME; fly-computer requires the Fly Machines runtime to provide this environment variable.',
     )
