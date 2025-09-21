@@ -1,4 +1,9 @@
-import { ensureNfsMount } from '@artifact/procman/mount.ts'
+import { ensureNfsMount } from '@artifact/tasks'
+import {
+  FLY_NFS_MOUNT_DIR,
+  FLY_NFS_SUBPATH,
+  NFS_EXPORT_BASE,
+} from '@artifact/shared'
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback
@@ -26,9 +31,18 @@ async function main(): Promise<void> {
   )
 
   if (mountEnabled === '1') {
+    const nfsApp = Deno.env.get('FLY_NFS_APP')?.trim()
+    if (!nfsApp) {
+      throw new Error('FLY_NFS_APP must be set for NFS mounting')
+    }
+    const host = `${nfsApp}.flycast`
     await ensureNfsMount({
       retries,
       delayMs: delaySeconds * 1_000,
+      mountDir: FLY_NFS_MOUNT_DIR,
+      exportBase: NFS_EXPORT_BASE,
+      subpath: FLY_NFS_SUBPATH,
+      host,
       logger: (msg) => console.error(`[entrypoint] ${msg}`),
       logPrefix: '',
     })

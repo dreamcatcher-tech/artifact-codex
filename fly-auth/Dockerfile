@@ -1,5 +1,10 @@
 FROM denoland/deno:alpine-2.5.0
 
+USER root
+
+RUN apk add --no-cache nfs-utils util-linux coreutils \
+  && mkdir -p /mnt/computers
+
 WORKDIR /app
 
 COPY deno.json ./deno.json
@@ -17,6 +22,7 @@ COPY mcp-computers ./mcp-computers
 COPY mcp-faces ./mcp-faces
 COPY mcp-interactions ./mcp-interactions
 COPY procman ./procman
+COPY tasks ./tasks
 
 WORKDIR /app/fly-auth
 

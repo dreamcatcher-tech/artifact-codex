@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_MOUNT_DIR="${FLY_NFS_MOUNT_DIR:-/mnt/fly-nfs}"
-DEFAULT_EXPORT_BASE="${FLY_NFS_EXPORT_PATH:-/data}"
+DEFAULT_EXPORT_BASE="/data"
 DEFAULT_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
 DEFAULT_HOST="nfs-proto.internal"
 
@@ -37,7 +37,6 @@ Options:
 Environment variables:
   FLY_NFS_SOURCE, FLY_NFS_HOST, FLY_NFS_APP override endpoint resolution.
   FLY_NFS_MOUNT_DIR sets the mount directory.
-  FLY_NFS_EXPORT_PATH sets the base export path.
   FLY_NFS_MOUNT_OPTS sets mount options.
 USAGE
 }

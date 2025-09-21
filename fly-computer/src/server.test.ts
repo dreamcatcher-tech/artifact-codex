@@ -57,7 +57,7 @@ function createFlyStub(overrides: Partial<FlyApi> = {}): FlyStub {
 Deno.test('returns 404 when no subdomain is present', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     const handler = await createHandler({
       config: {
@@ -78,7 +78,7 @@ Deno.test('returns 404 when no subdomain is present', async () => {
 Deno.test('replays to configured machine without restarting when already running', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', {
       name: 'foo',
@@ -135,7 +135,7 @@ Deno.test('replays to configured machine without restarting when already running
 Deno.test('restarts machine when configuration points to stopped instance', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', {
       name: 'foo',
@@ -181,7 +181,7 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
 Deno.test('reuses machine discovered by agent metadata when config missing machine id', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', { name: 'foo' })
 
@@ -234,7 +234,7 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
 Deno.test('creates new machine when none exist and updates registry', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', { name: 'foo' })
 
@@ -290,7 +290,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
 Deno.test('resolves nested agent path using parent links', async () => {
   const tmp = await Deno.makeTempDir()
   try {
-    const registryRoot = join(tmp, 'computers', 'test-app')
+    const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', { name: 'alpha' })
     await writeAgentConfig(registryRoot, '2', {

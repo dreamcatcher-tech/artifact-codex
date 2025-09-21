@@ -1,35 +1,36 @@
 import { join } from '@std/path/join'
 
-import { CommandExecutor, CommandRunOptions, TaskResult } from './types.ts'
-import { runCommand } from './task.ts'
+import { ensureNfsMount } from './mount.ts'
+import { defaultCommandExecutor } from './command.ts'
+import type {
+  CommandExecutor,
+  CommandRunOptions,
+  EnsureMountOptions,
+} from './types.ts'
 
 export interface SelfMountCheckOptions {
   env?: Record<string, string>
   logger?: (message: string) => void
-  mountCommand?: string
-  mountArgs?: string[]
   listCommand?: CommandRunOptions
   commandExecutor?: CommandExecutor
+  mountOptions?: EnsureMountOptions
+  subpath?: string
 }
+
+const DEFAULT_EXPORT_BASE = '/data'
 
 interface CleanupAction {
   (): Promise<void> | void
 }
 
-const DEFAULT_MOUNT_COMMAND = '/usr/local/bin/mount-nfs.sh'
-
 export async function runSelfMountCheck(
   options: SelfMountCheckOptions = {},
 ): Promise<void> {
-  const env = { ...Deno.env.toObject(), ...(options.env ?? {}) }
+  const baseEnv = { ...Deno.env.toObject(), ...(options.env ?? {}) }
   const logger = options.logger ?? ((msg: string) => console.error(msg))
-  const executor = options.commandExecutor ?? defaultExecutor
+  const executor = options.commandExecutor ?? defaultCommandExecutor
 
-  const mountCommand = options.mountCommand ?? DEFAULT_MOUNT_COMMAND
-  const exportPath = env.FLY_NFS_EXPORT_PATH ?? '/data'
-  const mountOpts = env.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
-
-  let mountDir = env.FLY_NFS_CHECK_DIR
+  let mountDir = baseEnv.FLY_NFS_CHECK_DIR
   let createdTempDir = false
   if (!mountDir) {
     mountDir = await Deno.makeTempDir({ prefix: 'fly-nfs-check.' })
@@ -38,34 +39,57 @@ export async function runSelfMountCheck(
     await Deno.mkdir(mountDir, { recursive: true })
   }
 
-  const source = resolveSource(env)
+  const source = resolveSource(baseEnv)
+  const mountOpts = baseEnv.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
 
   const mountEnv = {
-    ...env,
+    ...(options.mountOptions?.env ?? {}),
+    ...baseEnv,
     FLY_NFS_MOUNT_DIR: mountDir,
     FLY_NFS_SOURCE: source,
     FLY_NFS_MOUNT_OPTS: mountOpts,
-    FLY_NFS_EXPORT_PATH: exportPath,
+  }
+
+  const ensureLogger = options.mountOptions?.logger ?? logger
+
+  const ensureOptions: EnsureMountOptions = {
+    ...options.mountOptions,
+    env: mountEnv,
+    exportBase: options.mountOptions?.exportBase ?? DEFAULT_EXPORT_BASE,
+    subpath: options.subpath ?? options.mountOptions?.subpath,
+    logger: ensureLogger,
+    logPrefix: '[self-mount-check]',
+    commandExecutor: options.commandExecutor ??
+      options.mountOptions?.commandExecutor ?? defaultCommandExecutor,
+  }
+
+  if (
+    options.commandExecutor &&
+    options.mountOptions?.validateBinaries === undefined
+  ) {
+    ensureOptions.validateBinaries = false
+  }
+  if (
+    options.commandExecutor &&
+    options.mountOptions?.validatePrivileges === undefined
+  ) {
+    ensureOptions.validatePrivileges = false
   }
 
   const cleanup: CleanupAction[] = []
   let mounted = false
 
   try {
-    await executor({
-      ...options.mountArgs ? { args: options.mountArgs } : {},
-      command: mountCommand,
-      env: mountEnv,
-      stdio: { stdout: 'inherit', stderr: 'inherit' },
-      check: true,
-    })
+    await ensureNfsMount(ensureOptions)
     mounted = true
 
     cleanup.push(async () => {
       await executor({
         command: 'umount',
         args: [mountDir!],
-        stdio: { stdout: 'inherit', stderr: 'inherit' },
+        env: mountEnv,
+        stdout: 'inherit',
+        stderr: 'inherit',
       }).catch(() => {})
     })
 
@@ -94,10 +118,16 @@ export async function runSelfMountCheck(
 }
 
 function resolveSource(env: Record<string, string>): string {
-  if (env.FLY_NFS_SOURCE) return env.FLY_NFS_SOURCE
-  if (env.FLY_NFS_HOST) return env.FLY_NFS_HOST
-  if (env.FLY_NFS_APP) return `${env.FLY_NFS_APP}.internal`
-  if (env.FLY_TEST_MACHINE_IP) return env.FLY_TEST_MACHINE_IP
+  if (env.FLY_NFS_SOURCE && env.FLY_NFS_SOURCE.length > 0) {
+    return env.FLY_NFS_SOURCE
+  }
+  if (env.FLY_NFS_HOST && env.FLY_NFS_HOST.length > 0) return env.FLY_NFS_HOST
+  if (env.FLY_NFS_APP && env.FLY_NFS_APP.length > 0) {
+    return `${env.FLY_NFS_APP}.internal`
+  }
+  if (env.FLY_TEST_MACHINE_IP && env.FLY_TEST_MACHINE_IP.length > 0) {
+    return env.FLY_TEST_MACHINE_IP
+  }
   return 'nfs-proto.internal'
 }
 
@@ -110,7 +140,8 @@ async function listMountDir(
   const command = listCommand ?? {
     command: 'ls',
     args: ['-al', mountDir],
-    stdio: { stdout: 'inherit', stderr: 'inherit' },
+    stdout: 'inherit',
+    stderr: 'inherit',
   }
   await executor({ ...command, env })
 }
@@ -121,8 +152,5 @@ async function smokeTest(mountDir: string): Promise<void> {
   await Deno.remove(tmpFile).catch(() => {})
 }
 
-async function defaultExecutor(
-  options: CommandRunOptions,
-): Promise<TaskResult> {
-  return await runCommand(options)
-}
+// no-op placeholder to satisfy type exports when mount options provide
+// a custom executor; default is handled above via defaultCommandExecutor.

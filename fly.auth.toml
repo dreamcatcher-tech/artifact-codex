@@ -6,6 +6,11 @@
 app = 'fly-auth'
 primary_region = 'syd'
 
+[env]
+FLY_ORG_SLUG = 'personal'
+FLY_NFS_APP = 'nfs-proto'
+FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+
 [build]
 dockerfile = 'fly-auth/Dockerfile'
 

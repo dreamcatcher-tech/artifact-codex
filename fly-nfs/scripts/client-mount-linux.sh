@@ -35,7 +35,6 @@ mkdir -p "${MOUNT_DIR}"
 
 export FLY_NFS_MOUNT_DIR="${MOUNT_DIR}"
 export FLY_NFS_SOURCE="${TARGET_ADDR}"
-export FLY_NFS_EXPORT_PATH="${FLY_NFS_EXPORT_PATH:-/data}"
 export FLY_NFS_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
 
 if [[ -n "${SUBPATH}" ]]; then

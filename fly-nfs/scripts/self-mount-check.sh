@@ -4,7 +4,7 @@ set -euo pipefail
 MOUNT_DIR="/tmp/fly-nfs-check"
 TARGET_IP="${FLY_TEST_MACHINE_IP:-}"
 SUBPATH="${FLY_NFS_SELF_CHECK_SUBPATH:-}"
-BASE_EXPORT="${FLY_NFS_EXPORT_PATH:-/data}"
+BASE_EXPORT="/data"
 MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
 
 if [ -z "${TARGET_IP}" ]; then
@@ -24,7 +24,6 @@ mkdir -p "${MOUNT_DIR}"
 
 export FLY_NFS_MOUNT_DIR="${MOUNT_DIR}"
 export FLY_NFS_SOURCE="${TARGET_IP}"
-export FLY_NFS_EXPORT_PATH="${BASE_EXPORT}"
 export FLY_NFS_MOUNT_OPTS="${MOUNT_OPTS}"
 
 if [[ -n "${SUBPATH}" ]]; then

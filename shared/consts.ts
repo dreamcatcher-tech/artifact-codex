@@ -9,3 +9,7 @@ export const HOST: string = (() => {
     return '127.0.0.1'
   }
 })()
+
+export const FLY_NFS_MOUNT_DIR = '/mnt/computers'
+export const NFS_EXPORT_BASE = '/data'
+export const FLY_NFS_SUBPATH = 'computers'

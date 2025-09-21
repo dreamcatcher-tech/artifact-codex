@@ -14,6 +14,9 @@ dockerfile = 'fly-nfs/Dockerfile'
 [[services]]
 internal_port = 2049
 protocol = 'tcp'
+auto_stop_machines = 'suspend'
+auto_start_machines = true
+min_machines_running = 0
 
 [[services.ports]]
 port = 2049
@@ -26,7 +29,7 @@ kill_signal = "SIGKILL"
 kill_timeout = "5s"
 
 [[vm]]
-memory = '1gb'
+memory = '512mb'
 cpu_kind = 'shared'
 cpus = 1
 

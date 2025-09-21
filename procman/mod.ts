@@ -1,8 +1,7 @@
 export { runCommand, Task, TaskError } from './task.ts'
 export { Workflow } from './workflow.ts'
 export { PortAllocator } from './ports.ts'
-export { ensureNfsMount } from './mount.ts'
-export { runSelfMountCheck } from './self_mount_check.ts'
+export { ensureNfsMount, runSelfMountCheck } from '@artifact/tasks'
 export type { PortAllocation, PortRange } from './ports.ts'
 export type {
   CommandExecutor,
@@ -20,5 +19,3 @@ export type {
   WorkflowOptions,
   WorkflowResult,
 } from './types.ts'
-export type { SelfMountCheckOptions } from './self_mount_check.ts'
-export type { EnsureMountOptions } from './mount.ts'

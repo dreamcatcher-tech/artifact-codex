@@ -1,5 +1,3 @@
-import { join } from '@std/path/join'
-
 import {
   CommandRunOptions,
   TaskExitEvent,
@@ -22,8 +20,11 @@ const DEFAULT_STDIO: ResolvedStdio = {
   stderr: 'piped',
 }
 
-async function ensureCommandAvailable(command: string): Promise<string> {
-  const resolved = await resolveCommand(command)
+async function ensureCommandAvailable(
+  command: string,
+  env?: Record<string, string>,
+): Promise<string> {
+  const resolved = await resolveCommand(command, env)
   if (!resolved) {
     throw new Error(`Command not found: ${command}`)
   }
@@ -129,16 +130,16 @@ export class TaskError extends Error {
   }
 }
 
-async function resolveCommand(command: string): Promise<string | null> {
-  const tryCandidate = async (candidate: string): Promise<string | null> => {
+async function resolveCommand(
+  command: string,
+  env?: Record<string, string>,
+): Promise<string | null> {
+  const checkPathCandidate = async (path: string): Promise<string | null> => {
     try {
-      const info = await Deno.stat(candidate)
-      if (!info.isFile) {
-        return null
-      }
-      const mode = info.mode
-      if (mode == null || (mode & 0o111) !== 0) {
-        return candidate
+      const info = await Deno.stat(path)
+      if (!info.isFile) return null
+      if (info.mode == null || (info.mode & 0o111) !== 0) {
+        return path
       }
     } catch {
       return null
@@ -146,31 +147,28 @@ async function resolveCommand(command: string): Promise<string | null> {
     return null
   }
 
-  const hasPathSeparator = command.includes('/') || command.includes('\\')
-  if (hasPathSeparator) {
-    return await tryCandidate(command)
+  if (command.includes('/')) {
+    return await checkPathCandidate(command)
   }
 
-  const pathEnv = Deno.env.get('PATH')
-  if (!pathEnv) {
+  const mergedEnv = { ...Deno.env.toObject(), ...(env ?? {}) }
+  const which = new Deno.Command('which', {
+    args: [command],
+    env: mergedEnv,
+    stdout: 'piped',
+    stderr: 'null',
+  })
+
+  try {
+    const output = await which.output()
+    if (output.code !== 0) {
+      return null
+    }
+    const text = new TextDecoder().decode(output.stdout).trim()
+    return text.length > 0 ? await checkPathCandidate(text) : null
+  } catch {
     return null
   }
-  const separator = Deno.build.os === 'windows' ? ';' : ':'
-  const extensions = Deno.build.os === 'windows'
-    ? (Deno.env.get('PATHEXT') ?? '.EXE;.CMD;.BAT;.COM').split(';')
-    : ['']
-
-  for (const folder of pathEnv.split(separator)) {
-    if (!folder) continue
-    for (const ext of extensions) {
-      const candidate = join(folder, command + ext)
-      const resolved = await tryCandidate(candidate)
-      if (resolved) {
-        return resolved
-      }
-    }
-  }
-  return null
 }
 
 export class Task extends EventTarget {
@@ -206,7 +204,10 @@ export class Task extends EventTarget {
       throw new Error(`Cannot validate task '${this.id}' while it is running`)
     }
     if (!this.commandPath) {
-      this.commandPath = await ensureCommandAvailable(this.options.command)
+      this.commandPath = await ensureCommandAvailable(
+        this.options.command,
+        this.options.env,
+      )
     }
     if (this.options.cwd) {
       await ensureDirectoryExists(this.options.cwd)

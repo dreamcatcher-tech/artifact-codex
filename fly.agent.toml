@@ -13,9 +13,6 @@ primary_region = 'syd'
 
 [env]
 FLY_NFS_APP = 'nfs-proto'
-FLY_NFS_HOST = 'nfs-proto.internal'
-FLY_NFS_MOUNT_DIR = '/mnt/fly-nfs'
-FLY_NFS_EXPORT_PATH = '/data'
 
 [build]
 dockerfile = 'fly-agent/Dockerfile'

@@ -1,0 +1,12 @@
+{
+  "name": "@artifact/tasks",
+  "exports": "./mod.ts",
+  "tasks": {
+    "nfs-mount": "deno run -A ./cli/nfs_mount.ts",
+    "self-mount-check": "deno run -A ./cli/self_mount_check.ts",
+    "test": "deno test -A",
+    "fmt": "deno fmt",
+    "lint": "deno lint",
+    "ok": "deno fmt --check && deno lint && deno test -A"
+  }
+}

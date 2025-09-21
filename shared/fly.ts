@@ -475,3 +475,29 @@ export async function destroyFlyApp(
     method: 'DELETE',
   }, fetchImpl)
 }
+
+export type SetSecretsBag = {
+  token: string
+  appName: string
+  secrets: Record<string, string>
+  fetchImpl?: typeof fetch
+}
+
+export async function setAppSecrets(
+  { token, appName, secrets, fetchImpl }: SetSecretsBag,
+): Promise<void> {
+  const entries = Object.entries(secrets)
+  if (entries.length === 0) return
+  const body = {
+    secrets: entries.map(([name, value]) => ({ name, value })),
+  }
+  await flyApiFetch(
+    `/v1/apps/${encodeURIComponent(appName)}/secrets`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+    fetchImpl,
+  )
+}

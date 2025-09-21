@@ -66,7 +66,7 @@ export function createAgentRegistry(
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) {
         throw new Error(
-          `Registry root '${root}' not found; ensure the shared volume is mounted at /mnt/computer/computers/<fly app name>.`,
+          `Registry root '${root}' not found; ensure the shared volume is mounted at /mnt/computer (computers/<fly app name> subpath).`,
         )
       }
       throw err

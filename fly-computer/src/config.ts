@@ -1,4 +1,3 @@
-import { join } from '@std/path'
 import { readFlyMachineRuntimeEnv } from '@artifact/shared'
 import type { FlyMachineRuntimeEnv } from '@artifact/shared'
 
@@ -14,6 +13,8 @@ export type ConfigOverrides = Partial<AppConfig> & {
   flyAppName?: string
   mountDir?: string
 }
+
+const DEFAULT_MOUNT_DIR = '/mnt/computer'
 
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const flyApiToken = overrides.flyApiToken ?? readEnv('FLY_API_TOKEN')
@@ -48,15 +49,15 @@ function resolveRegistryRoot(
     return overrides.registryRoot
   }
 
-  const mountDir = overrides.mountDir ?? '/mnt/computer'
-  const flyAppName = overrides.flyAppName ?? flyEnv.FLY_APP_NAME
+  const mountDir = overrides.mountDir ?? DEFAULT_MOUNT_DIR
+  const flyAppName = (overrides.flyAppName ?? flyEnv.FLY_APP_NAME).trim()
   if (!flyAppName) {
     throw new Error(
       'Missing FLY_APP_NAME; fly-computer requires the Fly Machines runtime to provide this environment variable.',
     )
   }
 
-  return join(mountDir, 'computers', flyAppName)
+  return mountDir
 }
 
 function readEnv(key: string): string {
