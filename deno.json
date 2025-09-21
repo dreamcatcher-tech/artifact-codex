@@ -9,6 +9,7 @@
     "face-inspector",
     "face-test",
     "web-server",
+    "procman",
     "shared",
     "fly-auth",
     "fly-computer"

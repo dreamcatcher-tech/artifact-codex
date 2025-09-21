@@ -71,9 +71,10 @@ RUN deno install --quiet
 
 RUN set -eux; \
   SRC="/agent/fly-agent"; \
+  SHARED="/agent/scripts"; \
   install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
   install -Dm755 "${SRC}/entrypoint.sh" /entrypoint.sh; \
-  install -Dm755 "${SRC}/scripts/mount-nfs.sh" /usr/local/bin/mount-nfs.sh; \
+  install -Dm755 "${SHARED}/mount-nfs.sh" /usr/local/bin/mount-nfs.sh; \
   install -Dm755 "${SRC}/scripts/self-mount-check.sh" /usr/local/bin/self-mount-check.sh
 
 WORKDIR /workspace

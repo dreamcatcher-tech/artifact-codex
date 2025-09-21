@@ -4,7 +4,7 @@ import { createApp } from './app.ts'
 
 const TEST_SECRET = 'sk_test_dummy'
 const TEST_PUBLISHABLE =
-  'pk_test_cXVpY2stcGhlYXNhbnQtNTguY2xlcmsuYWNjb3VudHMuZGV2JA'
+  'pk_test_bGVnaWJsZS1sbGFtYS0zMi5jbGVyay5hY2NvdW50cy5kZXYk'
 
 type EnvSnapshot = {
   secret?: string
@@ -56,7 +56,7 @@ Deno.test('redirects unauthorized request to Clerk sign-in', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://quick-pheasant-58.accounts.dev/sign-in?redirect_url=http://localhost/',
+      'https://legible-llama-32.accounts.dev/sign-in?redirect_url=http://localhost/',
     )
   } finally {
     cleanup()
@@ -72,7 +72,7 @@ Deno.test('redirects to sign-up when requested', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://quick-pheasant-58.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
     )
   } finally {
     cleanup()
@@ -88,7 +88,7 @@ Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://quick-pheasant-58.accounts.dev/sign-in?redirect_url=http://scoped--sub-part.example.test/',
+      'https://legible-llama-32.accounts.dev/sign-in?redirect_url=http://scoped--sub-part.example.test/',
     )
   } finally {
     cleanup()

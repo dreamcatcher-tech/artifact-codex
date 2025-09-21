@@ -16,6 +16,7 @@ COPY mcp-agents ./mcp-agents
 COPY mcp-computers ./mcp-computers
 COPY mcp-faces ./mcp-faces
 COPY mcp-interactions ./mcp-interactions
+COPY procman ./procman
 
 WORKDIR /app/fly-auth
 

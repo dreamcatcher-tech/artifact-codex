@@ -19,8 +19,10 @@ RUN mkdir -p /data
 COPY fly-nfs/ganesha.conf /etc/ganesha/ganesha.conf
 COPY fly-nfs/entrypoint.sh /entrypoint.sh
 COPY fly-nfs/scripts/self-mount-check.sh /self-mount-check.sh
+COPY scripts/mount-nfs.sh /usr/local/bin/mount-nfs.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /self-mount-check.sh
+RUN chmod +x /usr/local/bin/mount-nfs.sh
 
 # NFSv4 uses TCP 2049
 EXPOSE 2049/tcp
