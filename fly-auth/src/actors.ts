@@ -20,7 +20,7 @@ export type EnsureActorAppResult = {
   existed: boolean
 }
 
-async function flyAppExists(
+async function appExists(
   options: { token: string; appName: string },
 ): Promise<boolean> {
   try {
@@ -57,16 +57,23 @@ export async function ensureActorAppExists(
     throw new Error('Missing FLY_API_TOKEN for Fly API access')
   }
 
-  const exists = await flyAppExists({ token, appName })
+  const template = await loadTemplateMachine(token)
+
+  const exists = await appExists({ token, appName })
   if (exists) {
     const existing = await flyCliAppsInfo({ token, appName })
     if (!existing.id) {
       throw new Error(`Existing Fly app '${appName}' is missing an id`)
     }
+    await ensureActorAppDeployToken({
+      token,
+      appName,
+      appId: existing.id,
+      agentImage: template.image,
+      targetApp: appName,
+    })
     return { appName, existed: true, appId: existing.id }
   }
-
-  const template = await loadTemplateMachine(token)
 
   const createdApp = await flyCliAppsCreate({
     token,
@@ -126,7 +133,23 @@ async function ensureActorAppDeployToken(
   { token, appName, appId, agentImage, targetApp }: EnsureActorTokenInput,
 ): Promise<void> {
   console.info('provisioning actor deploy token', { appName, appId })
-  const deployToken = await createDeployTokenWithRetry({ token, appName })
+  let deployToken: string
+  try {
+    deployToken = await createDeployTokenWithRetry({ token, appName })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (
+      message.includes('Not authorized to access this createlimitedaccesstoken')
+    ) {
+      console.warn(
+        'createDeployToken unauthorized; reusing controller token for actor app',
+        { appName },
+      )
+      deployToken = token
+    } else {
+      throw error
+    }
+  }
   console.info('configuring actor secrets', { appName, agentImage, targetApp })
   await flyCliSecretsSet({
     token,

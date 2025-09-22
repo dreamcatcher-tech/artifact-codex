@@ -1,4 +1,5 @@
 import { runCommand } from '@artifact/procman'
+import { DEFAULT_NFS_FLYCAST_HOST, resolveNfsSource } from '@artifact/shared'
 import type { CommandExecutor, EnsureMountOptions } from './types.ts'
 
 const DEFAULT_RETRIES = 5
@@ -6,7 +7,7 @@ const DEFAULT_DELAY_MS = 3_000
 const DEFAULT_MOUNT_DIR = '/mnt/fly-nfs'
 const DEFAULT_EXPORT_BASE = '/data'
 const DEFAULT_MOUNT_OPTS = 'nfsvers=4.1'
-const DEFAULT_SOURCE = 'nfs-proto.flycast'
+const DEFAULT_SOURCE = DEFAULT_NFS_FLYCAST_HOST
 
 interface MountContext {
   env: Record<string, string>
@@ -27,17 +28,6 @@ function log(
   message: string,
 ): void {
   logger(`${prefix} ${message}`.trim())
-}
-
-function coalesce(
-  ...values: Array<string | undefined | null>
-): string | undefined {
-  for (const value of values) {
-    if (value && value.trim().length > 0) {
-      return value
-    }
-  }
-  return undefined
 }
 
 function normalizePath(path: string): string {
@@ -106,22 +96,6 @@ async function ensureMountBinary(env: Record<string, string>): Promise<void> {
   } catch {
     await ensureCommandAvailable('mount.nfs4', env)
   }
-}
-
-function resolveSource(
-  env: Record<string, string>,
-  options: EnsureMountOptions,
-): string {
-  const explicit = coalesce(options.source, env.FLY_NFS_SOURCE)
-  if (explicit) return explicit
-
-  const host = coalesce(options.host, env.FLY_NFS_HOST)
-  if (host) return host
-
-  const app = coalesce(options.app, env.FLY_NFS_APP)
-  if (app) return `${app}.flycast`
-
-  return DEFAULT_SOURCE
 }
 
 async function mountOnce(ctx: MountContext): Promise<void> {
@@ -209,7 +183,12 @@ export async function ensureNfsMount(
   const exportPath = joinRelative(exportBase, subpath)
   const mountOpts = options.mountOpts ?? env.FLY_NFS_MOUNT_OPTS ??
     DEFAULT_MOUNT_OPTS
-  const source = resolveSource(env, options)
+  const source = resolveNfsSource(env, {
+    source: options.source,
+    host: options.host,
+    app: options.app,
+    fallback: DEFAULT_SOURCE,
+  })
 
   if (!source) {
     throw new Error('An NFS host must be specified')

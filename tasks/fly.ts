@@ -118,10 +118,10 @@ export async function flyCliGetMachine(
 ): Promise<FlyCliMachineDetail> {
   const { appName, machineId, ...rest } = options
   const result = await runFlyCommand(
-    ['machine', 'status', machineId, '--app', appName, '--json'],
+    ['machine', 'status', machineId, '--app', appName, '--display-config'],
     rest,
   )
-  const detail = parseFlyJson<Record<string, unknown>>(result.stdout)
+  const detail = parseMachineStatusOutput(result.stdout)
   return mapMachineDetail(detail)
 }
 
@@ -190,7 +190,10 @@ export async function flyCliAppsInfo(
   options: { appName: string } & FlyCliOptions,
 ): Promise<FlyCliAppInfo> {
   const { appName, ...rest } = options
-  const result = await runFlyCommand(['info', '--app', appName, '--json'], rest)
+  const result = await runFlyCommand(
+    ['status', '--app', appName, '--json'],
+    rest,
+  )
   const data = parseFlyJson<Record<string, unknown>>(result.stdout)
   return mapAppInfo(data)
 }
@@ -212,7 +215,11 @@ export async function flyCliAppsDestroy(
 ): Promise<void> {
   const { appName, force = false, ...rest } = options
   const args = ['apps', 'destroy', appName, '--yes']
-  if (force) args.push('--force')
+  if (force) {
+    console.warn(
+      'flyCliAppsDestroy: force destroy requested but flyctl no longer accepts --force; proceeding without it.',
+    )
+  }
   await runFlyCommand(args, rest)
 }
 
@@ -245,6 +252,110 @@ export async function flyCliTokensCreateDeploy(
     throw new Error('deploy token response missing token field')
   }
   return token
+}
+
+function parseMachineStatusOutput(output: string): Record<string, unknown> {
+  const clean = stripAnsiSequences(output)
+  const lines = clean.split('\n')
+  const row: Record<string, unknown> = {}
+  const configLines: string[] = []
+  let collectingConfig = false
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd()
+    if (collectingConfig) {
+      configLines.push(line)
+      continue
+    }
+
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    if (trimmed.startsWith('Config:')) {
+      collectingConfig = true
+      continue
+    }
+
+    const colonIndex = trimmed.indexOf(':')
+    if (colonIndex !== -1 && !trimmed.includes('=')) {
+      const label = trimmed.slice(0, colonIndex).trim()
+      const value = trimmed.slice(colonIndex + 1).trim()
+      assignMachineStatusField(row, label, value)
+      continue
+    }
+
+    const equalsIndex = trimmed.indexOf('=')
+    if (equalsIndex !== -1) {
+      const label = trimmed.slice(0, equalsIndex).trim()
+      const value = trimmed.slice(equalsIndex + 1).trim()
+      assignMachineStatusField(row, label, value)
+    }
+  }
+
+  if (configLines.length === 0) {
+    throw new Error('fly machine status output missing Config section')
+  }
+
+  const jsonText = configLines.join('\n').trim()
+  try {
+    row.config = JSON.parse(jsonText)
+  } catch (error) {
+    throw new Error(
+      `failed to parse machine config from status output: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
+
+  return row
+}
+
+function assignMachineStatusField(
+  target: Record<string, unknown>,
+  label: string,
+  value: string,
+): void {
+  if (!value) return
+  const mapping: Record<string, string> = {
+    'Machine ID': 'ID',
+    'Instance ID': 'InstanceID',
+    'State': 'State',
+    'Image': 'Image',
+    'Name': 'Name',
+    'Private IP': 'PrivateIP',
+    'Region': 'Region',
+    'Created': 'CreatedAt',
+    'Updated': 'UpdatedAt',
+  }
+  const key = mapping[label] ?? label.replace(/\s+/g, '')
+  target[key] = value
+}
+
+function stripAnsiSequences(value: string): string {
+  let result = ''
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code === 27) {
+      i += 1
+      if (i < value.length && value[i] === '[') {
+        i += 1
+        while (i < value.length) {
+          const ch = value[i]
+          if ((ch >= '0' && ch <= '9') || ch === ';') {
+            i += 1
+            continue
+          }
+          if (ch === 'm') {
+            break
+          }
+          break
+        }
+      }
+      continue
+    }
+    result += value[i]
+  }
+  return result
 }
 
 function mapMachineSummary(row: Record<string, unknown>): FlyCliMachineSummary {

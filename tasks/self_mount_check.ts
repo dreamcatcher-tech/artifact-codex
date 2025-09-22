@@ -2,6 +2,8 @@ import { join } from '@std/path/join'
 
 import { runCommand } from '@artifact/procman'
 
+import { DEFAULT_NFS_FLYCAST_HOST, resolveNfsSource } from '@artifact/shared'
+
 import { ensureNfsMount } from './mount.ts'
 import type {
   CommandExecutor,
@@ -40,7 +42,9 @@ export async function runSelfMountCheck(
     await Deno.mkdir(mountDir, { recursive: true })
   }
 
-  const source = resolveSource(baseEnv)
+  const source = resolveNfsSource(baseEnv, {
+    fallback: DEFAULT_NFS_FLYCAST_HOST,
+  })
   const mountOpts = baseEnv.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
 
   const mountEnv = {
@@ -114,20 +118,6 @@ export async function runSelfMountCheck(
       await Deno.remove(mountDir, { recursive: true }).catch(() => {})
     }
   }
-}
-
-function resolveSource(env: Record<string, string>): string {
-  if (env.FLY_NFS_SOURCE && env.FLY_NFS_SOURCE.length > 0) {
-    return env.FLY_NFS_SOURCE
-  }
-  if (env.FLY_NFS_HOST && env.FLY_NFS_HOST.length > 0) return env.FLY_NFS_HOST
-  if (env.FLY_NFS_APP && env.FLY_NFS_APP.length > 0) {
-    return `${env.FLY_NFS_APP}.flycast`
-  }
-  if (env.FLY_TEST_MACHINE_IP && env.FLY_TEST_MACHINE_IP.length > 0) {
-    return env.FLY_TEST_MACHINE_IP
-  }
-  return 'nfs-proto.flycast'
 }
 
 async function listMountDir(

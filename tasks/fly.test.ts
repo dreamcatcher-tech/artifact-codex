@@ -83,17 +83,25 @@ Deno.test('flyCliListMachines maps JSON fields', async () => {
 })
 
 Deno.test('flyCliGetMachine parses config', async () => {
-  const json = JSON.stringify({
-    ID: '456',
-    Name: 'agent-2',
-    Config: {
-      image: 'registry.fly.io/example:tag',
-      metadata: { role: 'worker' },
-    },
-  })
+  const statusOutput = [
+    'Machine ID: 456',
+    'State: started',
+    '',
+    '  Name          = agent-2',
+    '  Image         = registry.fly.io/example:tag',
+    '  Private IP    = fdaa:0:1',
+    '  Region        = iad',
+    '  Created       = 2024-01-01T00:00:00Z',
+    '',
+    'Config:',
+    '\u001b[1m{\u001b[0m',
+    '  "image": "registry.fly.io/example:tag",',
+    '  "metadata": { "role": "worker" }',
+    '\u001b[1m}\u001b[0m',
+  ].join('\n')
   const { executor } = createRecordingExecutor({
-    'fly machine status 456 --app test --json': makeResult(true, {
-      stdout: json,
+    'fly machine status 456 --app test --display-config': makeResult(true, {
+      stdout: statusOutput,
     }),
   })
   const detail = await flyCliGetMachine({
@@ -106,6 +114,7 @@ Deno.test('flyCliGetMachine parses config', async () => {
     image: 'registry.fly.io/example:tag',
     metadata: { role: 'worker' },
   })
+  expect(detail.region).toBe('iad')
 })
 
 Deno.test('flyCliCreateMachine reuses list output when name matches', async () => {
@@ -153,11 +162,11 @@ Deno.test('flyCliCreateMachine reuses list output when name matches', async () =
 
 Deno.test('flyCliAppsInfo maps organization', async () => {
   const { executor } = createRecordingExecutor({
-    'fly info --app computers --json': makeResult(true, {
+    'fly status --app computers --json': makeResult(true, {
       stdout: JSON.stringify({
         ID: 'app_123',
         Name: 'computers',
-        organization: { slug: 'artifact' },
+        Organization: { slug: 'artifact' },
       }),
     }),
   })
@@ -191,7 +200,7 @@ Deno.test('flyCliTokensCreateDeploy extracts token field', async () => {
 
 Deno.test('flyCliAppsDestroy adds --force when requested', async () => {
   const { executor, calls } = createRecordingExecutor({
-    'fly apps destroy demo --yes --force': makeResult(true),
+    'fly apps destroy demo --yes': makeResult(true),
   })
 
   await flyCliAppsDestroy({
@@ -206,7 +215,6 @@ Deno.test('flyCliAppsDestroy adds --force when requested', async () => {
     'destroy',
     'demo',
     '--yes',
-    '--force',
   ])
 })
 Deno.test('flyCliStartMachine invokes machine start', async () => {
