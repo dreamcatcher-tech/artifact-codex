@@ -15,5 +15,6 @@ fi
 # Ganesha creates PID and socket files under these directories on boot.
 mkdir -p /var/lib/nfs/ganesha || true
 mkdir -p /var/run/ganesha || true
+mkdir -p /data/computers || true
 
 exec ganesha.nfsd -F -f /etc/ganesha/ganesha.conf -L STDOUT -N EVENT

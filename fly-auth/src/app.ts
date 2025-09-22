@@ -23,7 +23,6 @@ import {
   ensureComputersMounted,
   removeComputerFolder,
 } from './storage.ts'
-const DEFAULT_REDIRECT_URL = 'https://dreamcatcher.land'
 const TEST_USER_HEADER = 'x-artifact-test-user'
 const INTEGRATION_TEST_USER_ID = resolveIntegrationTestUserId()
 
@@ -44,16 +43,10 @@ type AppDependencies = {
 }
 
 type CreateAppOptions = {
-  redirectUrl?: string
   dependencies?: Partial<AppDependencies>
 }
 
-export function createApp(
-  {
-    redirectUrl: _redirectUrl = DEFAULT_REDIRECT_URL,
-    dependencies,
-  }: CreateAppOptions = {},
-) {
+export function createApp({ dependencies }: CreateAppOptions = {}) {
   const deps = createDependencies(dependencies)
   const app = new Hono<{ Variables: ClerkAuthVariables }>()
 
@@ -163,7 +156,7 @@ export function createApp(
 }
 
 export type { CreateAppOptions }
-export { DEFAULT_REDIRECT_URL, deriveActorAppName }
+export { deriveActorAppName }
 
 function createDependencies(
   overrides: Partial<AppDependencies> = {},

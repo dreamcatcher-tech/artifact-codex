@@ -488,16 +488,116 @@ export async function setAppSecrets(
 ): Promise<void> {
   const entries = Object.entries(secrets)
   if (entries.length === 0) return
-  const body = {
-    secrets: entries.map(([name, value]) => ({ name, value })),
-  }
-  await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/secrets`,
+  const targetAppId = await resolveAppGraphqlId({
     token,
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
+    appName,
+    fetchImpl,
+  })
+
+  const mutation = `
+    mutation SetSecrets($input: SetSecretsInput!) {
+      setSecrets(input: $input) {
+        release { id version }
+      }
+    }
+  `
+  const variables = {
+    input: {
+      appId: targetAppId,
+      secrets: entries.map(([key, value]) => ({ key, value })),
     },
+  }
+
+  const result = await flyGraphqlFetch({
+    token,
+    query: mutation,
+    variables,
+    fetchImpl,
+  })
+  console.info('setSecrets response', result)
+}
+
+export type CreateDeployTokenBag = {
+  token: string
+  appName: string
+  fetchImpl?: typeof fetch
+}
+
+export async function createDeployToken(
+  { token, appName, fetchImpl }: CreateDeployTokenBag,
+): Promise<string> {
+  const res = await flyApiFetch(
+    `/v1/apps/${encodeURIComponent(appName)}/deploy_token`,
+    token,
+    { method: 'POST', body: JSON.stringify({}) },
     fetchImpl,
   )
+  const data = (await res.json()) as { token?: string }
+  const value = data.token?.trim()
+  if (!value) {
+    throw new Error('Fly deploy token response missing token value')
+  }
+  return value
+}
+
+type FlyGraphqlBag = {
+  token: string
+  query: string
+  variables?: Record<string, unknown>
+  fetchImpl?: typeof fetch
+}
+
+async function flyGraphqlFetch(
+  { token, query, variables, fetchImpl }: FlyGraphqlBag,
+): Promise<unknown> {
+  const fx = fetchImpl ?? fetch
+  const res = await fx('https://api.fly.io/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ query, variables }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(
+      `Fly GraphQL error ${res.status}: ${res.statusText}\n${text}`,
+    )
+  }
+  const json = await res.json() as {
+    data?: unknown
+    errors?: Array<{ message?: string }>
+  }
+  if (json.errors && json.errors.length > 0) {
+    const message = json.errors.map((e) => e.message ?? 'Unknown error').join(
+      '; ',
+    )
+    throw new Error(`Fly GraphQL error: ${message}`)
+  }
+  return json.data
+}
+
+type ResolveAppIdBag = {
+  token: string
+  appName: string
+  fetchImpl?: typeof fetch
+}
+
+async function resolveAppGraphqlId(
+  { token, appName, fetchImpl }: ResolveAppIdBag,
+): Promise<string> {
+  const query = `query AppId($name:String!){ app(name:$name){ id } }`
+  const data = await flyGraphqlFetch({
+    token,
+    query,
+    variables: { name: appName },
+    fetchImpl,
+  }) as { app?: { id?: string } }
+  const id = data?.app?.id
+  if (!id || !id.trim()) {
+    throw new Error(`Fly GraphQL error: Could not find App '${appName}'`)
+  }
+  return id
 }

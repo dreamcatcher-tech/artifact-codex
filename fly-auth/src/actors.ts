@@ -1,5 +1,6 @@
 import {
   appExists,
+  createDeployToken,
   createFlyApp,
   createMachine,
   destroyFlyApp,
@@ -12,9 +13,6 @@ import {
 const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
 const TEMPLATE_COMPUTER_APP = 'fly-computer'
-const FLY_GRAPHQL_ENDPOINT = 'https://api.fly.io/graphql'
-const DEFAULT_DEPLOY_TOKEN_EXPIRY = '8760h'
-
 export type EnsureActorAppResult = {
   appName: string
   appId: string
@@ -53,10 +51,13 @@ export async function ensureActorAppExists(
     return { appName, existed: true, appId: existing.id }
   }
 
-  const orgSlug = resolveOrgSlug()
   const template = await loadTemplateMachine(token)
 
-  const createdApp = await createFlyApp({ token, appName, orgSlug })
+  const createdApp = await createFlyApp({
+    token,
+    appName,
+    orgSlug: resolveOrgSlug(),
+  })
   if (!createdApp.id) {
     throw new Error(`Created Fly app '${appName}' did not return an id`)
   }
@@ -66,6 +67,8 @@ export async function ensureActorAppExists(
       token,
       appName,
       appId: createdApp.id,
+      agentImage: template.image,
+      targetApp: appName,
     })
   } catch (error) {
     console.error('failed to provision deploy token for actor app', error)
@@ -100,23 +103,61 @@ type EnsureActorTokenInput = {
   token: string
   appName: string
   appId: string
+  agentImage: string
+  targetApp: string
 }
 
 async function ensureActorAppDeployToken(
-  { token, appName, appId }: EnsureActorTokenInput,
+  { token, appName, appId, agentImage, targetApp }: EnsureActorTokenInput,
 ): Promise<void> {
-  const { organizationId } = await fetchAppOrganization({ token, appName })
-  const deployToken = await createAppDeployToken({
-    token,
-    organizationId,
-    appId,
-    appName,
-  })
+  console.info('provisioning actor deploy token', { appName, appId })
+  const deployToken = await createDeployTokenWithRetry({ token, appName })
+  console.info('configuring actor secrets', { appName, agentImage, targetApp })
   await setAppSecrets({
     token,
     appName,
-    secrets: { FLY_API_TOKEN: deployToken },
+    secrets: {
+      FLY_API_TOKEN: deployToken,
+      FLY_COMPUTER_TARGET_APP: targetApp,
+      FLY_COMPUTER_AGENT_IMAGE: agentImage,
+    },
   })
+}
+
+const CREATE_DEPLOY_TOKEN_ATTEMPTS = 5
+const CREATE_DEPLOY_TOKEN_DELAY_MS = 2_000
+
+type CreateDeployTokenRetryInput = {
+  token: string
+  appName: string
+}
+
+async function createDeployTokenWithRetry(
+  { token, appName }: CreateDeployTokenRetryInput,
+): Promise<string> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= CREATE_DEPLOY_TOKEN_ATTEMPTS; attempt++) {
+    try {
+      return await createDeployToken({ token, appName })
+    } catch (error) {
+      lastError = error
+      const done = attempt === CREATE_DEPLOY_TOKEN_ATTEMPTS
+      console.warn(
+        'createDeployToken attempt failed',
+        { appName, attempt, retries: CREATE_DEPLOY_TOKEN_ATTEMPTS, done },
+        error instanceof Error ? error.message : error,
+      )
+      if (done) break
+      await delay(CREATE_DEPLOY_TOKEN_DELAY_MS * attempt)
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Failed to create deploy token after retries')
+}
+
+async function delay(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export async function destroyActorApp(appName: string): Promise<void> {
@@ -230,124 +271,4 @@ function extractMachineImage(
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-type FlyGraphqlResponse<T> = {
-  data?: T
-  errors?: { message?: string }[]
-}
-
-type FlyGraphqlRequest<TVariables> = {
-  token: string
-  query: string
-  variables: TVariables
-}
-
-async function executeFlyGraphql<TData, TVariables>(
-  { token, query, variables }: FlyGraphqlRequest<TVariables>,
-): Promise<TData> {
-  const res = await fetch(FLY_GRAPHQL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({ query, variables }),
-  })
-
-  const body = await res.json() as FlyGraphqlResponse<TData>
-  if (body.errors && body.errors.length > 0) {
-    const message = body.errors.map((err) => err.message ?? 'unknown').join(
-      '; ',
-    )
-    throw new Error(`Fly GraphQL error: ${message}`)
-  }
-  if (!res.ok) {
-    throw new Error(`Fly GraphQL HTTP error ${res.status}: ${res.statusText}`)
-  }
-  if (!body.data) {
-    throw new Error('Fly GraphQL error: empty response data')
-  }
-  return body.data
-}
-
-type AppOrganizationResponse = {
-  app: {
-    organization?: { id?: string | null } | null
-  } | null
-}
-
-async function fetchAppOrganization(
-  { token, appName }: { token: string; appName: string },
-): Promise<{ organizationId: string }> {
-  const query = `
-    query AppOrganization($name: String!) {
-      app(name: $name) {
-        organization { id }
-      }
-    }
-  `
-  const data = await executeFlyGraphql<
-    AppOrganizationResponse,
-    { name: string }
-  >(
-    { token, query, variables: { name: appName } },
-  )
-  const organizationId = data.app?.organization?.id
-  if (!organizationId) {
-    throw new Error(`Unable to resolve organization id for app '${appName}'`)
-  }
-  return { organizationId }
-}
-
-type CreateDeployTokenResponse = {
-  createLimitedAccessToken?: {
-    limitedAccessToken?: { tokenHeader?: string | null } | null
-  } | null
-}
-
-type CreateDeployTokenInput = {
-  token: string
-  organizationId: string
-  appId: string
-  appName: string
-}
-
-async function createAppDeployToken(
-  { token, organizationId, appId, appName }: CreateDeployTokenInput,
-): Promise<string> {
-  const mutation = `
-    mutation CreateLimitedAccessToken($name: String!, $organizationId: ID!, $profile: String!, $profileParams: JSON, $expiry: String!) {
-      createLimitedAccessToken(input: {
-        name: $name,
-        organizationId: $organizationId,
-        profile: $profile,
-        profileParams: $profileParams,
-        expiry: $expiry
-      }) {
-        limitedAccessToken {
-          tokenHeader
-        }
-      }
-    }
-  `
-  const tokenName = `deploy:${appName}`
-  const variables = {
-    name: tokenName,
-    organizationId,
-    profile: 'deploy',
-    profileParams: { app_id: appId },
-    expiry: DEFAULT_DEPLOY_TOKEN_EXPIRY,
-  }
-  const data = await executeFlyGraphql<
-    CreateDeployTokenResponse,
-    typeof variables
-  >({ token, query: mutation, variables })
-  const tokenHeader = data.createLimitedAccessToken?.limitedAccessToken
-    ?.tokenHeader
-  if (!tokenHeader) {
-    throw new Error('Fly deploy token response missing token header')
-  }
-  return tokenHeader
 }
