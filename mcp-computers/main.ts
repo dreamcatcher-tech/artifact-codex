@@ -4,23 +4,20 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { nextIndexForName } from '@artifact/shared'
-import {
-  appExists,
-  createFlyApp,
-  createMachine,
-  destroyFlyApp,
-  getEnv,
-  getFlyApp,
-  getFlyMachine,
-  isValidFlyName,
-  listFlyApps,
-  listMachines,
-  probeTokenScope,
-  toError,
-  toStructured,
-} from '@artifact/shared'
+import { mapMachineSummary } from '@artifact/shared'
+import { getEnv, isValidFlyName, toError, toStructured } from '@artifact/shared'
 import { loadEnvFromShared } from '@artifact/shared'
 import { readComputerOutputSchema } from '@artifact/shared'
+import {
+  flyCliAppsCreate,
+  flyCliAppsDestroy,
+  flyCliAppsInfo,
+  flyCliAppsList,
+  flyCliCreateMachine,
+  flyCliGetMachine,
+  flyCliListMachines,
+  FlyCommandError,
+} from '@artifact/tasks'
 
 // Schemas
 const machineSummarySchema = z.object({
@@ -55,19 +52,26 @@ function buildComputerNameFromUserId(userId: string): string {
   return `computer-user-${userId}`
 }
 
-async function createServer(): Promise<McpServer> {
+async function appExists(
+  options: { token: string; appName: string },
+): Promise<boolean> {
+  try {
+    await flyCliAppsInfo(options)
+    return true
+  } catch (error) {
+    if (error instanceof FlyCommandError) {
+      return false
+    }
+    throw error
+  }
+}
+
+function createServer(): McpServer {
   const server = new McpServer({ name: 'computer-mcp', version: '0.0.1' })
 
   // Decide whether to expose any tools based on token scope
   const token = (getEnv('FLY_API_TOKEN') ?? '').trim()
   if (!token) return server
-  const appName = (getEnv('FLY_APP_NAME') ?? '').trim() || undefined
-  try {
-    const res = await probeTokenScope({ token, appName })
-    if (res.classification !== 'org') return server
-  } catch (_) {
-    return server
-  }
 
   server.registerTool(
     'create_computer',
@@ -104,7 +108,10 @@ async function createServer(): Promise<McpServer> {
       }
 
       try {
-        const srcApp = await getFlyApp({ appName: currentApp, token: flyToken })
+        const srcApp = await flyCliAppsInfo({
+          appName: currentApp,
+          token: flyToken,
+        })
         const orgSlug = srcApp.organizationSlug
         if (!orgSlug) {
           return toError(
@@ -113,7 +120,7 @@ async function createServer(): Promise<McpServer> {
         }
 
         const newAppName = desiredName
-        const createdApp = await createFlyApp({
+        const createdApp = await flyCliAppsCreate({
           token: flyToken,
           appName: newAppName,
           orgSlug,
@@ -123,7 +130,7 @@ async function createServer(): Promise<McpServer> {
         let machineRegion: string | undefined = region
 
         const resolveConfigFromMachine = async (machineId: string) => {
-          const base = await getFlyMachine({
+          const base = await flyCliGetMachine({
             appName: currentApp,
             token: flyToken,
             machineId,
@@ -139,7 +146,7 @@ async function createServer(): Promise<McpServer> {
         if (currentMachineId && currentMachineId.trim()) {
           await resolveConfigFromMachine(currentMachineId.trim())
         } else {
-          const machines = await listMachines({
+          const machines = await flyCliListMachines({
             appName: currentApp,
             token: flyToken,
           })
@@ -149,7 +156,7 @@ async function createServer(): Promise<McpServer> {
         }
 
         const targetAppName = createdApp.name ?? newAppName
-        const existingInNewApp = await listMachines({
+        const existingInNewApp = await flyCliListMachines({
           appName: targetAppName,
           token: flyToken,
         })
@@ -164,7 +171,7 @@ async function createServer(): Promise<McpServer> {
           )
         }
 
-        const createdMachine = await createMachine({
+        const createdMachine = await flyCliCreateMachine({
           appName: targetAppName,
           token: flyToken,
           name: firstAgentName,
@@ -174,7 +181,7 @@ async function createServer(): Promise<McpServer> {
 
         return toStructured({
           newComputer: { id: createdApp.id, name: createdApp.name },
-          firstAgent: createdMachine,
+          firstAgent: mapMachineSummary(createdMachine),
         })
       } catch (err) {
         return toError(err)
@@ -201,7 +208,7 @@ async function createServer(): Promise<McpServer> {
             'Missing current app name. Set FLY_APP_NAME so the organization can be inferred.',
           )
         }
-        const appInfo = await getFlyApp({
+        const appInfo = await flyCliAppsInfo({
           appName: currentApp,
           token: flyToken,
         })
@@ -211,7 +218,7 @@ async function createServer(): Promise<McpServer> {
             'Unable to infer organization from current app. Ensure FLY_APP_NAME points to an existing app your token can access.',
           )
         }
-        const apps = await listFlyApps({ token: flyToken, orgSlug })
+        const apps = await flyCliAppsList({ token: flyToken, orgSlug })
         return toStructured({
           computers: apps.map((a) => ({
             id: a.id,
@@ -244,7 +251,7 @@ async function createServer(): Promise<McpServer> {
         if (!isValidFlyName(name)) return toStructured({ exists: false })
         const exists = await appExists({ token: flyToken, appName: name })
         if (!exists) return toStructured({ exists: false })
-        const info = await getFlyApp({ appName: name, token: flyToken })
+        const info = await flyCliAppsInfo({ appName: name, token: flyToken })
         return toStructured({ exists: true, computer: info })
       } catch (err) {
         return toError(err)
@@ -276,7 +283,11 @@ async function createServer(): Promise<McpServer> {
         return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
       }
       try {
-        await destroyFlyApp({ token: flyToken, appName: targetApp, force })
+        await flyCliAppsDestroy({
+          token: flyToken,
+          appName: targetApp,
+          force,
+        })
         return toStructured({ destroyed: true, name: targetApp })
       } catch (err) {
         return toError(err)
@@ -286,6 +297,6 @@ async function createServer(): Promise<McpServer> {
   return server
 }
 
-const server = await createServer()
+const server = createServer()
 const transport = new StdioServerTransport()
 await server.connect(transport)

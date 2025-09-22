@@ -30,10 +30,10 @@ The previous demo tools (`echo`, `add`) have been removed.
 
 CLI helpers
 
-- `listMachines(appName, token)`: returns array of Agent summaries using the Fly
-  CLI.
-- `createMachine({ appName, token, name, config, region? })`: creates an Agent
-  via the Fly CLI wrappers.
+- `flyCliListMachines({ appName, token })`: returns array of Agent summaries
+  using the Fly CLI.
+- `flyCliCreateMachine({ appName, token, name, config, region? })`: creates an
+  Agent via the Fly CLI wrappers.
 
 ## Environment Variables
 

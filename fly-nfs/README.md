@@ -5,8 +5,8 @@ from a private Fly app. Optimized for **ease of implementation** over hardening
 or performance.
 
 > **Security note:** This app is private by default (no `[[services]]`). Access
-> it over Fly's WireGuard network (`*.internal` hostname). Do **not** expose NFS
-> to the public Internet for production.
+> it over Fly's Flycast WireGuard network (`*.flycast` hostname). Do **not**
+> expose NFS to the public Internet for production.
 
 ---
 
@@ -55,13 +55,13 @@ fly wireguard create --org <YOUR_ORG> --name my-laptop
 # Follow the printed instructions to bring up the interface (wg-quick up ...).
 ```
 
-Once connected, your app resolves at `nfs-proto.internal` (IPv6).
+Once connected, your app resolves at `nfs-proto.flycast` (IPv6).
 
 ### 5) Mount from a Linux client (NFSv4.1)
 
 ```bash
 sudo mkdir -p /mnt/fly-nfs
-sudo mount -t nfs -o nfsvers=4.1,proto=tcp nfs-proto.internal:/data /mnt/fly-nfs
+sudo mount -t nfs -o nfsvers=4.1,proto=tcp nfs-proto.flycast:/data /mnt/fly-nfs
 ```
 
 > On NFSv4, `showmount -e` won’t work (that’s an NFSv3 RPC). Use the mount

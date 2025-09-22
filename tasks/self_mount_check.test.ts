@@ -1,15 +1,22 @@
 import { expect } from '@std/expect'
 
-import { runSelfMountCheck } from '../mod.ts'
-import type { CommandExecutor, CommandResult } from '../types.ts'
+import { runSelfMountCheck } from './mod.ts'
+import type { CommandExecutor, CommandResult } from './types.ts'
 
-function successResult(): CommandResult {
+function successResult(overrides: Partial<CommandResult> = {}): CommandResult {
+  const now = new Date('2024-01-01T00:00:00Z')
   return {
-    success: true,
-    code: 0,
-    signal: null,
-    stdout: '',
-    stderr: '',
+    id: overrides.id ?? 'test-command',
+    state: overrides.state ?? 'succeeded',
+    success: overrides.success ?? true,
+    code: overrides.code ?? 0,
+    signal: overrides.signal ?? null,
+    stdout: overrides.stdout ?? '',
+    stderr: overrides.stderr ?? '',
+    pid: overrides.pid ?? 123,
+    startedAt: overrides.startedAt ?? now,
+    endedAt: overrides.endedAt ?? now,
+    attempts: overrides.attempts ?? 1,
   }
 }
 
@@ -24,7 +31,9 @@ Deno.test('runSelfMountCheck sets mount environment and runs cleanup', async () 
           verifying = false
           return Promise.resolve(successResult())
         }
-        return Promise.resolve({ ...successResult(), success: false, code: 1 })
+        return Promise.resolve(
+          successResult({ success: false, state: 'failed', code: 1 }),
+        )
       case 'mount':
         verifying = true
         return Promise.resolve(successResult())
@@ -75,7 +84,9 @@ Deno.test('runSelfMountCheck falls back to app host when source missing', async 
         verifying = false
         return Promise.resolve(successResult())
       }
-      return Promise.resolve({ ...successResult(), success: false, code: 1 })
+      return Promise.resolve(
+        successResult({ success: false, state: 'failed', code: 1 }),
+      )
     }
     if (options.command === 'mount') {
       verifying = true
@@ -101,7 +112,7 @@ Deno.test('runSelfMountCheck falls back to app host when source missing', async 
   })
 
   const mountCall = calls.find((call) => call.command === 'mount')!
-  expect(mountCall.env?.FLY_NFS_SOURCE).toBe('example-app.internal')
+  expect(mountCall.env?.FLY_NFS_SOURCE).toBe('example-app.flycast')
 
   await Deno.remove(mountDir, { recursive: true }).catch(() => {})
 })
@@ -110,7 +121,9 @@ Deno.test('runSelfMountCheck removes temporary directory when mount fails', asyn
   let attemptedDir = ''
   const executor: CommandExecutor = (options) => {
     if (options.command === 'mountpoint') {
-      return Promise.resolve({ ...successResult(), success: false, code: 1 })
+      return Promise.resolve(
+        successResult({ success: false, state: 'failed', code: 1 }),
+      )
     }
     if (options.command === 'mount') {
       attemptedDir = options.env?.FLY_NFS_MOUNT_DIR ?? ''
@@ -146,7 +159,9 @@ Deno.test('runSelfMountCheck uses custom list command when provided', async () =
         verifying = false
         return Promise.resolve(successResult())
       }
-      return Promise.resolve({ ...successResult(), success: false, code: 1 })
+      return Promise.resolve(
+        successResult({ success: false, state: 'failed', code: 1 }),
+      )
     }
     if (options.command === 'mount') {
       verifying = true
@@ -162,8 +177,7 @@ Deno.test('runSelfMountCheck uses custom list command when provided', async () =
     listCommand: {
       command: 'echo',
       args: ['checking'],
-      stdout: 'inherit',
-      stderr: 'inherit',
+      stdio: { stdout: 'inherit', stderr: 'inherit' },
     },
     mountOptions: {
       validateBinaries: false,

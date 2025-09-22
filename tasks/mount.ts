@@ -1,4 +1,4 @@
-import { defaultCommandExecutor } from './command.ts'
+import { runCommand } from '@artifact/procman'
 import type { CommandExecutor, EnsureMountOptions } from './types.ts'
 
 const DEFAULT_RETRIES = 5
@@ -6,7 +6,7 @@ const DEFAULT_DELAY_MS = 3_000
 const DEFAULT_MOUNT_DIR = '/mnt/fly-nfs'
 const DEFAULT_EXPORT_BASE = '/data'
 const DEFAULT_MOUNT_OPTS = 'nfsvers=4.1'
-const DEFAULT_SOURCE = 'nfs-proto.internal'
+const DEFAULT_SOURCE = 'nfs-proto.flycast'
 
 interface MountContext {
   env: Record<string, string>
@@ -119,7 +119,7 @@ function resolveSource(
   if (host) return host
 
   const app = coalesce(options.app, env.FLY_NFS_APP)
-  if (app) return `${app}.internal`
+  if (app) return `${app}.flycast`
 
   return DEFAULT_SOURCE
 }
@@ -160,8 +160,7 @@ async function mountOnce(ctx: MountContext): Promise<void> {
     command: 'mountpoint',
     args: mountpointArgs,
     env,
-    stdout: 'null',
-    stderr: 'null',
+    stdio: { stdout: 'null', stderr: 'null' },
     check: false,
   })
   if (preCheck.success) {
@@ -179,8 +178,7 @@ async function mountOnce(ctx: MountContext): Promise<void> {
     command: 'mount',
     args: ['-t', 'nfs4', '-o', mountOpts, spec, mountDir],
     env,
-    stdout: 'inherit',
-    stderr: 'inherit',
+    stdio: { stdout: 'inherit', stderr: 'inherit' },
     check: true,
   })
 
@@ -188,8 +186,7 @@ async function mountOnce(ctx: MountContext): Promise<void> {
     command: 'mountpoint',
     args: mountpointArgs,
     env,
-    stdout: 'null',
-    stderr: 'inherit',
+    stdio: { stdout: 'null', stderr: 'inherit' },
     check: false,
   })
   if (!verify.success) {
@@ -220,7 +217,7 @@ export async function ensureNfsMount(
 
   const logger = options.logger ?? ((message: string) => console.error(message))
   const logPrefix = options.logPrefix ?? '[procman:nfs]'
-  const commandExecutor = options.commandExecutor ?? defaultCommandExecutor
+  const commandExecutor = options.commandExecutor ?? runCommand
   const validateBinaries = options.validateBinaries ?? true
   const validatePrivileges = options.validatePrivileges ?? true
 

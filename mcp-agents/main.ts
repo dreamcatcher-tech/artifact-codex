@@ -7,6 +7,8 @@ import {
   deriveBaseName,
   type MachineDetail,
   type MachineSummary,
+  mapMachineDetail,
+  mapMachineSummary,
   nextIndexForName,
 } from '@artifact/shared'
 import { loadEnvFromShared } from '@artifact/shared'
@@ -27,13 +29,13 @@ const listAgentsOutput = z.object({ machines: z.array(machineSummarySchema) })
 const createAgentOutput = z.object({ machine: machineSummarySchema })
 // (Computer management schemas removed in fly-mcp)
 
+import { isFlyResourceNotFound } from '@artifact/shared'
 import {
-  createMachine,
-  destroyMachine,
-  getFlyMachine,
-  isFlyResourceNotFound,
-  listMachines,
-} from '@artifact/shared'
+  flyCliCreateMachine,
+  flyCliDestroyMachine,
+  flyCliGetMachine,
+  flyCliListMachines,
+} from '@artifact/tasks'
 
 await loadEnvFromShared()
 
@@ -73,10 +75,10 @@ server.registerTool(
       return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
     }
     try {
-      const machines: MachineSummary[] = await listMachines({
+      const machines: MachineSummary[] = (await flyCliListMachines({
         appName,
         token: flyToken,
-      })
+      })).map(mapMachineSummary)
       const matches = machines.filter((m) => m.name === id)
       if (matches.length === 0) {
         return toStructured({
@@ -88,11 +90,13 @@ server.registerTool(
         return toError(`Multiple agents named '${id}'. Please disambiguate.`)
       }
       const machineId = matches[0].id
-      const detail: MachineDetail = await getFlyMachine({
-        appName,
-        token: flyToken,
-        machineId,
-      })
+      const detail: MachineDetail = mapMachineDetail(
+        await flyCliGetMachine({
+          appName,
+          token: flyToken,
+          machineId,
+        }),
+      )
       return toStructured({ exists: true, agent: detail })
     } catch (err) {
       if (isFlyResourceNotFound(err)) {
@@ -125,10 +129,10 @@ server.registerTool(
     }
     try {
       // Single request includes metadata (from config)
-      const machines = await listMachines({
+      const machines = (await flyCliListMachines({
         appName,
         token: flyToken,
-      })
+      })).map(mapMachineSummary)
       return toStructured({ machines })
     } catch (err) {
       return toError(err)
@@ -172,7 +176,7 @@ server.registerTool(
     try {
       // Determine next indexed name: <base>-<n>
       const base = deriveBaseName(name)
-      const existing = await listMachines({ appName, token: flyToken })
+      const existing = await flyCliListMachines({ appName, token: flyToken })
       const next = nextIndexForName(existing.map((m) => m.name), base)
       const indexedName = `${base}-${next}`
       if (!isValidFlyName(indexedName)) {
@@ -182,14 +186,14 @@ server.registerTool(
       }
 
       // Ensure agents are launched in the 'worker' process group
-      const created = await createMachine({
+      const created = await flyCliCreateMachine({
         appName,
         token: flyToken,
         name: indexedName,
         config: { image, metadata: { 'fly_process_group': 'worker' } },
         region,
       })
-      return toStructured({ machine: created })
+      return toStructured({ machine: mapMachineSummary(created) })
     } catch (err) {
       return toError(err)
     }
@@ -227,7 +231,7 @@ server.registerTool(
       let targetId = id ?? ''
       let resolvedName = name
       if (!targetId) {
-        const list = await listMachines({ appName, token: flyToken })
+        const list = await flyCliListMachines({ appName, token: flyToken })
         const matches = list.filter((m) => m.name === name)
         if (matches.length === 0) {
           return toError(`Agent named '${name}' not found.`)
@@ -238,7 +242,7 @@ server.registerTool(
         targetId = matches[0].id
         resolvedName = matches[0].name
       }
-      await destroyMachine({
+      await flyCliDestroyMachine({
         appName,
         token: flyToken,
         machineId: targetId,

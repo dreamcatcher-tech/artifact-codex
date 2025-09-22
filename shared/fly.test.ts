@@ -1,118 +1,95 @@
 import { expect } from '@std/expect'
 
-import { createMachine, listMachines } from '@artifact/shared'
-import type { CommandExecutor, CommandResult } from '@artifact/tasks'
+import {
+  isFlyResourceNotFound,
+  mapMachineDetail,
+  mapMachineSummary,
+} from '@artifact/shared'
+import { FlyCommandError } from '@artifact/tasks'
+import type {
+  CommandResult,
+  FlyCliMachineDetail,
+  FlyCliMachineSummary,
+} from '@artifact/tasks'
 
 function makeResult(
   success: boolean,
   overrides: Partial<CommandResult> = {},
 ): CommandResult {
+  const now = new Date('2024-01-01T00:00:00Z')
   return {
+    id: overrides.id ?? 'test-command',
+    state: success ? 'succeeded' : 'failed',
     success,
     code: success ? 0 : 1,
-    signal: null,
-    stdout: '',
-    stderr: '',
+    signal: overrides.signal ?? null,
+    stdout: overrides.stdout ?? '',
+    stderr: overrides.stderr ?? '',
+    pid: overrides.pid ?? 123,
+    startedAt: overrides.startedAt ?? now,
+    endedAt: overrides.endedAt ?? now,
+    attempts: overrides.attempts ?? 1,
     ...overrides,
   }
 }
 
-function createExecutor(
-  outputs: Record<string, CommandResult>,
-): { executor: CommandExecutor; calls: string[][] } {
-  const calls: string[][] = []
-  const executor: CommandExecutor = ({ command, args }) => {
-    const parts = [command, ...(args ?? [])]
-    calls.push(parts)
-    const key = parts.join(' ')
-    const response = outputs[key]
-    if (!response) {
-      throw new Error(`Unexpected command: ${key}`)
-    }
-    return Promise.resolve(response)
+Deno.test('mapMachineSummary remaps privateIp to ip', () => {
+  const summary: FlyCliMachineSummary = {
+    id: 'm123',
+    name: 'agent-1',
+    state: 'started',
+    region: 'lhr',
+    image: 'registry.fly.io/example:tag',
+    privateIp: 'fdaa:0:1',
+    createdAt: '2025-01-01T00:00:00Z',
+    metadata: { role: 'worker' },
   }
-  return { executor, calls }
-}
 
-Deno.test('listMachines maps CLI fields', async () => {
-  const payload = JSON.stringify([
-    {
-      ID: 'm123',
-      Name: 'agent-1',
-      State: 'started',
-      Region: 'lhr',
-      Image: 'registry.fly.io/example:tag',
-      PrivateIP: 'fdaa:0:1',
-      CreatedAt: '2025-01-01T00:00:00Z',
-      Config: { metadata: { role: 'worker' } },
-    },
-  ])
-  const { executor } = createExecutor({
-    'fly machine list --app my-app --json': makeResult(true, {
-      stdout: payload,
-    }),
+  const mapped = mapMachineSummary(summary)
+  expect(mapped).toEqual({
+    id: 'm123',
+    name: 'agent-1',
+    state: 'started',
+    region: 'lhr',
+    image: 'registry.fly.io/example:tag',
+    ip: 'fdaa:0:1',
+    createdAt: '2025-01-01T00:00:00Z',
+    metadata: { role: 'worker' },
   })
-
-  const machines = await listMachines({
-    appName: 'my-app',
-    token: 'noop',
-    commandExecutor: executor,
-  })
-
-  expect(machines).toEqual([
-    {
-      id: 'm123',
-      name: 'agent-1',
-      state: 'started',
-      region: 'lhr',
-      image: 'registry.fly.io/example:tag',
-      ip: 'fdaa:0:1',
-      createdAt: '2025-01-01T00:00:00Z',
-      metadata: { role: 'worker' },
-    },
-  ])
 })
 
-Deno.test('createMachine delegates to CLI create + list', async () => {
-  const { executor, calls } = createExecutor({
-    'fly machine create --app my-app --machine-config {"image":"example"} --name agent-1 --region ord':
-      makeResult(true),
-    'fly machine list --app my-app --json': makeResult(true, {
-      stdout: JSON.stringify([
-        { ID: 'm200', Name: 'agent-1', Region: 'ord' },
-      ]),
-    }),
-  })
-
-  const created = await createMachine({
-    appName: 'my-app',
-    token: 'noop',
-    name: 'agent-1',
-    config: { image: 'example' },
+Deno.test('mapMachineDetail includes config while preserving summary fields', () => {
+  const detail: FlyCliMachineDetail = {
+    id: 'm200',
+    name: 'agent-2',
+    state: 'started',
     region: 'ord',
-    commandExecutor: executor,
-  })
+    image: 'registry.fly.io/example:tag',
+    privateIp: undefined,
+    createdAt: '2025-01-02T00:00:00Z',
+    metadata: { role: 'worker' },
+    config: {
+      image: 'registry.fly.io/example:tag',
+      metadata: { role: 'worker' },
+    },
+  }
 
-  expect(calls[0]).toEqual([
-    'fly',
-    'machine',
-    'create',
-    '--app',
-    'my-app',
-    '--machine-config',
-    '{"image":"example"}',
-    '--name',
-    'agent-1',
-    '--region',
-    'ord',
-  ])
-  expect(calls[1]).toEqual([
-    'fly',
-    'machine',
-    'list',
-    '--app',
-    'my-app',
-    '--json',
-  ])
-  expect(created.id).toBe('m200')
+  const mapped = mapMachineDetail(detail)
+  expect(mapped.ip).toBeUndefined()
+  expect(mapped.config).toEqual({
+    image: 'registry.fly.io/example:tag',
+    metadata: { role: 'worker' },
+  })
+})
+
+Deno.test('isFlyResourceNotFound detects FlyCommandError failures', () => {
+  const error = new FlyCommandError(
+    ['machine', 'status', 'nope'],
+    makeResult(false, {
+      stderr: 'machine not found',
+      state: 'failed',
+    }),
+  )
+  expect(isFlyResourceNotFound(error)).toBe(true)
+  expect(isFlyResourceNotFound(new Error('random error'))).toBe(false)
 })

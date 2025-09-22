@@ -1,7 +1,8 @@
 import { join } from '@std/path/join'
 
+import { runCommand } from '@artifact/procman'
+
 import { ensureNfsMount } from './mount.ts'
-import { defaultCommandExecutor } from './command.ts'
 import type {
   CommandExecutor,
   CommandRunOptions,
@@ -28,7 +29,7 @@ export async function runSelfMountCheck(
 ): Promise<void> {
   const baseEnv = { ...Deno.env.toObject(), ...(options.env ?? {}) }
   const logger = options.logger ?? ((msg: string) => console.error(msg))
-  const executor = options.commandExecutor ?? defaultCommandExecutor
+  const executor = options.commandExecutor ?? runCommand
 
   let mountDir = baseEnv.FLY_NFS_CHECK_DIR
   let createdTempDir = false
@@ -59,8 +60,7 @@ export async function runSelfMountCheck(
     subpath: options.subpath ?? options.mountOptions?.subpath,
     logger: ensureLogger,
     logPrefix: '[self-mount-check]',
-    commandExecutor: options.commandExecutor ??
-      options.mountOptions?.commandExecutor ?? defaultCommandExecutor,
+    commandExecutor: options.mountOptions?.commandExecutor ?? executor,
   }
 
   if (
@@ -88,8 +88,7 @@ export async function runSelfMountCheck(
         command: 'umount',
         args: [mountDir!],
         env: mountEnv,
-        stdout: 'inherit',
-        stderr: 'inherit',
+        stdio: { stdout: 'inherit', stderr: 'inherit' },
       }).catch(() => {})
     })
 
@@ -123,12 +122,12 @@ function resolveSource(env: Record<string, string>): string {
   }
   if (env.FLY_NFS_HOST && env.FLY_NFS_HOST.length > 0) return env.FLY_NFS_HOST
   if (env.FLY_NFS_APP && env.FLY_NFS_APP.length > 0) {
-    return `${env.FLY_NFS_APP}.internal`
+    return `${env.FLY_NFS_APP}.flycast`
   }
   if (env.FLY_TEST_MACHINE_IP && env.FLY_TEST_MACHINE_IP.length > 0) {
     return env.FLY_TEST_MACHINE_IP
   }
-  return 'nfs-proto.internal'
+  return 'nfs-proto.flycast'
 }
 
 async function listMountDir(
@@ -137,11 +136,10 @@ async function listMountDir(
   listCommand: CommandRunOptions | undefined,
   env: Record<string, string>,
 ) {
-  const command = listCommand ?? {
+  const command: CommandRunOptions = listCommand ?? {
     command: 'ls',
     args: ['-al', mountDir],
-    stdout: 'inherit',
-    stderr: 'inherit',
+    stdio: { stdout: 'inherit', stderr: 'inherit' },
   }
   await executor({ ...command, env })
 }
@@ -151,6 +149,3 @@ async function smokeTest(mountDir: string): Promise<void> {
   await Deno.writeTextFile(tmpFile, '')
   await Deno.remove(tmpFile).catch(() => {})
 }
-
-// no-op placeholder to satisfy type exports when mount options provide
-// a custom executor; default is handled above via defaultCommandExecutor.

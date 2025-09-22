@@ -1,4 +1,4 @@
-import { ensureNfsMount } from '@artifact/procman'
+import { ensureNfsMount } from '@artifact/tasks'
 import {
   FLY_NFS_MOUNT_DIR,
   FLY_NFS_SUBPATH,

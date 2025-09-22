@@ -4,7 +4,7 @@ set -euo pipefail
 DEFAULT_MOUNT_DIR="${FLY_NFS_MOUNT_DIR:-/mnt/fly-nfs}"
 DEFAULT_EXPORT_BASE="/data"
 DEFAULT_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
-DEFAULT_HOST="nfs-proto.internal"
+DEFAULT_HOST="nfs-proto.flycast"
 
 MOUNT_DIR="${DEFAULT_MOUNT_DIR}"
 EXPORT_BASE="${DEFAULT_EXPORT_BASE}"
@@ -31,7 +31,7 @@ Options:
   --mount-opts OPTS     Options string passed to mount -o.
   --source HOST         Explicit NFS endpoint (takes precedence over others).
   --host HOST           Alias for --source.
-  --app NAME            Resolve as NAME.internal when source not provided.
+  --app NAME            Resolve as NAME.flycast when source not provided.
   -h, --help            Show this message.
 
 Environment variables:
@@ -180,9 +180,9 @@ if [[ -z "${SOURCE_OVERRIDE}" ]]; then
   elif [[ -n "${FLY_NFS_HOST:-}" ]]; then
     SOURCE_OVERRIDE="${FLY_NFS_HOST}"
   elif [[ -n "${APP_OVERRIDE}" ]]; then
-    SOURCE_OVERRIDE="${APP_OVERRIDE}.internal"
+    SOURCE_OVERRIDE="${APP_OVERRIDE}.flycast"
   elif [[ -n "${FLY_NFS_APP:-}" ]]; then
-    SOURCE_OVERRIDE="${FLY_NFS_APP}.internal"
+    SOURCE_OVERRIDE="${FLY_NFS_APP}.flycast"
   else
     SOURCE_OVERRIDE="${DEFAULT_HOST}"
   fi

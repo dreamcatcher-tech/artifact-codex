@@ -1,4 +1,5 @@
-import { defaultCommandExecutor } from './command.ts'
+import { runCommand } from '@artifact/procman'
+
 import type { CommandExecutor, CommandResult } from './types.ts'
 
 const FLY_BIN = 'fly'
@@ -31,7 +32,7 @@ export async function runFlyCommand(
   const {
     token,
     env = {},
-    commandExecutor = defaultCommandExecutor,
+    commandExecutor = runCommand,
     stdin,
     check = true,
   } = options
@@ -47,8 +48,6 @@ export async function runFlyCommand(
     args,
     env: mergedEnv,
     stdin,
-    stdout: 'piped',
-    stderr: 'piped',
     check: false,
   })
 

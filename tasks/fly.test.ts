@@ -8,19 +8,26 @@ import {
   flyCliListMachines,
   flyCliStartMachine,
   flyCliTokensCreateDeploy,
-} from '../mod.ts'
-import type { CommandExecutor, CommandResult } from '../types.ts'
+} from './mod.ts'
+import type { CommandExecutor, CommandResult } from './types.ts'
 
 function makeResult(
   success: boolean,
   overrides: Partial<CommandResult> = {},
 ): CommandResult {
+  const now = new Date('2024-01-01T00:00:00Z')
   return {
+    id: overrides.id ?? 'test-command',
+    state: success ? 'succeeded' : 'failed',
     success,
     code: success ? 0 : 1,
     signal: null,
     stdout: '',
     stderr: '',
+    pid: overrides.pid ?? 123,
+    startedAt: overrides.startedAt ?? now,
+    endedAt: overrides.endedAt ?? now,
+    attempts: overrides.attempts ?? 1,
     ...overrides,
   }
 }

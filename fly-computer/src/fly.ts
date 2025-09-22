@@ -1,12 +1,16 @@
 import {
-  createMachine as createFlyMachine,
-  getFlyMachine,
   isFlyResourceNotFound,
-  listMachines,
   type MachineDetail,
   type MachineSummary,
-  startMachine,
+  mapMachineDetail,
+  mapMachineSummary,
 } from '@artifact/shared'
+import {
+  flyCliCreateMachine,
+  flyCliGetMachine,
+  flyCliListMachines,
+  flyCliStartMachine,
+} from '@artifact/tasks'
 import type { CommandExecutor } from '@artifact/tasks'
 
 import type { AppConfig } from './config.ts'
@@ -31,30 +35,34 @@ export function createFlyApi(
   commandExecutor?: CommandExecutor,
 ): FlyApi {
   return {
-    getMachine: (machineId: string) =>
-      getFlyMachine({
+    getMachine: async (machineId: string) =>
+      mapMachineDetail(
+        await flyCliGetMachine({
+          appName: config.targetApp,
+          token: config.flyApiToken,
+          machineId,
+          commandExecutor,
+        }),
+      ),
+    listMachines: async () =>
+      (await flyCliListMachines({
         appName: config.targetApp,
         token: config.flyApiToken,
-        machineId,
         commandExecutor,
-      }),
-    listMachines: () =>
-      listMachines({
-        appName: config.targetApp,
-        token: config.flyApiToken,
-        commandExecutor,
-      }),
-    createMachine: ({ name, config: machineConfig, region }) =>
-      createFlyMachine({
-        appName: config.targetApp,
-        token: config.flyApiToken,
-        name,
-        config: machineConfig,
-        region,
-        commandExecutor,
-      }),
+      })).map(mapMachineSummary),
+    createMachine: async ({ name, config: machineConfig, region }) =>
+      mapMachineSummary(
+        await flyCliCreateMachine({
+          appName: config.targetApp,
+          token: config.flyApiToken,
+          name,
+          config: machineConfig,
+          region,
+          commandExecutor,
+        }),
+      ),
     startMachine: (machineId: string) =>
-      startMachine({
+      flyCliStartMachine({
         appName: config.targetApp,
         token: config.flyApiToken,
         machineId,

@@ -1,20 +1,12 @@
-export interface CommandRunOptions {
-  command: string
-  args?: string[]
-  env?: Record<string, string>
-  stdin?: string | string[]
-  stdout?: 'inherit' | 'piped' | 'null'
-  stderr?: 'inherit' | 'piped' | 'null'
-  check?: boolean
-}
+import type {
+  CommandExecutor as ProcmanCommandExecutor,
+  CommandRunOptions as ProcmanCommandRunOptions,
+  TaskResult,
+} from '@artifact/procman'
 
-export interface CommandResult {
-  success: boolean
-  code: number | null
-  signal: Deno.Signal | null
-  stdout: string
-  stderr: string
-}
+export type CommandExecutor = ProcmanCommandExecutor
+export type CommandRunOptions = ProcmanCommandRunOptions
+export type CommandResult = TaskResult
 
 export interface EnsureMountOptions {
   env?: Record<string, string>
@@ -42,7 +34,3 @@ export interface SelfMountCheckOptions {
   mountOptions?: EnsureMountOptions
   subpath?: string
 }
-
-export type CommandExecutor = (
-  options: CommandRunOptions,
-) => Promise<CommandResult>

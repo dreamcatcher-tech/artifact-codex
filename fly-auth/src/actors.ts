@@ -1,15 +1,15 @@
+import { isFlyResourceNotFound } from '@artifact/shared'
 import {
-  appExists,
-  createDeployToken,
-  createFlyApp,
-  createMachine,
-  destroyFlyApp,
-  getFlyApp,
-  getFlyMachine,
-  isFlyResourceNotFound,
-  listMachines,
-  setAppSecrets,
-} from '@artifact/shared'
+  flyCliAppsCreate,
+  flyCliAppsDestroy,
+  flyCliAppsInfo,
+  flyCliCreateMachine,
+  flyCliGetMachine,
+  flyCliListMachines,
+  flyCliSecretsSet,
+  flyCliTokensCreateDeploy,
+  FlyCommandError,
+} from '@artifact/tasks'
 
 const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
@@ -18,6 +18,20 @@ export type EnsureActorAppResult = {
   appName: string
   appId: string
   existed: boolean
+}
+
+async function flyAppExists(
+  options: { token: string; appName: string },
+): Promise<boolean> {
+  try {
+    await flyCliAppsInfo(options)
+    return true
+  } catch (error) {
+    if (error instanceof FlyCommandError) {
+      return false
+    }
+    throw error
+  }
 }
 
 type TemplateMachineInfo = {
@@ -43,9 +57,9 @@ export async function ensureActorAppExists(
     throw new Error('Missing FLY_API_TOKEN for Fly API access')
   }
 
-  const exists = await appExists({ token, appName })
+  const exists = await flyAppExists({ token, appName })
   if (exists) {
-    const existing = await getFlyApp({ token, appName })
+    const existing = await flyCliAppsInfo({ token, appName })
     if (!existing.id) {
       throw new Error(`Existing Fly app '${appName}' is missing an id`)
     }
@@ -54,7 +68,7 @@ export async function ensureActorAppExists(
 
   const template = await loadTemplateMachine(token)
 
-  const createdApp = await createFlyApp({
+  const createdApp = await flyCliAppsCreate({
     token,
     appName,
     orgSlug: resolveOrgSlug(),
@@ -74,7 +88,7 @@ export async function ensureActorAppExists(
   } catch (error) {
     console.error('failed to provision deploy token for actor app', error)
     try {
-      await destroyFlyApp({ token, appName, force: true })
+      await flyCliAppsDestroy({ token, appName, force: true })
     } catch (destroyError) {
       console.error(
         'failed to remove actor app after credential failure',
@@ -85,7 +99,7 @@ export async function ensureActorAppExists(
   }
 
   try {
-    await createMachine({
+    await flyCliCreateMachine({
       appName,
       token,
       name: template.name ?? 'web',
@@ -114,7 +128,7 @@ async function ensureActorAppDeployToken(
   console.info('provisioning actor deploy token', { appName, appId })
   const deployToken = await createDeployTokenWithRetry({ token, appName })
   console.info('configuring actor secrets', { appName, agentImage, targetApp })
-  await setAppSecrets({
+  await flyCliSecretsSet({
     token,
     appName,
     secrets: {
@@ -139,7 +153,7 @@ async function createDeployTokenWithRetry(
   let lastError: unknown
   for (let attempt = 1; attempt <= CREATE_DEPLOY_TOKEN_ATTEMPTS; attempt++) {
     try {
-      return await createDeployToken({ token, appName })
+      return await flyCliTokensCreateDeploy({ token, appName })
     } catch (error) {
       lastError = error
       const done = attempt === CREATE_DEPLOY_TOKEN_ATTEMPTS
@@ -167,7 +181,7 @@ export async function destroyActorApp(appName: string): Promise<void> {
     throw new Error('Missing FLY_API_TOKEN for Fly API access')
   }
   try {
-    await destroyFlyApp({ token, appName, force: true })
+    await flyCliAppsDestroy({ token, appName, force: true })
   } catch (error) {
     if (isFlyResourceNotFound(error)) {
       return
@@ -217,7 +231,7 @@ async function loadTemplateMachine(
   const templateApp = readEnvTrimmed('FLY_COMPUTER_TEMPLATE_APP') ??
     TEMPLATE_COMPUTER_APP
 
-  const machines = await listMachines({ appName: templateApp, token })
+  const machines = await flyCliListMachines({ appName: templateApp, token })
   if (machines.length === 0) {
     throw new Error(
       `Template app '${templateApp}' has no machines to replicate configuration from`,
@@ -231,7 +245,7 @@ async function loadTemplateMachine(
   })
   const candidate = sorted[0]
 
-  const detail = await getFlyMachine({
+  const detail = await flyCliGetMachine({
     appName: templateApp,
     token,
     machineId: candidate.id,
