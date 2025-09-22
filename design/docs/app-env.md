@@ -2,25 +2,70 @@
 
 Our Fly deployments share a runtime contract defined in `shared/env.ts`.
 Application-specific expectations now live in `shared/app_env.ts`, which exports
-the canonical list (`APP_ENV_VARS`) and helpers such as `resolveNfsSource`. The
-table below summarizes each variable, its purpose, default, and which projects
-rely on it.
+the canonical registry (`APP_ENV_VARS`), lookup helpers such as
+`APP_ENV_BY_NAME`, and utilities like `resolveNfsSource`. This document
+summarizes each variable, its purpose, default, and the projects that rely on
+it.
 
-| Variable                     | Description                                                                                                  | Default        | Projects                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------- | ---------------------------------------------------------------- |
-| `FLY_NFS_APP`                | Fly app slug that exposes the NFS volume; resolves to `<app>.flycast` when host/source overrides are absent. | —              | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth` |
-| `FLY_NFS_HOST`               | Direct hostname or IP override for the NFS endpoint, bypassing automatic Flycast resolution.                 | —              | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth` |
-| `FLY_NFS_SOURCE`             | Fully qualified hostname used when mounting NFS (highest precedence).                                        | —              | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth` |
-| `FLY_TEST_MACHINE_IP`        | IPv6 address provided during Fly machine checks so validation hits the check machine.                        | —              | `tasks/self_mount_check`, `fly-nfs/scripts`                      |
-| `FLY_NFS_MOUNT_DIR`          | Local mount point for the NFS share.                                                                         | `/mnt/fly-nfs` | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth` |
-| `FLY_NFS_SUBPATH`            | Relative path under the export base where app data lives.                                                    | —              | `tasks/mount`, `fly-agent`, `fly-auth`                           |
-| `FLY_NFS_MOUNT_OPTS`         | Comma-separated NFS mount options passed to `mount -o`.                                                      | `nfsvers=4.1`  | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth` |
-| `FLY_NFS_CHECK_DIR`          | Scratch directory used by the self-mount check when listing test files.                                      | —              | `tasks/self_mount_check`                                         |
-| `FLY_NFS_ENABLE_MOUNT`       | Toggles whether the agent entrypoint mounts NFS before launching.                                            | `1`            | `fly-agent`                                                      |
-| `FLY_NFS_RETRIES`            | Number of attempts the agent should make when mounting NFS.                                                  | `5`            | `fly-agent`                                                      |
-| `FLY_NFS_RETRY_DELAY_SEC`    | Seconds between agent mount retries.                                                                         | `3`            | `fly-agent`                                                      |
-| `FLY_NFS_SELF_CHECK_SUBPATH` | Optional export subpath for Fly NFS self-check scripts.                                                      | —              | `fly-nfs/scripts`                                                |
+For any new app-level contract, extend `APP_ENV_VARS` so tasks, docs, and tests
+remain in sync.
 
-For any new app-level environment contract, extend `APP_ENV_VARS` so tests,
-tasks, and docs stay in sync. Code that needs a Flycast hostname should call
-`resolveNfsSource` rather than reimplementing fallback logic.
+## Storage (NFS)
+
+| Variable                     | Description                                                                                                  | Default          | Projects                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------- |
+| `FLY_NFS_APP`                | Fly app slug that exposes the NFS volume; resolves to `<app>.flycast` when host/source overrides are absent. | —                | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_HOST`               | Direct hostname or IP override for the NFS endpoint, bypassing automatic Flycast resolution.                 | —                | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_SOURCE`             | Fully qualified hostname used when mounting NFS (highest precedence).                                        | —                | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
+| `FLY_TEST_MACHINE_IP`        | IPv6 address provided during Fly machine checks so validation hits the check machine.                        | —                | `tasks/self_mount_check`, `fly-nfs/scripts`                                      |
+| `FLY_NFS_MOUNT_DIR`          | Local mount point for the NFS share.                                                                         | `/mnt/computers` | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_SUBPATH`            | Relative path under the export base where app data lives.                                                    | `computers`      | `tasks/mount`, `fly-agent`, `fly-auth`, `fly-computer`                           |
+| `FLY_NFS_MOUNT_OPTS`         | Comma-separated NFS mount options passed to `mount -o`.                                                      | `nfsvers=4.1`    | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_CHECK_DIR`          | Scratch directory used by the self-mount check when listing test files.                                      | —                | `tasks/self_mount_check`                                                         |
+| `FLY_NFS_ENABLE_MOUNT`       | Toggles whether the agent entrypoint mounts NFS before launching.                                            | `1`              | `fly-agent`                                                                      |
+| `FLY_NFS_RETRIES`            | Number of attempts the agent should make when mounting NFS.                                                  | `5`              | `fly-agent`                                                                      |
+| `FLY_NFS_RETRY_DELAY_SEC`    | Seconds between agent mount retries.                                                                         | `3`              | `fly-agent`                                                                      |
+| `FLY_NFS_SELF_CHECK_SUBPATH` | Optional export subpath for Fly NFS self-check scripts.                                                      | —                | `fly-nfs/scripts`                                                                |
+
+## Fly Access & Provisioning
+
+| Variable                    | Description                                                                             | Default        | Projects                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------- |
+| `FLY_API_TOKEN`             | Controller token with permission to manage Fly apps and machines for Artifact services. | —              | `fly-auth`, `fly-computer`, `tasks/*`, `mcp-agents`, `mcp-computers` |
+| `FLY_ORG_SLUG`              | Primary Fly organization slug used when creating per-user actor apps.                   | —              | `fly-auth`                                                           |
+| `FLY_AUTH_BASE_DOMAIN`      | Base domain that receives actor subdomains (e.g. `actor-*.your-domain`).                | —              | `fly-auth`                                                           |
+| `FLY_COMPUTER_TEMPLATE_APP` | Fly app whose machine configuration seeds new per-user actor apps.                      | `fly-computer` | `fly-auth`                                                           |
+
+## Fly Computer Runtime
+
+| Variable                   | Description                                                                     | Default | Projects                   |
+| -------------------------- | ------------------------------------------------------------------------------- | ------- | -------------------------- |
+| `FLY_COMPUTER_TARGET_APP`  | Per-user Computer app slug that `fly-computer` should replay traffic to.        | —       | `fly-computer`, `fly-auth` |
+| `FLY_COMPUTER_AGENT_IMAGE` | Container image reference used when launching the actor’s first agent machine.  | —       | `fly-computer`, `fly-auth` |
+| `FLY_COMPUTER_REGION`      | Optional region override applied when `fly-computer` provisions actor machines. | —       | `fly-computer`             |
+
+## Clerk Authentication
+
+| Variable                | Description                                                                          | Default | Projects   |
+| ----------------------- | ------------------------------------------------------------------------------------ | ------- | ---------- |
+| `CLERK_SECRET_KEY`      | Server-side Clerk API key consumed by `fly-auth` middleware.                         | —       | `fly-auth` |
+| `CLERK_PUBLISHABLE_KEY` | Public Clerk key used to derive hosted frontend URLs for auth redirects.             | —       | `fly-auth` |
+| `CLERK_SIGN_IN_URL`     | Optional override for the Clerk sign-in URL when automatic derivation is unsuitable. | —       | `fly-auth` |
+| `CLERK_SIGN_UP_URL`     | Optional override for the Clerk sign-up URL when automatic derivation is unsuitable. | —       | `fly-auth` |
+
+## Integration & Testing
+
+| Variable                   | Description                                                                              | Default             | Projects   |
+| -------------------------- | ---------------------------------------------------------------------------------------- | ------------------- | ---------- |
+| `INTEGRATION_TEST_USER_ID` | Synthetic Clerk user id used by integration flows via the `x-artifact-test-user` header. | `integration-suite` | `fly-auth` |
+
+## Deprecated Fallbacks
+
+| Variable                | Description                                                                                     | Replacement    | Projects   |
+| ----------------------- | ----------------------------------------------------------------------------------------------- | -------------- | ---------- |
+| `FLY_AUTH_ORG_SLUG`     | Deprecated fallback organization slug read only when `FLY_ORG_SLUG` is unset.                   | `FLY_ORG_SLUG` | `fly-auth` |
+| `FLY_ORGANIZATION_SLUG` | Deprecated Fly Launch slug; maintained for backward compatibility when provisioning actor apps. | `FLY_ORG_SLUG` | `fly-auth` |
+
+Code that needs a Flycast hostname should call `resolveNfsSource` rather than
+reimplementing fallback logic. When you add new environment variable
+expectations, update `shared/app_env.ts` and extend the tables above.

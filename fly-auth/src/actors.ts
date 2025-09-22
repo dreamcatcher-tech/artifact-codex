@@ -1,4 +1,8 @@
-import { isFlyResourceNotFound } from '@artifact/shared'
+import {
+  isFlyResourceNotFound,
+  readAppEnv,
+  readRequiredAppEnv,
+} from '@artifact/shared'
 import {
   flyCliAppsCreate,
   flyCliAppsDestroy,
@@ -52,10 +56,7 @@ export function deriveActorAppName(clerkId: string): string {
 export async function ensureActorAppExists(
   appName: string,
 ): Promise<EnsureActorAppResult> {
-  const token = readEnvTrimmed('FLY_API_TOKEN')
-  if (!token) {
-    throw new Error('Missing FLY_API_TOKEN for Fly API access')
-  }
+  const token = readRequiredAppEnv('FLY_API_TOKEN')
 
   const template = await loadTemplateMachine(token)
 
@@ -199,10 +200,7 @@ async function delay(ms: number): Promise<void> {
 }
 
 export async function destroyActorApp(appName: string): Promise<void> {
-  const token = readEnvTrimmed('FLY_API_TOKEN')
-  if (!token) {
-    throw new Error('Missing FLY_API_TOKEN for Fly API access')
-  }
+  const token = readRequiredAppEnv('FLY_API_TOKEN')
   try {
     await flyCliAppsDestroy({ token, appName, force: true })
   } catch (error) {
@@ -221,22 +219,13 @@ function sanitizeClerkId(clerkId: string): string {
   return stripped || 'user'
 }
 
-function readEnvTrimmed(name: string): string | undefined {
-  try {
-    const value = Deno.env.get(name)?.trim()
-    return value ? value : undefined
-  } catch {
-    return undefined
-  }
-}
-
 function resolveOrgSlug(): string {
-  const primary = readEnvTrimmed('FLY_ORG_SLUG')
+  const primary = readAppEnv('FLY_ORG_SLUG')
   if (primary) return primary
 
   const fallbacks = ['FLY_AUTH_ORG_SLUG', 'FLY_ORGANIZATION_SLUG']
   for (const key of fallbacks) {
-    const value = readEnvTrimmed(key)
+    const value = readAppEnv(key)
     if (value) {
       console.warn(
         `${key} is deprecated; set FLY_ORG_SLUG instead for provisioning actor apps.`,
@@ -251,7 +240,7 @@ function resolveOrgSlug(): string {
 async function loadTemplateMachine(
   token: string,
 ): Promise<TemplateMachineInfo> {
-  const templateApp = readEnvTrimmed('FLY_COMPUTER_TEMPLATE_APP') ??
+  const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
     TEMPLATE_COMPUTER_APP
 
   const machines = await flyCliListMachines({ appName: templateApp, token })

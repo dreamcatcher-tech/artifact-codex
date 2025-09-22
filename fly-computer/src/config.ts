@@ -1,4 +1,8 @@
-import { readFlyMachineRuntimeEnv } from '@artifact/shared'
+import {
+  readAppEnv,
+  readFlyMachineRuntimeEnv,
+  readRequiredAppEnv,
+} from '@artifact/shared'
 import type { FlyMachineRuntimeEnv } from '@artifact/shared'
 
 export type AppConfig = {
@@ -17,17 +21,17 @@ export type ConfigOverrides = Partial<AppConfig> & {
 const DEFAULT_MOUNT_DIR = '/mnt/computer'
 
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
-  const flyApiToken = overrides.flyApiToken ?? readEnv('FLY_API_TOKEN')
-  const targetApp = overrides.targetApp ?? readEnv('FLY_COMPUTER_TARGET_APP')
-  const agentImage = overrides.agentImage ?? readEnv('FLY_COMPUTER_AGENT_IMAGE')
-  const defaultRegion = overrides.defaultRegion ??
-    (Deno.env.get('FLY_COMPUTER_REGION') ?? undefined)
+  const flyApiToken = overrides.flyApiToken?.trim() ||
+    readRequiredAppEnv('FLY_API_TOKEN')
+  const targetApp = overrides.targetApp?.trim() ||
+    readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
+  const agentImage = overrides.agentImage?.trim() ||
+    readRequiredAppEnv('FLY_COMPUTER_AGENT_IMAGE')
+  const defaultRegion = overrides.defaultRegion?.trim() ||
+    readAppEnv('FLY_COMPUTER_REGION')
   const flyRuntimeEnv = readFlyMachineRuntimeEnv()
   const registryRoot = resolveRegistryRoot(overrides, flyRuntimeEnv)
 
-  if (!flyApiToken.trim()) throw new Error('Missing FLY_API_TOKEN')
-  if (!targetApp.trim()) throw new Error('Missing FLY_COMPUTER_TARGET_APP')
-  if (!agentImage.trim()) throw new Error('Missing FLY_COMPUTER_AGENT_IMAGE')
   if (!registryRoot.trim()) {
     throw new Error('Unable to resolve registry root directory')
   }
@@ -58,9 +62,4 @@ function resolveRegistryRoot(
   }
 
   return mountDir
-}
-
-function readEnv(key: string): string {
-  const value = Deno.env.get(key) ?? ''
-  return value
 }

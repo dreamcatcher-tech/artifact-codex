@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_MOUNT_DIR="${FLY_NFS_MOUNT_DIR:-/mnt/fly-nfs}"
+DEFAULT_MOUNT_DIR="${FLY_NFS_MOUNT_DIR:-/mnt/computers}"
 DEFAULT_EXPORT_BASE="/data"
 DEFAULT_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
 DEFAULT_HOST="nfs-proto.flycast"

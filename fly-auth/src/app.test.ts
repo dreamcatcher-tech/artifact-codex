@@ -7,6 +7,7 @@ import { createApp, deriveActorAppName } from './app.ts'
 const TEST_SECRET = 'sk_test_dummy'
 const TEST_PUBLISHABLE =
   'pk_test_bGVnaWJsZS1sbGFtYS0zMi5jbGVyay5hY2NvdW50cy5kZXYk'
+const TEST_BASE_DOMAIN = 'example.test'
 
 const INTEGRATION_TEST_USER = (() => {
   const value = Deno.env.get('INTEGRATION_TEST_USER_ID')?.trim()
@@ -18,19 +19,23 @@ const INTEGRATION_ACTOR_APP = deriveActorAppName(INTEGRATION_TEST_USER)
 type EnvSnapshot = {
   secret?: string
   publishable?: string
+  baseDomain?: string
 }
 
 function setClerkEnv(): () => void {
   const snapshot: EnvSnapshot = {
     secret: Deno.env.get('CLERK_SECRET_KEY') ?? undefined,
     publishable: Deno.env.get('CLERK_PUBLISHABLE_KEY') ?? undefined,
+    baseDomain: Deno.env.get('FLY_AUTH_BASE_DOMAIN') ?? undefined,
   }
   Deno.env.set('CLERK_SECRET_KEY', TEST_SECRET)
   Deno.env.set('CLERK_PUBLISHABLE_KEY', TEST_PUBLISHABLE)
+  Deno.env.set('FLY_AUTH_BASE_DOMAIN', TEST_BASE_DOMAIN)
 
   return () => {
     restore('CLERK_SECRET_KEY', snapshot.secret)
     restore('CLERK_PUBLISHABLE_KEY', snapshot.publishable)
+    restore('FLY_AUTH_BASE_DOMAIN', snapshot.baseDomain)
   }
 }
 

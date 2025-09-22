@@ -1,9 +1,13 @@
 export type ProjectSlug =
   | 'tasks/mount'
   | 'tasks/self_mount_check'
+  | 'tasks/fly'
   | 'fly-agent'
   | 'fly-auth'
+  | 'fly-computer'
   | 'fly-nfs/scripts'
+  | 'mcp-agents'
+  | 'mcp-computers'
   | 'scripts/mount-nfs.sh'
   | 'design-docs'
 
@@ -12,6 +16,8 @@ export interface AppEnvVarSpec {
   readonly description: string
   readonly requiredFor: readonly ProjectSlug[]
   readonly defaultValue?: string
+  readonly deprecated?: boolean
+  readonly replacement?: string
 }
 
 export const DEFAULT_NFS_FLYCAST_HOST = 'nfs-proto.flycast'
@@ -64,14 +70,16 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
       'tasks/self_mount_check',
       'fly-agent',
       'fly-auth',
+      'fly-computer',
     ],
-    defaultValue: '/mnt/fly-nfs',
+    defaultValue: '/mnt/computers',
   },
   {
     name: 'FLY_NFS_SUBPATH',
     description:
       'Relative path under the export base that machine-specific data should live within.',
-    requiredFor: ['tasks/mount', 'fly-agent', 'fly-auth'],
+    requiredFor: ['tasks/mount', 'fly-agent', 'fly-auth', 'fly-computer'],
+    defaultValue: 'computers',
   },
   {
     name: 'FLY_NFS_MOUNT_OPTS',
@@ -81,6 +89,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
       'tasks/self_mount_check',
       'fly-agent',
       'fly-auth',
+      'fly-computer',
     ],
     defaultValue: 'nfsvers=4.1',
   },
@@ -115,7 +124,161 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
       'Optional export subpath used by the fly-nfs self-check scripts when validating mounts.',
     requiredFor: ['fly-nfs/scripts'],
   },
+  {
+    name: 'FLY_API_TOKEN',
+    description:
+      'Controller token with permission to manage Fly apps and machines for Artifact services.',
+    requiredFor: [
+      'fly-auth',
+      'fly-computer',
+      'tasks/mount',
+      'tasks/self_mount_check',
+      'tasks/fly',
+      'mcp-agents',
+      'mcp-computers',
+    ],
+  },
+  {
+    name: 'FLY_ORG_SLUG',
+    description:
+      'Primary Fly organization slug used when creating per-user actor apps.',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'FLY_AUTH_ORG_SLUG',
+    description:
+      'Deprecated fallback organization slug read only when FLY_ORG_SLUG is unset.',
+    requiredFor: ['fly-auth'],
+    deprecated: true,
+    replacement: 'FLY_ORG_SLUG',
+  },
+  {
+    name: 'FLY_ORGANIZATION_SLUG',
+    description:
+      'Deprecated Fly Launch slug; maintained for backward compatibility when provisioning actor apps.',
+    requiredFor: ['fly-auth'],
+    deprecated: true,
+    replacement: 'FLY_ORG_SLUG',
+  },
+  {
+    name: 'FLY_AUTH_BASE_DOMAIN',
+    description:
+      'Base domain that receives actor subdomains (for example actor-<user>.your-domain).',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'FLY_COMPUTER_TEMPLATE_APP',
+    description:
+      'Fly app whose machine configuration seeds new per-user actor apps.',
+    requiredFor: ['fly-auth'],
+    defaultValue: 'fly-computer',
+  },
+  {
+    name: 'FLY_COMPUTER_TARGET_APP',
+    description:
+      'Per-user Computer app slug that fly-computer should replay traffic to.',
+    requiredFor: ['fly-computer', 'fly-auth'],
+  },
+  {
+    name: 'FLY_COMPUTER_AGENT_IMAGE',
+    description:
+      'Container image reference used when launching the actor’s first agent machine.',
+    requiredFor: ['fly-computer', 'fly-auth'],
+  },
+  {
+    name: 'FLY_COMPUTER_REGION',
+    description:
+      'Optional region override applied when fly-computer provisions actor machines.',
+    requiredFor: ['fly-computer'],
+  },
+  {
+    name: 'CLERK_SECRET_KEY',
+    description: 'Server-side Clerk API key consumed by fly-auth middleware.',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'CLERK_PUBLISHABLE_KEY',
+    description:
+      'Public Clerk key used to derive hosted frontend URLs for auth redirects.',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'CLERK_SIGN_IN_URL',
+    description:
+      'Optional override for the Clerk sign-in URL when automatic derivation is unsuitable.',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'CLERK_SIGN_UP_URL',
+    description:
+      'Optional override for the Clerk sign-up URL when automatic derivation is unsuitable.',
+    requiredFor: ['fly-auth'],
+  },
+  {
+    name: 'INTEGRATION_TEST_USER_ID',
+    description:
+      'Synthetic Clerk user id used by integration flows via the x-artifact-test-user header.',
+    requiredFor: ['fly-auth'],
+    defaultValue: 'integration-suite',
+  },
 ]
+
+export const APP_ENV_BY_NAME: ReadonlyMap<string, AppEnvVarSpec> = new Map(
+  APP_ENV_VARS.map((spec) => [spec.name, spec]),
+)
+
+export function getAppEnvVar(name: string): AppEnvVarSpec | undefined {
+  return APP_ENV_BY_NAME.get(name)
+}
+
+type ReadAppEnvOptions = {
+  readonly trim?: boolean
+  readonly required?: boolean
+  readonly hint?: string
+}
+
+export function readAppEnv(
+  name: string,
+  options: ReadAppEnvOptions = {},
+): string | undefined {
+  const { trim = true, required = false, hint } = options
+  let value: string | undefined
+  try {
+    value = Deno.env.get(name) ?? undefined
+  } catch {
+    value = undefined
+  }
+
+  if (trim) {
+    value = value?.trim()
+    if (value && value.length === 0) {
+      value = undefined
+    }
+  }
+
+  if (required && (!value || value.length === 0)) {
+    const spec = getAppEnvVar(name)
+    const parts = [`Missing ${name}`]
+    if (hint) {
+      parts.push(hint)
+    } else if (spec?.description) {
+      parts.push(spec.description)
+    } else {
+      parts.push('set it in the environment before launching the app')
+    }
+    throw new Error(parts.join('; '))
+  }
+
+  return value
+}
+
+export function readRequiredAppEnv(
+  name: string,
+  options: Omit<ReadAppEnvOptions, 'required'> = {},
+): string {
+  const value = readAppEnv(name, { ...options, required: true })
+  return value ?? ''
+}
 
 export interface ResolveNfsSourceOptions {
   readonly source?: string

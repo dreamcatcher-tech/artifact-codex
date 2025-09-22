@@ -2,7 +2,11 @@ import { join } from '@std/path/join'
 
 import { runCommand } from '@artifact/procman'
 
-import { DEFAULT_NFS_FLYCAST_HOST, resolveNfsSource } from '@artifact/shared'
+import {
+  DEFAULT_NFS_FLYCAST_HOST,
+  NFS_EXPORT_BASE,
+  resolveNfsSource,
+} from '@artifact/shared'
 
 import { ensureNfsMount } from './mount.ts'
 import type {
@@ -20,7 +24,7 @@ export interface SelfMountCheckOptions {
   subpath?: string
 }
 
-const DEFAULT_EXPORT_BASE = '/data'
+const DEFAULT_EXPORT_BASE = NFS_EXPORT_BASE
 
 interface CleanupAction {
   (): Promise<void> | void
