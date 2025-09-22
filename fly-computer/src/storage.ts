@@ -9,7 +9,7 @@ const TREE_MAX_ENTRIES = 30
 
 let mountPromise: Promise<string> | null = null
 
-export async function ensureComputerStorageMounted(): Promise<string> {
+export function ensureComputerStorageMounted(): Promise<string> {
   if (!mountPromise) {
     mountPromise = mountStorage().catch((error) => {
       mountPromise = null

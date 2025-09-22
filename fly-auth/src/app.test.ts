@@ -305,14 +305,17 @@ Deno.test('deletes integration actor when header matches', async () => {
   let mountCalls = 0
   const app = createApp({
     dependencies: {
-      ensureMount: async () => {
+      ensureMount: () => {
         mountCalls += 1
+        return Promise.resolve()
       },
-      destroyActorApp: async (name) => {
+      destroyActorApp: (name) => {
         destroyed.push(name)
+        return Promise.resolve()
       },
-      removeFolder: async (name) => {
+      removeFolder: (name) => {
         removed.push(name)
+        return Promise.resolve()
       },
       auth: stubAuth('ignored'),
     },

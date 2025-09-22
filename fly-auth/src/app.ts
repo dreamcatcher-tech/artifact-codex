@@ -96,9 +96,8 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
       return replayToActorApp(c, actorApp)
     }
 
-    let ensureResult: EnsureActorAppResult
     try {
-      ensureResult = await deps.ensureActorApp(actorApp)
+      await deps.ensureActorApp(actorApp)
     } catch (error) {
       console.error('failed to ensure actor app', error)
       return c.json({ error: 'provision_failed' }, 500)
