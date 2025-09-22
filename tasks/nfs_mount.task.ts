@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 
-import { ensureNfsMount } from '../mod.ts'
-import type { EnsureMountOptions } from '../types.ts'
+import { ensureNfsMount } from './mod.ts'
+import type { EnsureMountOptions } from './types.ts'
 
 interface ParsedArgs {
   subpath?: string

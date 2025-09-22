@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 
-import { runSelfMountCheck } from '../mod.ts'
-import type { EnsureMountOptions, SelfMountCheckOptions } from '../types.ts'
+import { runSelfMountCheck } from './mod.ts'
+import type { EnsureMountOptions, SelfMountCheckOptions } from './types.ts'
 
 interface ParsedArgs {
   options: SelfMountCheckOptions
