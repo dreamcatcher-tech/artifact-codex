@@ -4,6 +4,8 @@ FROM node:${NODE_MAJOR}-bookworm-slim AS node
 ARG DEBIAN_FRONTEND=noninteractive
 FROM ubuntu:24.04
 
+ENV FLYCTL_INSTALL=/usr/local
+ENV PATH="${FLYCTL_INSTALL}/bin:${PATH}"
 
 # Enable universe and install core tooling (includes ttyd from Ubuntu repos)
 RUN apt-get update && \
@@ -58,6 +60,11 @@ COPY --from=node /usr/local/ /usr/local/
 
 # Install latest Deno (stable) system-wide
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
+
+RUN curl -fsSL https://fly.io/install.sh | sh
+
+RUN flyctl settings autoupdate disable
+RUN flyctl settings analytics disable
 
 RUN npm i -g npm
 RUN npm i -g @openai/codex

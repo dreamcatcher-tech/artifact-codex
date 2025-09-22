@@ -24,6 +24,24 @@ ensure_line_in_file() {
   return 0
 }
 
+# Format kilobytes as megabytes with thousands separators.
+format_megabytes() {
+  local kilobytes="$1"
+  local mb_times_100=$(( (kilobytes * 100 + 512) / 1024 ))
+  local int_part=$(( mb_times_100 / 100 ))
+  local frac_part=$(( mb_times_100 % 100 ))
+  local int_str="$int_part"
+  local formatted=""
+
+  while (( ${#int_str} > 3 )); do
+    formatted=",${int_str: -3}$formatted"
+    int_str="${int_str:0:${#int_str}-3}"
+  done
+
+  formatted="${int_str}${formatted}"
+  printf '%s.%02d' "$formatted" "$frac_part"
+}
+
 # Self-install symlink to ~/.local/bin/c
 TARGET_DIR="$HOME/.local/bin"
 TARGET="$TARGET_DIR/c"
@@ -86,4 +104,26 @@ fi
 # Use the caller's absolute working directory for codex's own --cd argument
 CWD_ABS="$(pwd -P)"
 
-exec /usr/bin/time -f "\n\tPeak RAM: %M kbytes\n" npx -y @openai/codex --cd "$CWD_ABS" "$@"
+TIME_OUTPUT="$(mktemp)"
+cleanup_time_output() {
+  rm -f -- "$TIME_OUTPUT"
+}
+trap cleanup_time_output EXIT
+
+if /usr/bin/time -f '%M' -o "$TIME_OUTPUT" npx -y @openai/codex --cd "$CWD_ABS" "$@"; then
+  STATUS=0
+else
+  STATUS=$?
+fi
+
+if [[ -s "$TIME_OUTPUT" ]]; then
+  PEAK_KB="$(<"$TIME_OUTPUT")"
+  if [[ "$PEAK_KB" =~ ^[0-9]+$ ]]; then
+    PEAK_MB="$(format_megabytes "$PEAK_KB")"
+    >&2 printf '\n\tPeak RAM: %s MB\n\n' "$PEAK_MB"
+  else
+    >&2 printf '\n\tPeak RAM: %s kB\n\n' "$PEAK_KB"
+  fi
+fi
+
+exit "$STATUS"

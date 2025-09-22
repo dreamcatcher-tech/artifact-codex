@@ -1,10 +1,13 @@
 import {
   createMachine as createFlyMachine,
   getFlyMachine,
+  isFlyResourceNotFound,
   listMachines,
   type MachineDetail,
   type MachineSummary,
+  startMachine,
 } from '@artifact/shared'
+import type { CommandExecutor } from '@artifact/tasks'
 
 import type { AppConfig } from './config.ts'
 
@@ -23,11 +26,9 @@ export type FlyApi = {
   startMachine: (machineId: string) => Promise<void>
 }
 
-const API_BASE = 'https://api.machines.dev'
-
 export function createFlyApi(
   config: AppConfig,
-  fetchImpl: typeof fetch,
+  commandExecutor?: CommandExecutor,
 ): FlyApi {
   return {
     getMachine: (machineId: string) =>
@@ -35,13 +36,13 @@ export function createFlyApi(
         appName: config.targetApp,
         token: config.flyApiToken,
         machineId,
-        fetchImpl,
+        commandExecutor,
       }),
     listMachines: () =>
       listMachines({
         appName: config.targetApp,
         token: config.flyApiToken,
-        fetchImpl,
+        commandExecutor,
       }),
     createMachine: ({ name, config: machineConfig, region }) =>
       createFlyMachine({
@@ -50,42 +51,16 @@ export function createFlyApi(
         name,
         config: machineConfig,
         region,
-        fetchImpl,
+        commandExecutor,
       }),
     startMachine: (machineId: string) =>
-      startFlyMachine({
+      startMachine({
         appName: config.targetApp,
         token: config.flyApiToken,
         machineId,
-        fetchImpl,
+        commandExecutor,
       }),
   }
-}
-
-type StartFlyMachineBag = {
-  appName: string
-  token: string
-  machineId: string
-  fetchImpl: typeof fetch
-}
-
-async function startFlyMachine(
-  { appName, token, machineId, fetchImpl }: StartFlyMachineBag,
-): Promise<void> {
-  const url = `${API_BASE}/v1/apps/${encodeURIComponent(appName)}/machines/${
-    encodeURIComponent(machineId)
-  }/start`
-  const headers = new Headers({
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/json',
-  })
-  const res = await fetchImpl(url, { method: 'POST', headers })
-  if (res.ok) return
-  if ([202, 204, 409, 423].includes(res.status)) return
-  const body = await res.text().catch(() => '')
-  throw new Error(
-    `Failed to start machine ${machineId}: ${res.status} ${res.statusText}\n${body}`,
-  )
 }
 
 export async function safeGetMachine(
@@ -95,7 +70,7 @@ export async function safeGetMachine(
   try {
     return await fly.getMachine(machineId)
   } catch (err) {
-    if (err instanceof Error && /Fly API error\s+404/.test(err.message)) {
+    if (isFlyResourceNotFound(err)) {
       return undefined
     }
     throw err

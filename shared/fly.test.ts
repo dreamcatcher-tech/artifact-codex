@@ -1,152 +1,118 @@
 import { expect } from '@std/expect'
+
 import { createMachine, listMachines } from '@artifact/shared'
+import type { CommandExecutor, CommandResult } from '@artifact/tasks'
 
-Deno.test(
-  'listMachines maps fields and builds URL without query params',
-  async () => {
-    let calledUrl = ''
-    let authHeader = ''
-    const mockFetch: typeof fetch = (
-      input: Request | URL | string,
-      init?: RequestInit,
-    ) => {
-      calledUrl = typeof input === 'string'
-        ? input
-        : input instanceof URL
-        ? input.toString()
-        : input.url
-      const headers = new Headers(init?.headers)
-      authHeader = headers.get('authorization') ?? ''
-      const payload = [
-        {
-          id: 'm123',
-          name: 'agent-1',
-          state: 'started',
-          region: 'iad',
-          'image_ref': { repository: 'registry-1.docker.io/owner/agent:1.2.3' },
-          'private_ip': 'fdaa:0:abcd',
-          'created_at': '2025-01-01T00:00:00Z',
-        },
-      ]
-      return Promise.resolve(
-        new Response(JSON.stringify(payload), {
-          headers: { 'Content-Type': 'application/json' },
-          status: 200,
-        }),
-      )
+function makeResult(
+  success: boolean,
+  overrides: Partial<CommandResult> = {},
+): CommandResult {
+  return {
+    success,
+    code: success ? 0 : 1,
+    signal: null,
+    stdout: '',
+    stderr: '',
+    ...overrides,
+  }
+}
+
+function createExecutor(
+  outputs: Record<string, CommandResult>,
+): { executor: CommandExecutor; calls: string[][] } {
+  const calls: string[][] = []
+  const executor: CommandExecutor = ({ command, args }) => {
+    const parts = [command, ...(args ?? [])]
+    calls.push(parts)
+    const key = parts.join(' ')
+    const response = outputs[key]
+    if (!response) {
+      throw new Error(`Unexpected command: ${key}`)
     }
+    return Promise.resolve(response)
+  }
+  return { executor, calls }
+}
 
-    const res = await listMachines({
-      appName: 'my-app',
-      token: 'TEST_TOKEN',
-      fetchImpl: mockFetch,
-    })
-
-    expect(calledUrl).toBe('https://api.machines.dev/v1/apps/my-app/machines')
-    expect(authHeader).toBe('Bearer TEST_TOKEN')
-    expect(Array.isArray(res)).toBe(true)
-    expect(res[0].id).toBe('m123')
-    expect(res[0].image).toContain('owner/agent:1.2.3')
-    // metadata absent in payload => undefined
-    expect(res[0].metadata).toBeUndefined()
-  },
-)
-
-Deno.test('listMachines throws on non-OK', async () => {
-  const mockFetch: typeof fetch = () =>
-    Promise.resolve(
-      new Response('nope', { status: 403, statusText: 'Forbidden' }),
-    )
-  await expect(
-    listMachines({
-      appName: 'x',
-      token: 't',
-      fetchImpl: mockFetch,
+Deno.test('listMachines maps CLI fields', async () => {
+  const payload = JSON.stringify([
+    {
+      ID: 'm123',
+      Name: 'agent-1',
+      State: 'started',
+      Region: 'lhr',
+      Image: 'registry.fly.io/example:tag',
+      PrivateIP: 'fdaa:0:1',
+      CreatedAt: '2025-01-01T00:00:00Z',
+      Config: { metadata: { role: 'worker' } },
+    },
+  ])
+  const { executor } = createExecutor({
+    'fly machine list --app my-app --json': makeResult(true, {
+      stdout: payload,
     }),
-  ).rejects.toThrow()
+  })
+
+  const machines = await listMachines({
+    appName: 'my-app',
+    token: 'noop',
+    commandExecutor: executor,
+  })
+
+  expect(machines).toEqual([
+    {
+      id: 'm123',
+      name: 'agent-1',
+      state: 'started',
+      region: 'lhr',
+      image: 'registry.fly.io/example:tag',
+      ip: 'fdaa:0:1',
+      createdAt: '2025-01-01T00:00:00Z',
+      metadata: { role: 'worker' },
+    },
+  ])
 })
-Deno.test(
-  'createMachine posts correct URL with headers and body and returns summary',
-  async () => {
-    let calledUrl = ''
-    let method = ''
-    let authHeader = ''
-    let contentType = ''
-    type CreateReqBody = {
-      name?: string
-      region?: string
-      config?: { image?: string }
-    }
-    let bodyObj: unknown = null
 
-    const mockFetch: typeof fetch = (
-      input: Request | URL | string,
-      init?: RequestInit,
-    ) => {
-      calledUrl = typeof input === 'string'
-        ? input
-        : input instanceof URL
-        ? input.toString()
-        : input.url
-      method = String(init?.method)
-      const headers = new Headers(init?.headers)
-      authHeader = headers.get('authorization') ?? ''
-      contentType = headers.get('content-type') ?? ''
-      bodyObj = init?.body ? JSON.parse(String(init.body)) : null
-      const b = bodyObj as CreateReqBody | null
-      const payload = {
-        id: 'mid-1',
-        name: b?.name ?? 'agent-x',
-        state: 'created',
-        region: b?.region ?? 'iad',
-        'image_ref': { repository: b?.config?.image ?? 'image:test' },
-        'private_ip': null,
-        'created_at': '2025-01-02T03:04:05Z',
-      }
-      return Promise.resolve(
-        new Response(JSON.stringify(payload), {
-          headers: { 'Content-Type': 'application/json' },
-          status: 200,
-        }),
-      )
-    }
-
-    const res = await createMachine({
-      appName: 'my-app',
-      token: 'TEST_TOKEN',
-      name: 'agent-77',
-      config: { image: 'owner/agent:2.0.0' },
-      region: 'iad',
-      fetchImpl: mockFetch,
-    })
-
-    expect(calledUrl).toBe('https://api.machines.dev/v1/apps/my-app/machines')
-    expect(method).toBe('POST')
-    expect(authHeader).toBe('Bearer TEST_TOKEN')
-    expect(contentType).toBe('application/json')
-    const b = bodyObj as CreateReqBody | null
-    expect(b?.name).toBe('agent-77')
-    expect(b?.region).toBe('iad')
-    expect(b?.config?.image).toBe('owner/agent:2.0.0')
-
-    expect(res.id).toBe('mid-1')
-    expect(res.name).toBe('agent-77')
-    expect(res.image).toContain('owner/agent:2.0.0')
-  },
-)
-
-Deno.test('createMachine throws on non-OK', async () => {
-  const mockFetch: typeof fetch = () =>
-    Promise.resolve(
-      new Response('nope', { status: 400, statusText: 'Bad Request' }),
-    )
-  await expect(
-    createMachine({
-      appName: 'a',
-      token: 't',
-      name: 'n',
-      config: { image: 'img' },
-      fetchImpl: mockFetch,
+Deno.test('createMachine delegates to CLI create + list', async () => {
+  const { executor, calls } = createExecutor({
+    'fly machine create --app my-app --machine-config {"image":"example"} --name agent-1 --region ord':
+      makeResult(true),
+    'fly machine list --app my-app --json': makeResult(true, {
+      stdout: JSON.stringify([
+        { ID: 'm200', Name: 'agent-1', Region: 'ord' },
+      ]),
     }),
-  ).rejects.toThrow()
+  })
+
+  const created = await createMachine({
+    appName: 'my-app',
+    token: 'noop',
+    name: 'agent-1',
+    config: { image: 'example' },
+    region: 'ord',
+    commandExecutor: executor,
+  })
+
+  expect(calls[0]).toEqual([
+    'fly',
+    'machine',
+    'create',
+    '--app',
+    'my-app',
+    '--machine-config',
+    '{"image":"example"}',
+    '--name',
+    'agent-1',
+    '--region',
+    'ord',
+  ])
+  expect(calls[1]).toEqual([
+    'fly',
+    'machine',
+    'list',
+    '--app',
+    'my-app',
+    '--json',
+  ])
+  expect(created.id).toBe('m200')
 })

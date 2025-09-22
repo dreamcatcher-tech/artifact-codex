@@ -20,13 +20,14 @@ This is a Stdio MCP server focused on Computer management in Fly.io.
   terminate"). Accepts `name` (defaults to `FLY_APP_NAME`) and optionally
   `force`.
 
-### API helpers
+### CLI helpers
 
 - `listFlyApps({ token, orgSlug })`: lists Computers (Fly apps).
 - `createFlyApp({ token, appName, orgSlug })`: creates a Computer (Fly app).
 - `appExists({ token, appName })`: boolean existence check for a Computer.
 - `getFlyApp({ token, appName })`: fetch info about a specific Computer.
-- `destroyFlyApp({ token, appName, force? })`: destroy a Computer.
+- `destroyFlyApp({ token, appName, force? })`: destroy a Computer via the Fly
+  CLI.
 - `listMachines({ appName, token })`: list Agents for a Computer.
 - `createMachine({ appName, token, name, config, region? })`: create an Agent.
 

@@ -28,10 +28,12 @@ tailored to our language:
 
 The previous demo tools (`echo`, `add`) have been removed.
 
-API helpers
+CLI helpers
 
-- `listMachines(appName, token)`: returns array of Agent summaries.
-- `createMachine({ appName, token, name, config, region? })`: creates an Agent.
+- `listMachines(appName, token)`: returns array of Agent summaries using the Fly
+  CLI.
+- `createMachine({ appName, token, name, config, region? })`: creates an Agent
+  via the Fly CLI wrappers.
 
 ## Environment Variables
 
@@ -40,7 +42,7 @@ that Fly.io injects into a Machine’s runtime environment, with one explicit
 exception noted below. See “The Machine Runtime Environment” in the Fly docs for
 authoritative definitions.
 
-- FLY_APP_NAME: Computer (Fly app) name. Used to scope API requests for reading
+- FLY_APP_NAME: Computer (Fly app) name. Used to scope CLI requests for reading
   and listing/creating Agents.
 - FLY_IMAGE_REF: Docker image reference for the current Machine. Used by
   `create_agent` as the image to launch for the new Agent (i.e., to clone the
@@ -48,9 +50,9 @@ authoritative definitions.
 - FLY_REGION: Current region of this Machine. If set, `create_agent` uses this
   as the region for the new Agent; otherwise region is omitted and Fly schedules
   per its defaults.
-- FLY_API_TOKEN: API access token. Required to call the Machines API. This is
-  not injected by Fly; set it yourself (for example with `fly secrets set` or
-  via your process environment) for the MCP server process.
+- FLY_API_TOKEN: Token used by the Fly CLI. Set it yourself (for example with
+  `fly secrets set` or via your process environment) so the MCP server can
+  authenticate.
 
 No fallbacks are used (for example, `FLY_APP`, `FLY_ACCESS_TOKEN`,
 `AGENT_IMAGE`, `FLY_IMAGE` have been removed). If a required variable is

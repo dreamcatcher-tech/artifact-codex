@@ -31,6 +31,7 @@ import {
   createMachine,
   destroyMachine,
   getFlyMachine,
+  isFlyResourceNotFound,
   listMachines,
 } from '@artifact/shared'
 
@@ -94,8 +95,7 @@ server.registerTool(
       })
       return toStructured({ exists: true, agent: detail })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (/Fly API error\s+404/.test(msg)) {
+      if (isFlyResourceNotFound(err)) {
         return toStructured({
           exists: false,
           reason: 'Agent not found via API (404).',

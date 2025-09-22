@@ -1,4 +1,7 @@
-The primary reference for the fly api is: https://fly.io/docs/machines/api/
+The primary reference for working with Fly is the `flyctl` command-line
+documentation: https://fly.io/docs/flyctl/ which is easily accessible at any
+time by running `fly --help` on the command line and learning about the commands
+and syntax directly.
 
 The spec for the modelcontextprotocol is:
 https://modelcontextprotocol.io/specification/2025-06-18
@@ -11,6 +14,32 @@ can be found at: https://github.com/modelcontextprotocol/typescript-sdk
 The .refs folder contains code for reference only NEVER MODIFY ANYTHING INSIDE
 THIS FOLDER. If you ever want to know about the inner workings of codex, then
 you can read thru the code inside `.refs/codex/codex-rs/`.
+
+## Fly CLI usage
+
+- All Fly automation must go through the helpers exposed in `@artifact/tasks`;
+  never call the Machines API directly from application code.
+- Prefer the CLI's structured output flags (`--json`, `--machine-config`, etc.)
+  so we can map results deterministically without scraping human text.
+- Make sure any runtime images (Docker, CI, devcontainers) install the `fly`
+  binary via the official installer
+  (`curl -fsSL https://fly.io/install.sh | sh`) and place it on `PATH`.
+- When baking `flyctl` into a container, prefer the installer’s `FLYCTL_INSTALL`
+  output over copying binaries by hand so the CLI stays upgradable. A minimal
+  Alpine example:
+
+  ```Dockerfile
+  ENV FLYCTL_INSTALL=/usr/local
+  ENV PATH="${FLYCTL_INSTALL}/bin:${PATH}"
+
+  RUN curl -fsSL https://fly.io/install.sh | sh
+
+  RUN flyctl settings autoupdate disable
+  RUN flyctl settings analytics disable
+  ```
+- When adding new Fly-related features, check whether an existing wrapper in
+  `tasks/fly.ts` can be reused; otherwise extend that module so the entire
+  workspace benefits from a single implementation.
 
 ## Deployment to fly.io
 

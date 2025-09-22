@@ -28,7 +28,6 @@ export type CreateHandlerOptions = {
 }
 
 type Dependencies = {
-  fetchImpl: typeof fetch
   now: () => Date
   fly: FlyApi
   registry: AgentRegistry
@@ -38,7 +37,6 @@ export async function createHandler(
   options: CreateHandlerOptions = {},
 ): Promise<Handler> {
   const config = resolveConfig(options.config)
-  const fetchImpl = options.dependencies?.fetchImpl ?? fetch
   const now = options.dependencies?.now ?? (() => new Date())
   const registryRoot = config.registryRoot
   const registry = options.dependencies?.registry ??
@@ -48,11 +46,11 @@ export async function createHandler(
       writeTextFile: Deno.writeTextFile,
       stat: Deno.stat,
     })
-  const fly = options.dependencies?.fly ?? createFlyApi(config, fetchImpl)
+  const fly = options.dependencies?.fly ?? createFlyApi(config)
 
   await registry.ensureReady()
 
-  const deps: Dependencies = { fetchImpl, now, fly, registry }
+  const deps: Dependencies = { now, fly, registry }
 
   return async (request: Request): Promise<Response> => {
     const host = resolveHost(request)

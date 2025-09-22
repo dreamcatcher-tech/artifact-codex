@@ -6,6 +6,7 @@ import {
   destroyFlyApp,
   getFlyApp,
   getFlyMachine,
+  isFlyResourceNotFound,
   listMachines,
   setAppSecrets,
 } from '@artifact/shared'
@@ -168,7 +169,7 @@ export async function destroyActorApp(appName: string): Promise<void> {
   try {
     await destroyFlyApp({ token, appName, force: true })
   } catch (error) {
-    if (error instanceof Error && /Fly API error 404/.test(error.message)) {
+    if (isFlyResourceNotFound(error)) {
       return
     }
     throw error

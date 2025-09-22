@@ -1,9 +1,28 @@
+import {
+  type FlyCliAppInfo,
+  flyCliAppsCreate,
+  flyCliAppsDestroy,
+  flyCliAppsInfo,
+  flyCliAppsList,
+  flyCliCreateMachine,
+  flyCliDestroyMachine,
+  flyCliGetMachine,
+  flyCliListMachines,
+  type FlyCliMachineDetail,
+  type FlyCliMachineSummary,
+  flyCliSecretsSet,
+  flyCliStartMachine,
+  flyCliTokensCreateDeploy,
+  FlyCommandError,
+} from '@artifact/tasks'
+import type { CommandExecutor } from '@artifact/tasks'
+
 import { readFlyMachineRuntimeEnv } from './env.ts'
 
 export type ListMachinesBag = {
   appName: string
   token: string
-  fetchImpl?: typeof fetch // allow mocking
+  commandExecutor?: CommandExecutor
 }
 
 export type MachineSummary = {
@@ -17,32 +36,21 @@ export type MachineSummary = {
   metadata?: Record<string, unknown>
 }
 
-type RawMachine = {
-  id: string
-  name?: string
-  state?: string
-  region?: string
-  'image_ref'?: { repository?: string }
-  'private_ip'?: string | null
-  'created_at'?: string
-  config?: Record<string, unknown> | null
+export type MachineDetail = MachineSummary & {
+  config?: Record<string, unknown>
 }
 
 export type GetMachineBag = {
   appName: string
   token: string
   machineId: string
-  fetchImpl?: typeof fetch
-}
-
-export type MachineDetail = MachineSummary & {
-  config?: Record<string, unknown>
+  commandExecutor?: CommandExecutor
 }
 
 export type GetAppBag = {
   appName: string
   token: string
-  fetchImpl?: typeof fetch
+  commandExecutor?: CommandExecutor
 }
 
 export type AppInfo = {
@@ -56,36 +64,32 @@ export type CreateAppBag = {
   token: string
   appName: string
   orgSlug: string
-  fetchImpl?: typeof fetch
+  commandExecutor?: CommandExecutor
 }
 
 export type ListAppsBag = {
   token: string
-  orgSlug?: string
-  fetchImpl?: typeof fetch
+  orgSlug: string
+  commandExecutor?: CommandExecutor
 }
 
 export type AppExistsBag = {
   token: string
   appName: string
-  fetchImpl?: typeof fetch
+  commandExecutor?: CommandExecutor
 }
 
 export type ProbeTokenScopeBag = {
   token: string
-  /** Optional: app name to derive organization from; if omitted, tries env FLY_APP_NAME */
   appName?: string
-  /** Optional: known organization slug; if provided, appName/env not required */
   orgSlug?: string
-  fetchImpl?: typeof fetch
+  commandExecutor?: CommandExecutor
 }
 
 export type ProbeTokenScopeResult = {
-  /** 'org' means org-wide (or personal access) token; 'app' means app-scoped deploy token; 'unknown' if inconclusive. */
   classification: 'org' | 'app' | 'unknown'
   orgSlug?: string
   appName?: string
-  /** HTTP evidence for debugging/UI */
   evidence: {
     getApp?: { ok: boolean; status: number }
     listApps?: { ok: boolean; status: number }
@@ -93,190 +97,185 @@ export type ProbeTokenScopeResult = {
   message?: string
 }
 
-const API_BASE = 'https://api.machines.dev'
-
-function mergeHeaders(base: HeadersInit, extra?: HeadersInit): Headers {
-  const h = new Headers(base)
-  if (extra) new Headers(extra).forEach((v, k) => h.set(k, v))
-  return h
+export type CreateMachineBagUnified = {
+  appName: string
+  token: string
+  name: string
+  config: Record<string, unknown>
+  region?: string
+  commandExecutor?: CommandExecutor
 }
 
-async function flyApiFetch(
-  path: string,
-  token: string,
-  init: RequestInit = {},
-  fetchImpl?: typeof fetch,
-): Promise<Response> {
-  const fx = fetchImpl ?? fetch
-  const url = `${API_BASE}${path}`
-  const headers = mergeHeaders(
-    {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    init.headers ?? {},
-  )
-  const res = await fx(url, { ...init, headers })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Fly API error ${res.status}: ${res.statusText}\n${body}`)
-  }
-  return res
+export type DestroyMachineBag = {
+  appName: string
+  token: string
+  machineId: string
+  force?: boolean
+  commandExecutor?: CommandExecutor
 }
 
-function mapRawMachineToSummary(m: RawMachine): MachineSummary {
-  const cfgImage = (m.config as { image?: string } | null | undefined)?.image
-  let resolvedImage: string | undefined = cfgImage && cfgImage.trim()
-    ? cfgImage
-    : undefined
-  if (!resolvedImage && m.image_ref) {
-    const repository = m.image_ref.repository
-    if (repository && /[:@]/.test(repository)) resolvedImage = repository
-    else if (repository) resolvedImage = repository
-  }
-  return {
-    id: m.id,
-    name: m.name,
-    state: m.state,
-    region: m.region,
-    image: resolvedImage,
-    ip: m.private_ip ?? undefined,
-    createdAt: m.created_at ?? undefined,
-    metadata:
-      (m.config as { metadata?: Record<string, unknown> } | null | undefined)
-        ?.metadata,
-  }
+export type StartMachineBag = {
+  appName: string
+  token: string
+  machineId: string
+  commandExecutor?: CommandExecutor
+}
+
+export type DestroyAppBag = {
+  token: string
+  appName: string
+  force?: boolean
+  commandExecutor?: CommandExecutor
+}
+
+export type SetSecretsBag = {
+  token: string
+  appName: string
+  secrets: Record<string, string>
+  commandExecutor?: CommandExecutor
+}
+
+export type CreateDeployTokenBag = {
+  token: string
+  appName: string
+  commandExecutor?: CommandExecutor
 }
 
 export async function listMachines(
-  { appName, token, fetchImpl }: ListMachinesBag,
+  { appName, token, commandExecutor }: ListMachinesBag,
 ): Promise<MachineSummary[]> {
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/machines`,
+  const machines = await flyCliListMachines({
+    appName,
     token,
-    {},
-    fetchImpl,
-  )
-  const data = await res.json()
-  const machines: RawMachine[] = Array.isArray(data)
-    ? (data as RawMachine[])
-    : ((data?.machines ?? []) as RawMachine[])
-  return machines.map(mapRawMachineToSummary)
+    commandExecutor,
+  })
+  return machines.map(mapMachineSummary)
 }
 
 export async function getFlyMachine(
-  { appName, token, machineId, fetchImpl }: GetMachineBag,
+  { appName, token, machineId, commandExecutor }: GetMachineBag,
 ): Promise<MachineDetail> {
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/machines/${
-      encodeURIComponent(machineId)
-    }`,
+  const detail = await flyCliGetMachine({
+    appName,
     token,
-    {},
-    fetchImpl,
-  )
-  const m: RawMachine & { config?: Record<string, unknown> } = await res.json()
-  const summary = mapRawMachineToSummary(m)
-  return { ...summary, config: m.config ?? undefined }
+    machineId,
+    commandExecutor,
+  })
+  return mapMachineDetail(detail)
 }
 
 export async function getFlyApp(
-  { appName, token, fetchImpl }: GetAppBag,
+  { appName, token, commandExecutor }: GetAppBag,
 ): Promise<AppInfo> {
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}`,
-    token,
-    {},
-    fetchImpl,
-  )
-  const data = (await res.json()) as
-    | {
-      id: string
-      name?: string
-      organization?: { slug?: string }
-      created_at?: string
-    }
-    | null
-    | undefined
-  return {
-    id: data?.id ?? '',
-    name: data?.name,
-    organizationSlug: data?.organization?.slug,
-    createdAt: data?.created_at,
-  }
+  const info = await flyCliAppsInfo({ appName, token, commandExecutor })
+  return mapAppInfo(info)
 }
 
 export async function createFlyApp(
-  { token, appName, orgSlug, fetchImpl }: CreateAppBag,
+  { token, appName, orgSlug, commandExecutor }: CreateAppBag,
 ): Promise<AppInfo> {
-  const res = await flyApiFetch(`/v1/apps`, token, {
-    method: 'POST',
-    body: JSON.stringify({ app_name: appName, org_slug: orgSlug }),
-  }, fetchImpl)
-  const data = (await res.json()) as {
-    id: string
-    name?: string
-    organization?: { slug?: string }
-    created_at?: string
-  }
-  return {
-    id: data.id,
-    name: data.name,
-    organizationSlug: data.organization?.slug,
-    createdAt: data.created_at,
-  }
+  const created = await flyCliAppsCreate({
+    token,
+    appName,
+    orgSlug,
+    commandExecutor,
+  })
+  return mapAppInfo(created)
 }
 
 export async function listFlyApps(
-  { token, orgSlug, fetchImpl }: ListAppsBag,
+  { token, orgSlug, commandExecutor }: ListAppsBag,
 ): Promise<AppInfo[]> {
-  if (!orgSlug || !orgSlug.trim()) {
-    throw new Error(
-      "Fly Machines API requires 'org_slug' to list apps (GET /v1/apps?org_slug=...). Provide an org slug.",
-    )
-  }
-  const res = await flyApiFetch(
-    `/v1/apps?org_slug=${encodeURIComponent(orgSlug)}`,
-    token,
-    {},
-    fetchImpl,
-  )
-  type AppRow = {
-    id: string
-    name?: string
-    organization?: { slug?: string }
-    created_at?: string
-  }
-  const data = (await res.json()) as
-    | { apps?: AppRow[] }
-    | AppRow[]
-    | null
-    | undefined
-  const appsArr: AppRow[] = Array.isArray(data)
-    ? (data as AppRow[])
-    : ((data?.apps ?? []) as AppRow[])
-  return appsArr.map((a) => ({
-    id: a.id,
-    name: a.name,
-    organizationSlug: a.organization?.slug,
-    createdAt: a.created_at,
-  }))
+  const apps = await flyCliAppsList({ token, orgSlug, commandExecutor })
+  return apps.map(mapAppInfo)
 }
 
-/**
- * Probe whether a Fly API token is app-scoped (deploy token) or org-wide by
- * attempting an organization apps listing. Requires either an org slug or an
- * app name (to derive org from GET /v1/apps/{app}).
- */
+export async function appExists(
+  { token, appName, commandExecutor }: AppExistsBag,
+): Promise<boolean> {
+  try {
+    await flyCliAppsInfo({ token, appName, commandExecutor })
+    return true
+  } catch (error) {
+    if (error instanceof FlyCommandError) {
+      return false
+    }
+    throw error
+  }
+}
+
+export async function createMachine(
+  { appName, token, name, config, region, commandExecutor }:
+    CreateMachineBagUnified,
+): Promise<MachineSummary> {
+  const created = await flyCliCreateMachine({
+    appName,
+    token,
+    name,
+    config,
+    region,
+    commandExecutor,
+  })
+  return mapMachineSummary(created)
+}
+
+export async function destroyMachine(
+  { appName, token, machineId, force, commandExecutor }: DestroyMachineBag,
+): Promise<{ ok: boolean }> {
+  await flyCliDestroyMachine({
+    appName,
+    token,
+    machineId,
+    force,
+    commandExecutor,
+  })
+  return { ok: true }
+}
+
+export async function destroyFlyApp(
+  { token, appName, force, commandExecutor }: DestroyAppBag,
+): Promise<void> {
+  await flyCliAppsDestroy({ token, appName, force, commandExecutor })
+}
+
+export async function startMachine(
+  { appName, token, machineId, commandExecutor }: StartMachineBag,
+): Promise<void> {
+  await flyCliStartMachine({ appName, token, machineId, commandExecutor })
+}
+
+export function isFlyResourceNotFound(error: unknown): boolean {
+  if (error instanceof FlyCommandError) {
+    const body = `${error.result.stderr} ${error.result.stdout}`.toLowerCase()
+    return body.includes('not found') || body.includes('404')
+  }
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase()
+    return message.includes('not found') || message.includes('404')
+  }
+  return false
+}
+
+export async function setAppSecrets(
+  { token, appName, secrets, commandExecutor }: SetSecretsBag,
+): Promise<void> {
+  await flyCliSecretsSet({ token, appName, secrets, commandExecutor })
+}
+
+export async function createDeployToken(
+  { token, appName, commandExecutor }: CreateDeployTokenBag,
+): Promise<string> {
+  return await flyCliTokensCreateDeploy({ token, appName, commandExecutor })
+}
+
 export async function probeTokenScope(
-  { token, appName, orgSlug, fetchImpl }: ProbeTokenScopeBag,
+  { token, appName, orgSlug, commandExecutor }: ProbeTokenScopeBag,
 ): Promise<ProbeTokenScopeResult> {
   let derivedApp = (appName ?? '').trim()
   if (!derivedApp) {
     try {
-      const { FLY_APP_NAME } = readFlyMachineRuntimeEnv()
-      derivedApp = FLY_APP_NAME
+      const env = readFlyMachineRuntimeEnv()
+      derivedApp = env.FLY_APP_NAME
     } catch {
       /* ignore */
     }
@@ -285,10 +284,6 @@ export async function probeTokenScope(
   let org = (orgSlug ?? '').trim()
   const evidence: ProbeTokenScopeResult['evidence'] = {}
 
-  // Test helpers: magic tokens short-circuit classification without network
-  // - 'TEST_ORG' or 'TEST_ORG:<slug>' => org-scoped
-  // - 'TEST_APP' or 'TEST_APP:<slug>' => app-scoped
-  // - 'TEST_UNKNOWN' => unknown
   const magic = token.startsWith('TEST_') ? token : ''
   if (magic) {
     const [, kind, slug] = /^(TEST_\w+)(?::([\w-]+))?$/.exec(magic) ?? []
@@ -299,8 +294,8 @@ export async function probeTokenScope(
         orgSlug: fakeOrg,
         appName: derivedApp || undefined,
         evidence: {
-          getApp: { ok: true, status: 200 },
-          listApps: { ok: true, status: 200 },
+          getApp: { ok: true, status: 0 },
+          listApps: { ok: true, status: 0 },
         },
       }
     }
@@ -310,7 +305,7 @@ export async function probeTokenScope(
         orgSlug: fakeOrg,
         appName: derivedApp || undefined,
         evidence: {
-          getApp: { ok: true, status: 200 },
+          getApp: { ok: true, status: 0 },
           listApps: { ok: false, status: 403 },
         },
       }
@@ -325,19 +320,17 @@ export async function probeTokenScope(
     }
   }
 
-  // If we don't have an org, try to derive from the app
   if (!org && derivedApp) {
     try {
-      const app = await getFlyApp({ appName: derivedApp, token, fetchImpl })
-      evidence.getApp = { ok: true, status: 200 }
-      if (app.organizationSlug) org = app.organizationSlug
-    } catch (err) {
-      // capture status if possible
-      const status =
-        err instanceof Error && /Fly API error (\d+)/.test(err.message)
-          ? Number(/Fly API error (\d+)/.exec(err.message)?.[1])
-          : 0
-      evidence.getApp = { ok: false, status }
+      const info = await getFlyApp({
+        token,
+        appName: derivedApp,
+        commandExecutor,
+      })
+      evidence.getApp = { ok: true, status: 0 }
+      if (info.organizationSlug) org = info.organizationSlug
+    } catch (error) {
+      evidence.getApp = { ok: false, status: extractStatus(error) }
     }
   }
 
@@ -351,23 +344,17 @@ export async function probeTokenScope(
     }
   }
 
-  // Attempt to list apps in the org. If this succeeds, token is org-wide
-  // (or a personal access token). If it fails with 401/403, it is likely
-  // app-scoped (deploy token) tied to a single app.
   try {
-    await listFlyApps({ token, orgSlug: org, fetchImpl })
-    evidence.listApps = { ok: true, status: 200 }
+    await listFlyApps({ token, orgSlug: org, commandExecutor })
+    evidence.listApps = { ok: true, status: 0 }
     return {
       classification: 'org',
       orgSlug: org,
       appName: derivedApp || undefined,
       evidence,
     }
-  } catch (err) {
-    const status =
-      err instanceof Error && /Fly API error (\d+)/.test(err.message)
-        ? Number(/Fly API error (\d+)/.exec(err.message)?.[1])
-        : 0
+  } catch (error) {
+    const status = extractStatus(error)
     evidence.listApps = { ok: false, status }
     if (status === 401 || status === 403) {
       return {
@@ -389,215 +376,39 @@ export async function probeTokenScope(
   }
 }
 
-export async function appExists(
-  { token, appName, fetchImpl }: AppExistsBag,
-): Promise<boolean> {
-  const fx = fetchImpl ?? fetch
-  const url = `${API_BASE}/v1/apps/${encodeURIComponent(appName)}`
-  const headers = new Headers({
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  })
-  const res = await fx(url, { method: 'GET', headers })
-  if (res.status === 404) return false
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Fly API error ${res.status}: ${res.statusText}\n${body}`)
-  }
-  return true
-}
-
-export type CreateMachineBagUnified = {
-  appName: string
-  token: string
-  name: string
-  config: Record<string, unknown>
-  region?: string
-  fetchImpl?: typeof fetch
-}
-
-export async function createMachine(
-  { appName, token, name, config, region, fetchImpl }: CreateMachineBagUnified,
-): Promise<MachineSummary> {
-  const body: Record<string, unknown> = { name, config }
-  if (region) body.region = region
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/machines`,
-    token,
-    { method: 'POST', body: JSON.stringify(body) },
-    fetchImpl,
-  )
-  const m: RawMachine = await res.json()
-  return mapRawMachineToSummary(m)
-}
-
-export type DestroyMachineBag = {
-  appName: string
-  token: string
-  machineId: string
-  force?: boolean
-  fetchImpl?: typeof fetch
-}
-
-export async function destroyMachine(
-  { appName, token, machineId, force, fetchImpl }: DestroyMachineBag,
-): Promise<{ ok: boolean }> {
-  const qs = force ? '?force=true' : ''
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/machines/${
-      encodeURIComponent(machineId)
-    }${qs}`,
-    token,
-    { method: 'DELETE' },
-    fetchImpl,
-  )
-  try {
-    const data = (await res.json()) as { ok?: boolean }
-    return { ok: Boolean(data?.ok ?? true) }
-  } catch {
-    return { ok: true }
+function mapMachineSummary(summary: FlyCliMachineSummary): MachineSummary {
+  return {
+    id: summary.id,
+    name: summary.name,
+    state: summary.state,
+    region: summary.region,
+    image: summary.image,
+    ip: summary.privateIp,
+    createdAt: summary.createdAt,
+    metadata: summary.metadata,
   }
 }
 
-export type DestroyAppBag = {
-  token: string
-  appName: string
-  force?: boolean
-  fetchImpl?: typeof fetch
-}
-
-export async function destroyFlyApp(
-  { token, appName, force, fetchImpl }: DestroyAppBag,
-): Promise<void> {
-  const qs = force ? '?force=true' : ''
-  await flyApiFetch(`/v1/apps/${encodeURIComponent(appName)}${qs}`, token, {
-    method: 'DELETE',
-  }, fetchImpl)
-}
-
-export type SetSecretsBag = {
-  token: string
-  appName: string
-  secrets: Record<string, string>
-  fetchImpl?: typeof fetch
-}
-
-export async function setAppSecrets(
-  { token, appName, secrets, fetchImpl }: SetSecretsBag,
-): Promise<void> {
-  const entries = Object.entries(secrets)
-  if (entries.length === 0) return
-  const targetAppId = await resolveAppGraphqlId({
-    token,
-    appName,
-    fetchImpl,
-  })
-
-  const mutation = `
-    mutation SetSecrets($input: SetSecretsInput!) {
-      setSecrets(input: $input) {
-        release { id version }
-      }
-    }
-  `
-  const variables = {
-    input: {
-      appId: targetAppId,
-      secrets: entries.map(([key, value]) => ({ key, value })),
-    },
+function mapMachineDetail(detail: FlyCliMachineDetail): MachineDetail {
+  return {
+    ...mapMachineSummary(detail),
+    config: detail.config,
   }
-
-  const result = await flyGraphqlFetch({
-    token,
-    query: mutation,
-    variables,
-    fetchImpl,
-  })
-  console.info('setSecrets response', result)
 }
 
-export type CreateDeployTokenBag = {
-  token: string
-  appName: string
-  fetchImpl?: typeof fetch
-}
-
-export async function createDeployToken(
-  { token, appName, fetchImpl }: CreateDeployTokenBag,
-): Promise<string> {
-  const res = await flyApiFetch(
-    `/v1/apps/${encodeURIComponent(appName)}/deploy_token`,
-    token,
-    { method: 'POST', body: JSON.stringify({}) },
-    fetchImpl,
-  )
-  const data = (await res.json()) as { token?: string }
-  const value = data.token?.trim()
-  if (!value) {
-    throw new Error('Fly deploy token response missing token value')
+function mapAppInfo(info: FlyCliAppInfo): AppInfo {
+  return {
+    id: info.id,
+    name: info.name,
+    organizationSlug: info.organizationSlug,
+    createdAt: info.createdAt,
   }
-  return value
 }
 
-type FlyGraphqlBag = {
-  token: string
-  query: string
-  variables?: Record<string, unknown>
-  fetchImpl?: typeof fetch
-}
-
-async function flyGraphqlFetch(
-  { token, query, variables, fetchImpl }: FlyGraphqlBag,
-): Promise<unknown> {
-  const fx = fetchImpl ?? fetch
-  const res = await fx('https://api.fly.io/graphql', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({ query, variables }),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(
-      `Fly GraphQL error ${res.status}: ${res.statusText}\n${text}`,
-    )
+function extractStatus(error: unknown): number {
+  if (error instanceof FlyCommandError) {
+    const code = error.result.code
+    return typeof code === 'number' ? code : 0
   }
-  const json = await res.json() as {
-    data?: unknown
-    errors?: Array<{ message?: string }>
-  }
-  if (json.errors && json.errors.length > 0) {
-    const message = json.errors.map((e) => e.message ?? 'Unknown error').join(
-      '; ',
-    )
-    throw new Error(`Fly GraphQL error: ${message}`)
-  }
-  return json.data
-}
-
-type ResolveAppIdBag = {
-  token: string
-  appName: string
-  fetchImpl?: typeof fetch
-}
-
-async function resolveAppGraphqlId(
-  { token, appName, fetchImpl }: ResolveAppIdBag,
-): Promise<string> {
-  const query = `query AppId($name:String!){ app(name:$name){ id } }`
-  const data = await flyGraphqlFetch({
-    token,
-    query,
-    variables: { name: appName },
-    fetchImpl,
-  }) as { app?: { id?: string } }
-  const id = data?.app?.id
-  if (!id || !id.trim()) {
-    throw new Error(`Fly GraphQL error: Could not find App '${appName}'`)
-  }
-  return id
+  return 0
 }
