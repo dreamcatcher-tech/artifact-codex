@@ -8,6 +8,7 @@ export type {
   SelfMountCheckOptions,
 } from './types.ts'
 export {
+  flyCliAllocatePrivateIp,
   flyCliAppsCreate,
   flyCliAppsDestroy,
   flyCliAppsInfo,
@@ -16,8 +17,10 @@ export {
   flyCliCreateMachine,
   flyCliDestroyMachine,
   flyCliGetMachine,
+  flyCliIpsList,
   flyCliListMachines,
   flyCliMachineRun,
+  flyCliReleaseIp,
   flyCliSecretsList,
   flyCliSecretsSet,
   flyCliStartMachine,
@@ -28,6 +31,7 @@ export {
 export type {
   FlyCliAppInfo,
   FlyCliAppStatus,
+  FlyCliIpInfo,
   FlyCliMachineDetail,
   FlyCliMachineSummary,
   FlyCliOptions,

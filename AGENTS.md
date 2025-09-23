@@ -24,6 +24,15 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 - Make sure any runtime images (Docker, CI, devcontainers) install the `fly`
   binary via the official installer
   (`curl -fsSL https://fly.io/install.sh | sh`) and place it on `PATH`.
+- Do not add fallback env vars or heuristics when calling Fly helpers—fail
+  immediately if the expected inputs are missing or malformed.
+- Flycast is Fly's private HTTP ingress. Allocate a private IPv6 (`fly ips
+  allocate-v6 --private --app <name>`) for every actor app so `fly-replay`
+  headers can target it; without that address, replay-to-Flycast inflight
+  routing will fail.
+- `fly-replay` only works with HTTP listeners. Keep service definitions exactly
+  as sourced from the template app and let provisioning add the image override
+  only; avoid any auto-generated service defaults.
 - When baking `flyctl` into a container, prefer the installer’s `FLYCTL_INSTALL`
   output over copying binaries by hand so the CLI stays upgradable. A minimal
   Alpine example:

@@ -4,10 +4,13 @@ import {
   readRequiredAppEnv,
 } from '@artifact/shared'
 import {
+  flyCliAllocatePrivateIp,
   flyCliAppsCreate,
   flyCliAppsDestroy,
   flyCliAppStatus,
   flyCliGetMachine,
+  flyCliIpsList,
+  flyCliReleaseIp,
   flyCliSecretsList,
   flyCliSecretsSet,
   FlyCommandError,
@@ -15,7 +18,7 @@ import {
   runFlyCommand,
 } from '@artifact/tasks'
 import type { FlyCliAppStatus } from '@artifact/tasks'
-import { parse as parseToml, stringify as stringifyToml } from '@std/toml'
+import { stringify as stringifyToml } from '@std/toml'
 
 const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
@@ -56,6 +59,7 @@ export async function ensureActorApp(
 
   const existingStatus = await getAppStatus(appName)
   if (existingStatus) {
+    await ensurePrivateIp(appName)
     const secretExisted = await actorApiTokenSecretExists(appName)
     await ensureActorAppSecrets({
       appName,
@@ -89,6 +93,8 @@ export async function ensureActorApp(
     targetApp: appName,
     controllerToken,
   })
+
+  await ensurePrivateIp(appName)
 
   try {
     await deployActorApp({
@@ -175,22 +181,14 @@ async function loadTemplateAppConfig(
 ): Promise<Record<string, unknown>> {
   const result = await runFlyCommand(['config', 'show', '--app', templateApp])
   const raw = result.stdout
-  const trimmed = raw.trimStart()
-  if (!trimmed) {
+  if (!raw.trim()) {
     throw new Error(
       `Fly config show returned empty output for template app '${templateApp}'`,
     )
   }
 
-  const firstCharIndex = trimmed.search(/\S/)
-  const firstChar = firstCharIndex === -1 ? undefined : trimmed[firstCharIndex]
-
-  if (firstChar === '{' || firstChar === '[') {
-    const json = parseFlyJson<Record<string, unknown>>(raw)
-    return extractFlyConfigFromJson(json)
-  }
-
-  return parseToml(trimmed) as Record<string, unknown>
+  const json = parseFlyJson<Record<string, unknown>>(raw)
+  return extractFlyConfigFromJson(json)
 }
 
 function prepareActorAppConfig(
@@ -201,110 +199,16 @@ function prepareActorAppConfig(
   const config = structuredClone(templateConfig)
   config.app = appName
 
-  if (
-    template.region &&
-    (!config.primary_region || typeof config.primary_region !== 'string')
-  ) {
-    config.primary_region = template.region
-  }
-
   if (isPlainObject(config.build)) {
-    ;(config.build as Record<string, unknown>).image = template.image
+    const build = structuredClone(config.build as Record<string, unknown>)
+    build.image = template.image
+    delete build.dockerfile
+    config.build = build
   } else {
     config.build = { image: template.image }
   }
 
-  config.services = normalizeServices(
-    (config as { services?: unknown }).services,
-  )
-
   return config
-}
-
-function normalizeServices(value: unknown): Array<Record<string, unknown>> {
-  const services = Array.isArray(value)
-    ? value.filter(isPlainObject).map((service) =>
-      structuredClone(service as Record<string, unknown>)
-    )
-    : []
-
-  if (services.length === 0) {
-    services.push(createDefaultService())
-  }
-
-  for (const service of services) {
-    service.internal_port = normalizePortNumber(service.internal_port, 8080)
-    service.protocol = typeof service.protocol === 'string'
-      ? service.protocol
-      : 'tcp'
-    if (!('force_instance_id' in service)) {
-      service.force_instance_id = true
-    }
-
-    const ports = Array.isArray(service.ports)
-      ? service.ports.filter(isPlainObject).map((port) =>
-        structuredClone(port as Record<string, unknown>)
-      )
-      : []
-    if (ports.length === 0) {
-      ports.push(createDefaultPort())
-    }
-
-    for (const port of ports) {
-      port.port = normalizePortNumber(port.port, 80)
-      port.handlers = normalizeHandlers(port.handlers)
-    }
-
-    service.ports = ports
-  }
-
-  return services
-}
-
-function normalizePortNumber(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-    return Math.floor(value)
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10)
-    if (Number.isFinite(parsed) && parsed > 0) return parsed
-  }
-  return fallback
-}
-
-function normalizeHandlers(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    const normalized = value
-      .filter((item): item is string =>
-        typeof item === 'string' && item.trim().length > 0
-      )
-      .map((item) => item.trim().toLowerCase())
-    if (normalized.length > 0) {
-      if (
-        !normalized.some((handler) => handler === 'http' || handler === 'https')
-      ) {
-        normalized.push('http')
-      }
-      return Array.from(new Set(normalized))
-    }
-  }
-  return ['http']
-}
-
-function createDefaultService(): Record<string, unknown> {
-  return {
-    internal_port: 8080,
-    protocol: 'tcp',
-    force_instance_id: true,
-    ports: [createDefaultPort()],
-  }
-}
-
-function createDefaultPort(): Record<string, unknown> {
-  return {
-    port: 80,
-    handlers: ['http'],
-  }
 }
 
 async function ensureActorAppSecrets(
@@ -390,6 +294,51 @@ function resolveOrgSlug(): string {
   throw new Error('Missing FLY_ORG_SLUG; set it to your Fly organization slug')
 }
 
+async function ensurePrivateIp(appName: string): Promise<void> {
+  let ips = await flyCliIpsList({ appName })
+
+  const publicIps = ips.filter((ip) => !isPrivateIpv6(ip) && ip.address)
+  for (const ip of publicIps) {
+    await flyCliReleaseIp({ appName, ip: ip.address! })
+  }
+
+  if (publicIps.length > 0) {
+    ips = await flyCliIpsList({ appName })
+  }
+
+  let privateIps = ips.filter(isPrivateIpv6)
+
+  if (privateIps.length === 0) {
+    await flyCliAllocatePrivateIp({ appName })
+    ips = await flyCliIpsList({ appName })
+    privateIps = ips.filter(isPrivateIpv6)
+  }
+
+  if (privateIps.length === 0) {
+    throw new Error(
+      `Failed to allocate private IPv6 for actor app '${appName}'`,
+    )
+  }
+
+  if (privateIps.length > 1) {
+    const [, ...extras] = privateIps
+    for (const ip of extras) {
+      if (ip.address) {
+        await flyCliReleaseIp({ appName, ip: ip.address })
+      }
+    }
+    ips = await flyCliIpsList({ appName })
+    privateIps = ips.filter(isPrivateIpv6)
+  }
+
+  const remainingPublic = ips.filter((ip) => !isPrivateIpv6(ip))
+  if (privateIps.length !== 1 || remainingPublic.length > 0) {
+    throw new Error(
+      `Actor app '${appName}' must have exactly one private IPv6 address and no public addresses`,
+    )
+  }
+}
+
 function extractFlyConfigFromJson(
   payload: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -401,25 +350,6 @@ function extractFlyConfigFromJson(
   }
 
   for (const candidate of candidates) {
-    if (typeof candidate === 'string') {
-      const text = candidate.trim()
-      if (!text) continue
-      if (text.startsWith('{') || text.startsWith('[')) {
-        const nested = parseFlyJson<Record<string, unknown>>(text)
-        if (isPlainObject(nested) && isLikelyFlyConfig(nested)) {
-          return structuredClone(nested)
-        }
-        continue
-      }
-      try {
-        const nestedToml = parseToml(text)
-        if (isPlainObject(nestedToml) && isLikelyFlyConfig(nestedToml)) {
-          return structuredClone(nestedToml)
-        }
-      } catch {
-        continue
-      }
-    }
     if (isPlainObject(candidate) && isLikelyFlyConfig(candidate)) {
       return structuredClone(candidate)
     }
@@ -439,4 +369,10 @@ function isLikelyFlyConfig(value: Record<string, unknown>): boolean {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isPrivateIpv6(ip: { type?: string | undefined }): boolean {
+  if (!ip.type) return false
+  const normalized = ip.type.trim().toLowerCase()
+  return normalized === 'private_v6' || normalized === 'private-v6'
 }

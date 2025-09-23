@@ -9,6 +9,14 @@ primary_region = 'syd'
 [build]
 dockerfile = 'fly-computer/Dockerfile'
 
+[env]
+FLY_NFS_APP = 'nfs-proto'
+FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+
+DEBUG = '@artifact/fly-computer*'
+DEBUG_HIDE_DATE = '1'
+DEBUG_COLORS = '1'
+
 [http_service]
 internal_port = 8080
 auto_stop_machines = 'suspend'

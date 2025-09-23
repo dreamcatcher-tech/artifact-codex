@@ -124,6 +124,16 @@ export type FlyCliSecretInfo = {
   createdAt?: string
 }
 
+export type FlyCliIpInfo = {
+  id?: string
+  address?: string
+  type?: string
+  region?: string
+  createdAt?: string
+  serviceName?: string
+  network?: Record<string, unknown>
+}
+
 export async function flyCliListMachines(
   options: { appName: string } & FlyCliOptions,
 ): Promise<FlyCliMachineSummary[]> {
@@ -339,6 +349,43 @@ export async function flyCliSecretsSet(
     `${key}=${value}`
   )
   await runFlyCommand([...args, ...kvPairs], rest)
+}
+
+export async function flyCliIpsList(
+  options: { appName: string } & FlyCliOptions,
+): Promise<FlyCliIpInfo[]> {
+  const { appName, ...rest } = options
+  const result = await runFlyCommand(
+    ['ips', 'list', '--app', appName, '--json'],
+    rest,
+  )
+  const rows = parseFlyJson<Array<Record<string, unknown>>>(result.stdout)
+  return rows.map((row) => ({
+    id: readString(row, ['id', 'ID']) ?? undefined,
+    address: readString(row, ['address', 'Address']) ?? undefined,
+    type: readString(row, ['type', 'Type']) ?? undefined,
+    region: readString(row, ['region', 'Region']) ?? undefined,
+    createdAt: readString(row, ['created_at', 'CreatedAt']) ?? undefined,
+    serviceName: readString(row, ['service_name', 'ServiceName']) ?? undefined,
+    network: readRecord(row, ['network', 'Network']) ?? undefined,
+  }))
+}
+
+export async function flyCliAllocatePrivateIp(
+  options: { appName: string } & FlyCliOptions,
+): Promise<void> {
+  const { appName, ...rest } = options
+  await runFlyCommand(
+    ['ips', 'allocate-v6', '--private', '--app', appName],
+    rest,
+  )
+}
+
+export async function flyCliReleaseIp(
+  options: { appName: string; ip: string } & FlyCliOptions,
+): Promise<void> {
+  const { appName, ip, ...rest } = options
+  await runFlyCommand(['ips', 'release', '--app', appName, ip, '--yes'], rest)
 }
 
 function parseMachineStatusOutput(output: string): Record<string, unknown> {
