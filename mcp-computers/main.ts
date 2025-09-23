@@ -169,6 +169,7 @@ function createServer(): McpServer {
           appName: targetAppName,
           name: firstAgentName,
           config: machineConfig,
+          image,
           region: machineRegion,
         })
 

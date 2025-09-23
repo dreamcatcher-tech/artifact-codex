@@ -185,6 +185,7 @@ server.registerTool(
         appName,
         name: indexedName,
         config: { image, metadata: { 'fly_process_group': 'worker' } },
+        image,
         region,
       })
       return toStructured({ machine: mapMachineSummary(created) })

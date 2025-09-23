@@ -212,6 +212,7 @@ async function reconcileMachine(
   const created = await deps.fly.createMachine({
     name: machineName,
     config: machineConfig,
+    image: templateImage,
     region: config.defaultRegion,
   })
 

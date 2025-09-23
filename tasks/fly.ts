@@ -162,15 +162,21 @@ export async function flyCliCreateMachine(
   options: {
     appName: string
     config: Record<string, unknown>
+    image?: string
     name?: string
     region?: string
   } & FlyCliOptions,
 ): Promise<FlyCliMachineSummary> {
-  const { appName, config, name, region, ...rest } = options
+  const { appName, config, image, name, region, ...rest } = options
   const machineConfig = JSON.stringify(config)
+  const resolvedImage = image ?? readString(config, ['image']) ?? undefined
+  if (!resolvedImage) {
+    throw new Error('flyCliCreateMachine requires an image argument')
+  }
   const args = [
     'machine',
     'create',
+    resolvedImage,
     '--app',
     appName,
     '--machine-config',

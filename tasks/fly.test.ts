@@ -123,7 +123,7 @@ Deno.test('flyCliGetMachine parses config', async () => {
 
 Deno.test('flyCliCreateMachine reuses list output when name matches', async () => {
   const { executor, calls } = createRecordingExecutor({
-    'fly machine create --app test --machine-config {"image":"img"} --name agent-3 --region ord':
+    'fly machine create img --app test --machine-config {"image":"img"} --name agent-3 --region ord':
       makeResult(true),
     'fly machine list --app test --json': makeResult(true, {
       stdout: JSON.stringify([
@@ -135,6 +135,7 @@ Deno.test('flyCliCreateMachine reuses list output when name matches', async () =
   const created = await flyCliCreateMachine({
     appName: 'test',
     config: { image: 'img' },
+    image: 'img',
     name: 'agent-3',
     region: 'ord',
     commandExecutor: executor,
@@ -145,6 +146,7 @@ Deno.test('flyCliCreateMachine reuses list output when name matches', async () =
     'fly',
     'machine',
     'create',
+    'img',
     '--app',
     'test',
     '--machine-config',

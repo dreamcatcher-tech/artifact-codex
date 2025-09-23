@@ -20,6 +20,7 @@ export const AGENT_METADATA_KEY = 'artifact_agent_id'
 export type CreateMachineInput = {
   name: string
   config: Record<string, unknown>
+  image: string
   region?: string
 }
 
@@ -48,12 +49,13 @@ export function createFlyApi(
         appName: config.targetApp,
         commandExecutor,
       })).map(mapMachineSummary),
-    createMachine: async ({ name, config: machineConfig, region }) =>
+    createMachine: async ({ name, config: machineConfig, image, region }) =>
       mapMachineSummary(
         await flyCliCreateMachine({
           appName: config.targetApp,
           name,
           config: machineConfig,
+          image,
           region,
           commandExecutor,
         }),
