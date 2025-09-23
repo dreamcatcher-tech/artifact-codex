@@ -12,6 +12,7 @@ dockerfile = 'fly-computer/Dockerfile'
 [env]
 FLY_NFS_APP = 'nfs-proto'
 FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+FLY_AGENT_TEMPLATE_APP = 'universal-compute'
 
 DEBUG = '@artifact/fly-computer*'
 DEBUG_HIDE_DATE = '1'

@@ -20,8 +20,6 @@ export interface AppEnvVarSpec {
   readonly replacement?: string
 }
 
-export const DEFAULT_NFS_FLYCAST_HOST = 'nfs-proto.flycast'
-
 export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
   {
     name: 'FLY_NFS_APP',
@@ -176,6 +174,12 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: ['fly-computer'],
   },
   {
+    name: 'FLY_AGENT_TEMPLATE_APP',
+    description:
+      'Fly app whose machine configuration is cloned to provision new agent machines.',
+    requiredFor: ['fly-computer'],
+  },
+  {
     name: 'CLERK_SECRET_KEY',
     description: 'Server-side Clerk API key consumed by fly-auth middleware.',
     requiredFor: ['fly-auth'],
@@ -262,7 +266,6 @@ export interface ResolveNfsSourceOptions {
   readonly source?: string
   readonly host?: string
   readonly app?: string
-  readonly fallback?: string
 }
 
 export type NfsSourceEnv = Partial<
@@ -286,8 +289,6 @@ export function resolveNfsSource(
   env: NfsSourceEnv,
   overrides: ResolveNfsSourceOptions = {},
 ): string {
-  const fallback = overrides.fallback?.trim() || DEFAULT_NFS_FLYCAST_HOST
-
   const source = firstNonEmpty(overrides.source, env.FLY_NFS_SOURCE)
   if (source) return source
 
@@ -300,5 +301,7 @@ export function resolveNfsSource(
   const machineIp = firstNonEmpty(env.FLY_TEST_MACHINE_IP)
   if (machineIp) return machineIp
 
-  return fallback
+  throw new Error(
+    'Unable to resolve NFS source. Set FLY_NFS_SOURCE, FLY_NFS_HOST, or FLY_NFS_APP.',
+  )
 }

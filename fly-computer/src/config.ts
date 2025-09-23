@@ -20,8 +20,6 @@ export type ConfigOverrides = Partial<AppConfig> & {
 }
 
 const DEFAULT_MOUNT_DIR = '/mnt/computer'
-const DEFAULT_AGENT_TEMPLATE_APP = 'fly-agent'
-
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const targetApp = overrides.targetApp?.trim() ||
     readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
@@ -31,8 +29,7 @@ export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const flyRuntimeEnv = readFlyMachineRuntimeEnv()
   const registryRoot = resolveRegistryRoot(overrides, flyRuntimeEnv)
   const agentTemplateApp = overrides.agentTemplateApp?.trim() ||
-    readAppEnv('FLY_AGENT_TEMPLATE_APP') ||
-    DEFAULT_AGENT_TEMPLATE_APP
+    readRequiredAppEnv('FLY_AGENT_TEMPLATE_APP')
   const baseDomain = overrides.baseDomain?.trim() ||
     readRequiredAppEnv('FLY_AUTH_BASE_DOMAIN')
 

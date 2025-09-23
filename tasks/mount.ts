@@ -1,8 +1,5 @@
 import { runCommand } from '@artifact/procman'
-import {
-  DEFAULT_NFS_FLYCAST_HOST,
-  resolveNfsSource,
-} from '../shared/app_env.ts'
+import { resolveNfsSource } from '../shared/app_env.ts'
 import { FLY_NFS_MOUNT_DIR, NFS_EXPORT_BASE } from '../shared/consts.ts'
 import type { CommandExecutor, EnsureMountOptions } from './types.ts'
 
@@ -11,7 +8,6 @@ const DEFAULT_DELAY_MS = 3_000
 const DEFAULT_MOUNT_DIR = FLY_NFS_MOUNT_DIR
 const DEFAULT_EXPORT_BASE = NFS_EXPORT_BASE
 const DEFAULT_MOUNT_OPTS = 'nfsvers=4.1'
-const DEFAULT_SOURCE = DEFAULT_NFS_FLYCAST_HOST
 
 interface MountContext {
   env: Record<string, string>
@@ -191,12 +187,7 @@ export async function ensureNfsMount(
     source: options.source,
     host: options.host,
     app: options.app,
-    fallback: DEFAULT_SOURCE,
   })
-
-  if (!source) {
-    throw new Error('An NFS host must be specified')
-  }
 
   const logger = options.logger ?? ((message: string) => console.error(message))
   const logPrefix = options.logPrefix ?? '[procman:nfs]'

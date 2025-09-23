@@ -1,4 +1,4 @@
-import { readAppEnv, readRequiredAppEnv } from '@artifact/shared'
+import { readRequiredAppEnv } from '@artifact/shared'
 import {
   flyCliAppsList,
   flyCliAppStatus,
@@ -14,8 +14,7 @@ const ACTOR_APP_PATTERN = /^actor-[a-z0-9-]+$/
 
 async function main(): Promise<void> {
   const orgSlug = readRequiredAppEnv('FLY_ORG_SLUG')
-  const templateApp = readAppEnv('FLY_AGENT_TEMPLATE_APP')?.trim() ||
-    'fly-agent'
+  const templateApp = readRequiredAppEnv('FLY_AGENT_TEMPLATE_APP')
 
   const targetImage = await resolveAgentImage(templateApp)
   console.log(`Resolved agent template image: ${targetImage}`)

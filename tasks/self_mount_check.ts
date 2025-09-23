@@ -2,11 +2,7 @@ import { join } from '@std/path/join'
 
 import { runCommand } from '@artifact/procman'
 
-import {
-  DEFAULT_NFS_FLYCAST_HOST,
-  NFS_EXPORT_BASE,
-  resolveNfsSource,
-} from '@artifact/shared'
+import { NFS_EXPORT_BASE, resolveNfsSource } from '@artifact/shared'
 
 import { ensureNfsMount } from './mount.ts'
 import type {
@@ -47,7 +43,9 @@ export async function runSelfMountCheck(
   }
 
   const source = resolveNfsSource(baseEnv, {
-    fallback: DEFAULT_NFS_FLYCAST_HOST,
+    source: options.mountOptions?.source,
+    host: options.mountOptions?.host,
+    app: options.mountOptions?.app,
   })
   const mountOpts = baseEnv.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
 

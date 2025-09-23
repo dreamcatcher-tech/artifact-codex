@@ -62,6 +62,7 @@ Deno.test('ensureNfsMount mounts when not already mounted', async () => {
       retries: 1,
       delayMs: 0,
       mountDir,
+      source: 'test-source',
       env: { PATH: Deno.env.get('PATH') ?? '' },
     })
 
@@ -105,6 +106,7 @@ Deno.test('ensureNfsMount retries until success', async () => {
       retries: 5,
       delayMs: 0,
       mountDir,
+      source: 'test-source',
       env: { PATH: Deno.env.get('PATH') ?? '' },
     })
 
@@ -133,6 +135,7 @@ Deno.test('ensureNfsMount throws after exhausting retries', async () => {
       delayMs: 0,
       logger: () => {},
       mountDir,
+      source: 'test-source',
       env: { PATH: Deno.env.get('PATH') ?? '' },
     })).rejects.toThrow('mount failed')
   })
@@ -159,6 +162,7 @@ Deno.test('ensureNfsMount propagates unexpected executor errors', async () => {
       delayMs: 0,
       logger: () => {},
       mountDir,
+      source: 'test-source',
       env: { PATH: Deno.env.get('PATH') ?? '' },
     })).rejects.toBe(boom)
   })

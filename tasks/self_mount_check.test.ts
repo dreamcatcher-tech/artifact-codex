@@ -133,6 +133,7 @@ Deno.test('runSelfMountCheck removes temporary directory when mount fails', asyn
   }
 
   await expect(runSelfMountCheck({
+    env: { FLY_NFS_SOURCE: 'test-source' },
     commandExecutor: executor,
     mountOptions: {
       validateBinaries: false,
@@ -172,7 +173,7 @@ Deno.test('runSelfMountCheck uses custom list command when provided', async () =
 
   const mountDir = await Deno.makeTempDir()
   await runSelfMountCheck({
-    env: { FLY_NFS_CHECK_DIR: mountDir },
+    env: { FLY_NFS_CHECK_DIR: mountDir, FLY_NFS_SOURCE: 'test-source' },
     commandExecutor: executor,
     listCommand: {
       command: 'echo',
