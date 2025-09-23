@@ -11,6 +11,10 @@ FLY_ORG_SLUG = 'personal'
 FLY_NFS_APP = 'nfs-proto'
 FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
 
+CLERK_SIGN_UP_URL = 'https://accounts.agentic.dreamcatcher.land/sign-up'
+CLERK_SIGN_IN_URL = 'https://accounts.agentic.dreamcatcher.land/sign-in'
+CLERK_PUBLISHABLE_KEY = 'pk_live_Y2xlcmsuYWdlbnRpYy5kcmVhbWNhdGNoZXIubGFuZCQ'
+
 DEBUG = '@artifact/fly-auth*'
 DEBUG_HIDE_DATE = '1'
 DEBUG_COLORS = '1'

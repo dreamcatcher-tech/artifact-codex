@@ -33,20 +33,8 @@ export function resolveRedirectUrl(
 export function resolveClerkRedirects(): ClerkRedirects {
   const envSignIn = readUrlFromEnv('CLERK_SIGN_IN_URL')
   const envSignUp = readUrlFromEnv('CLERK_SIGN_UP_URL')
-  if (envSignIn || envSignUp) {
-    return { signIn: envSignIn, signUp: envSignUp }
-  }
-
-  const base = deriveFrontendBaseUrl(
-    Deno.env.get('CLERK_PUBLISHABLE_KEY') ?? '',
-  )
-  if (!base) return {}
-
-  const normalized = normalizeFrontendBase(base)
-  return {
-    signIn: joinUrl(normalized, '/sign-in'),
-    signUp: joinUrl(normalized, '/sign-up'),
-  }
+  if (!envSignIn && !envSignUp) return {}
+  return { signIn: envSignIn, signUp: envSignUp }
 }
 
 function appendRedirectBack(target: string, requestUrl: string): string {
@@ -72,54 +60,6 @@ function readUrlFromEnv(key: string): string | undefined {
   } catch {
     return undefined
   }
-}
-
-function deriveFrontendBaseUrl(publishableKey: string): string | undefined {
-  const key = publishableKey.trim()
-  if (!key) return undefined
-  const parts = key.split('_')
-  if (parts.length < 3) return undefined
-  const encoded = parts.slice(2).join('_')
-  const padLength = (4 - (encoded.length % 4)) % 4
-  const padded = encoded + '='.repeat(padLength)
-  try {
-    const decoded = atob(padded)
-      .replaceAll('\0', '')
-      .replaceAll('$', '')
-      .trim()
-    return decoded || undefined
-  } catch {
-    return undefined
-  }
-}
-
-function joinUrl(base: string, path: string): string {
-  try {
-    const url = new URL(base)
-    url.pathname = path
-    return url.toString()
-  } catch {
-    const trimmed = base.endsWith('/') ? base.slice(0, -1) : base
-    return `${trimmed}${path}`
-  }
-}
-
-function normalizeFrontendBase(candidate: string): string {
-  const withScheme = ensureScheme(candidate)
-  try {
-    const parsed = new URL(withScheme)
-    parsed.hostname = parsed.hostname.replace('clerk.accounts.', 'accounts.')
-    return parsed.origin
-  } catch {
-    return withScheme
-  }
-}
-
-function ensureScheme(candidate: string): string {
-  if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
-    return candidate
-  }
-  return `https://${candidate}`
 }
 
 function normalizeRedirectBack(requestUrl: string): string {

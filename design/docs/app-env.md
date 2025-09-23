@@ -46,12 +46,11 @@ remain in sync.
 
 ## Clerk Authentication
 
-| Variable                | Description                                                                          | Default | Projects   |
-| ----------------------- | ------------------------------------------------------------------------------------ | ------- | ---------- |
-| `CLERK_SECRET_KEY`      | Server-side Clerk API key consumed by `fly-auth` middleware.                         | —       | `fly-auth` |
-| `CLERK_PUBLISHABLE_KEY` | Public Clerk key used to derive hosted frontend URLs for auth redirects.             | —       | `fly-auth` |
-| `CLERK_SIGN_IN_URL`     | Optional override for the Clerk sign-in URL when automatic derivation is unsuitable. | —       | `fly-auth` |
-| `CLERK_SIGN_UP_URL`     | Optional override for the Clerk sign-up URL when automatic derivation is unsuitable. | —       | `fly-auth` |
+| Variable            | Description                                                    | Default | Projects   |
+| ------------------- | -------------------------------------------------------------- | ------- | ---------- |
+| `CLERK_SECRET_KEY`  | Server-side Clerk API key consumed by `fly-auth` middleware.   | —       | `fly-auth` |
+| `CLERK_SIGN_IN_URL` | Clerk sign-in URL used when redirecting unauthenticated users. | —       | `fly-auth` |
+| `CLERK_SIGN_UP_URL` | Clerk sign-up URL used when redirecting users to registration. | —       | `fly-auth` |
 
 ## Integration & Testing
 
@@ -61,8 +60,8 @@ remain in sync.
 
 ## Deprecated Fallbacks
 
-| Variable                | Description                                                                                     | Replacement    | Projects   |
-| ----------------------- | ----------------------------------------------------------------------------------------------- | -------------- | ---------- |
+| Variable | Description | Replacement | Projects |
+| -------- | ----------- | ----------- | -------- |
 
 Code that needs a Flycast hostname should call `resolveNfsSource` rather than
 reimplementing fallback logic. When you add new environment variable

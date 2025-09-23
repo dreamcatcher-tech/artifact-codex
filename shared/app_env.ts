@@ -181,21 +181,15 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: ['fly-auth'],
   },
   {
-    name: 'CLERK_PUBLISHABLE_KEY',
-    description:
-      'Public Clerk key used to derive hosted frontend URLs for auth redirects.',
-    requiredFor: ['fly-auth'],
-  },
-  {
     name: 'CLERK_SIGN_IN_URL',
     description:
-      'Optional override for the Clerk sign-in URL when automatic derivation is unsuitable.',
+      'Clerk sign-in URL used when redirecting unauthenticated users.',
     requiredFor: ['fly-auth'],
   },
   {
     name: 'CLERK_SIGN_UP_URL',
     description:
-      'Optional override for the Clerk sign-up URL when automatic derivation is unsuitable.',
+      'Clerk sign-up URL used when redirecting users to registration.',
     requiredFor: ['fly-auth'],
   },
   {
