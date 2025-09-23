@@ -1,4 +1,4 @@
-import { subdomainToAgent } from '@artifact/shared'
+import { agentToSubdomain, subdomainToAgent } from '@artifact/shared'
 
 export function resolveHost(request: Request): string | undefined {
   const headers = request.headers
@@ -19,10 +19,47 @@ export function resolveHost(request: Request): string | undefined {
   }
 }
 
-export function extractAgentPath(host: string): string[] {
-  const firstLabel = host.split('.')[0] ?? ''
-  if (!firstLabel) return []
-  return subdomainToAgent(firstLabel)
+export type HostResolution = {
+  computer: string | null
+  agentPath: string[]
+}
+
+export function resolveComputerHost(
+  host: string,
+  baseDomain: string,
+): HostResolution | null {
+  const hostLabels = splitLabels(host)
+  const baseLabels = splitLabels(baseDomain)
+  if (hostLabels.length < baseLabels.length) return null
+  const suffixMatches = baseLabels.every((label, idx) =>
+    hostLabels[hostLabels.length - baseLabels.length + idx]?.toLowerCase() ===
+      label.toLowerCase()
+  )
+  if (!suffixMatches) {
+    return null
+  }
+  const remainder = hostLabels.slice(0, hostLabels.length - baseLabels.length)
+  if (remainder.length === 0) {
+    return { computer: null, agentPath: [] }
+  }
+  const computer = remainder[remainder.length - 1]
+  const agentLabels = remainder.slice(0, -1)
+  const agentPath: string[] = []
+  for (const label of agentLabels) {
+    agentPath.push(...subdomainToAgent(label))
+  }
+  return { computer, agentPath }
+}
+
+export function buildAgentHost(
+  agentPath: string[],
+  computer: string,
+  baseDomain: string,
+): string {
+  const prefix = agentPath.length > 0
+    ? `${agentToSubdomain(agentPath)}.${computer}`
+    : computer
+  return `${prefix}.${baseDomain}`
 }
 
 function normalizeHost(candidate: string | null): string | undefined {
@@ -31,4 +68,11 @@ function normalizeHost(candidate: string | null): string | undefined {
   if (!primary) return undefined
   const withoutPort = primary.split(':')[0]?.trim() ?? ''
   return withoutPort ? withoutPort.toLowerCase() : undefined
+}
+
+function splitLabels(input: string): string[] {
+  return input
+    .split('.')
+    .map((label) => label.trim())
+    .filter((label) => label.length > 0)
 }

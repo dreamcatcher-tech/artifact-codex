@@ -1,5 +1,4 @@
 import {
-  agentToSubdomain,
   type MachineDetail,
   type MachineSummary,
   mapMachineDetail,
@@ -23,7 +22,12 @@ import {
   createAgentRegistry,
   type MachineUpdate,
 } from './registry.ts'
-import { extractAgentPath, resolveHost } from './routing.ts'
+import {
+  buildAgentHost,
+  type HostResolution,
+  resolveComputerHost,
+  resolveHost,
+} from './routing.ts'
 import { flyCliAppStatus, flyCliGetMachine } from '@artifact/tasks'
 import Debug from 'debug'
 
@@ -83,22 +87,40 @@ export async function createApp(
       request.url,
     )
 
-    const pathSegments = extractAgentPath(host)
-    if (pathSegments.length === 0) {
-      return handleLandingRequest(request, host, config, deps)
+    const hostInfo = resolveComputerHost(host, config.baseDomain)
+    if (!hostInfo || !hostInfo.computer) {
+      errorLog(
+        'unable to resolve computer host=%s base=%s',
+        host,
+        config.baseDomain,
+      )
+      return jsonError(404, 'computer not found')
     }
 
-    const agent = await deps.registry.findByPath(pathSegments)
+    const { computer, agentPath } = hostInfo
+
+    if (agentPath.length === 0) {
+      return handleLandingRequest({
+        request,
+        host,
+        hostInfo,
+        config,
+        deps,
+      })
+    }
+
+    const agent = await deps.registry.findByPath(agentPath)
     if (!agent) {
-      errorLog('agent not found host=%s path=%o', host, pathSegments)
+      errorLog('agent not found host=%s path=%o', host, agentPath)
       return jsonError(404, 'agent not found')
     }
 
     agentLog(
-      'resolving agent id=%s name="%s" slug=%s host=%s',
+      'resolving agent id=%s name="%s" slug=%s computer=%s host=%s',
       agent.id,
       agent.name,
       agent.slug,
+      computer,
       host,
     )
 
@@ -275,13 +297,18 @@ function jsonError(status: number, message: string): Response {
   })
 }
 
+type LandingContext = {
+  request: Request
+  host: string
+  hostInfo: HostResolution
+  config: AppConfig
+  deps: Dependencies
+}
+
 async function handleLandingRequest(
-  request: Request,
-  host: string,
-  config: AppConfig,
-  deps: Dependencies,
+  { request, host, hostInfo, config, deps }: LandingContext,
 ): Promise<Response> {
-  agentLog('landing request host=%s', host)
+  agentLog('landing request host=%s computer=%s', host, hostInfo.computer)
   const agent = await deps.registry.createAgent()
   agentLog(
     'created agent id=%s name="%s" slug=%s',
@@ -298,7 +325,12 @@ async function handleLandingRequest(
   }
   await deps.registry.updateMachine(agent.id, machineUpdate)
 
-  const location = buildAgentRedirectUrl(request, host, [agent.slug])
+  const location = buildAgentRedirectUrl({
+    request,
+    computer: hostInfo.computer!,
+    agentPath: [agent.slug],
+    baseDomain: config.baseDomain,
+  })
   agentLog('redirecting host=%s to location=%s', host, location)
   return new Response(null, {
     status: 302,
@@ -308,23 +340,21 @@ async function handleLandingRequest(
   })
 }
 
+type RedirectContext = {
+  request: Request
+  computer: string
+  agentPath: string[]
+  baseDomain: string
+}
+
 function buildAgentRedirectUrl(
-  request: Request,
-  host: string,
-  pathSegments: string[],
+  { request, computer, agentPath, baseDomain }: RedirectContext,
 ): string {
   const url = new URL(request.url)
-  const updatedHost = applyAgentToHost(host, pathSegments)
+  const updatedHost = buildAgentHost(agentPath, computer, baseDomain)
   url.hostname = updatedHost
   url.port = ''
   return url.toString()
-}
-
-function applyAgentToHost(host: string, segments: string[]): string {
-  const labels = host.split('.')
-  const rest = labels.length > 1 ? labels.slice(1).join('.') : ''
-  const subdomain = agentToSubdomain(segments)
-  return rest ? `${subdomain}.${rest}` : subdomain
 }
 
 function extractMachineImage(detail: MachineDetail): string | undefined {

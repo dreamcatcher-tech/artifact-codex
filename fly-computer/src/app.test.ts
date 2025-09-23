@@ -7,6 +7,10 @@ import { createApp } from './app.ts'
 import type { FlyApi } from './fly.ts'
 import { slugify } from './naming.ts'
 
+const BASE_DOMAIN = 'example.test'
+const COMPUTER_NAME = 'computer'
+const COMPUTER_HOST = `${COMPUTER_NAME}.${BASE_DOMAIN}`
+
 async function writeAgentConfig(
   root: string,
   id: string,
@@ -77,6 +81,7 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         fly,
@@ -84,8 +89,8 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
       },
     })
     const res = await handler(
-      new Request('http://example.test/', {
-        headers: { host: 'example.test' },
+      new Request(`http://${COMPUTER_HOST}/`, {
+        headers: { host: COMPUTER_HOST },
       }),
     )
     expect(res.status).toBe(302)
@@ -136,6 +141,7 @@ Deno.test('replays to configured machine without restarting when already running
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
@@ -145,8 +151,8 @@ Deno.test('replays to configured machine without restarting when already running
     })
 
     const res = await handler(
-      new Request('http://foo.example.test/', {
-        headers: { host: 'foo.example.test' },
+      new Request(`http://foo.${COMPUTER_HOST}/`, {
+        headers: { host: `foo.${COMPUTER_HOST}` },
       }),
     )
     expect(res.status).toBe(204)
@@ -193,6 +199,7 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
@@ -202,8 +209,8 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
     })
 
     const res = await handler(
-      new Request('http://foo.example.test/', {
-        headers: { host: 'foo.example.test' },
+      new Request(`http://foo.${COMPUTER_HOST}/`, {
+        headers: { host: `foo.${COMPUTER_HOST}` },
       }),
     )
     expect(res.status).toBe(204)
@@ -243,6 +250,7 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
@@ -252,8 +260,8 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
     })
 
     const res = await handler(
-      new Request('http://foo.example.test/', {
-        headers: { host: 'foo.example.test' },
+      new Request(`http://foo.${COMPUTER_HOST}/`, {
+        headers: { host: `foo.${COMPUTER_HOST}` },
       }),
     )
     expect(res.status).toBe(204)
@@ -293,6 +301,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
@@ -302,8 +311,8 @@ Deno.test('creates new machine when none exist and updates registry', async () =
     })
 
     const res = await handler(
-      new Request('http://foo.example.test/', {
-        headers: { host: 'foo.example.test' },
+      new Request(`http://foo.${COMPUTER_HOST}/`, {
+        headers: { host: `foo.${COMPUTER_HOST}` },
       }),
     )
     expect(res.status).toBe(204)
@@ -350,6 +359,7 @@ Deno.test('resolves nested agent path using parent links', async () => {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
+        baseDomain: BASE_DOMAIN,
       },
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
@@ -359,8 +369,8 @@ Deno.test('resolves nested agent path using parent links', async () => {
     })
 
     const res = await handler(
-      new Request('http://alpha--beta-child.example.test/', {
-        headers: { host: 'alpha--beta-child.example.test' },
+      new Request(`http://alpha--beta-child.${COMPUTER_HOST}/`, {
+        headers: { host: `alpha--beta-child.${COMPUTER_HOST}` },
       }),
     )
     expect(res.status).toBe(204)

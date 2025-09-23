@@ -11,6 +11,7 @@ export type AppConfig = {
   agentImage?: string
   agentTemplateApp: string
   defaultRegion?: string
+  baseDomain: string
 }
 
 export type ConfigOverrides = Partial<AppConfig> & {
@@ -33,6 +34,8 @@ export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const agentTemplateApp = overrides.agentTemplateApp?.trim() ||
     readAppEnv('FLY_AGENT_TEMPLATE_APP') ||
     DEFAULT_AGENT_TEMPLATE_APP
+  const baseDomain = overrides.baseDomain?.trim() ||
+    readRequiredAppEnv('FLY_AUTH_BASE_DOMAIN')
 
   if (!registryRoot.trim()) {
     throw new Error('Unable to resolve registry root directory')
@@ -44,6 +47,7 @@ export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
     registryRoot,
     agentTemplateApp,
     defaultRegion,
+    baseDomain,
   }
 }
 

@@ -59,28 +59,6 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
   const deps = createDependencies(dependencies)
   const app = new Hono<{ Variables: ClerkAuthVariables }>()
 
-  app.use('*', async (c, next) => {
-    const header = c.req.raw.headers.get('cookie')?.trim()
-    if (!header) {
-      requestLog('incoming cookies: <none>')
-      await next()
-      return
-    }
-
-    const cookies = parseCookieHeader(header)
-    if (cookies.length === 0) {
-      requestLog('incoming cookies: raw=%s', header)
-      await next()
-      return
-    }
-
-    const formatted = cookies
-      .map((cookie) => `  - ${cookie.name}=${cookie.value}`)
-      .join('\n')
-    requestLog('incoming cookies (%d):\n%s', cookies.length, formatted)
-    await next()
-  })
-
   app.use('*', deps.auth.middleware)
 
   app.get('/', async (c) => {
@@ -323,28 +301,4 @@ function hostsMatch(a: string, b: string): boolean {
 
 function resolveBaseDomain(): string {
   return readRequiredAppEnv('FLY_AUTH_BASE_DOMAIN')
-}
-
-type ParsedCookie = {
-  name: string
-  value: string
-}
-
-function parseCookieHeader(header: string): ParsedCookie[] {
-  return header.split(';')
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0)
-    .map((segment) => {
-      const separatorIndex = segment.indexOf('=')
-      if (separatorIndex === -1) {
-        return {
-          name: segment,
-          value: '',
-        }
-      }
-      const name = segment.slice(0, separatorIndex).trim()
-      const value = segment.slice(separatorIndex + 1).trim()
-      return { name, value }
-    })
-    .filter(({ name }) => name.length > 0)
 }

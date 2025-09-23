@@ -17,4 +17,4 @@ WORKDIR /app/fly-computer
 
 RUN deno cache main.ts
 
-CMD ["deno", "run", "-A", "main.ts"]
+ENTRYPOINT ["deno", "run", "-A", "main.ts"]
