@@ -184,21 +184,10 @@ async function reconcileMachine(
     }
   }
 
-  let template: MachineDetail | undefined
-  try {
-    template = await deps.loadTemplateMachine()
-  } catch (error) {
-    machineLog(
-      'failed to load template machine app=%s error=%o',
-      config.agentTemplateApp,
-      error,
-    )
-  }
-
-  const templateImage = config.agentImage ??
-    (template ? extractMachineImage(template) : undefined)
+  const template = await deps.loadTemplateMachine()
+  const templateImage = config.agentImage ?? extractMachineImage(template)
   if (!templateImage) {
-    throw new Error('Unable to determine agent machine image')
+    throw new Error('Unable to determine agent machine image from template app')
   }
   const machineName = buildMachineName(agent)
   const machineConfig = buildMachineConfig(
@@ -239,7 +228,15 @@ function buildMachineConfig(
     ? structuredClone(template)
     : {}
   base.image = image
-  const metadata = isPlainObject(base.metadata) ? { ...base.metadata } : {}
+  const templateMetadata = isPlainObject(base.metadata)
+    ? { ...(base.metadata as Record<string, unknown>) }
+    : {}
+  const metadata: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(templateMetadata)) {
+    if (!key.toLowerCase().startsWith('fly_')) {
+      metadata[key] = value
+    }
+  }
   metadata[AGENT_METADATA_KEY] = agentId
   base.metadata = metadata
   return base

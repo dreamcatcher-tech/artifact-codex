@@ -25,8 +25,7 @@ const DEFAULT_AGENT_TEMPLATE_APP = 'fly-agent'
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const targetApp = overrides.targetApp?.trim() ||
     readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
-  const agentImage = overrides.agentImage?.trim() ||
-    readAppEnv('FLY_COMPUTER_AGENT_IMAGE')
+  const agentImage = overrides.agentImage?.trim()
   const defaultRegion = overrides.defaultRegion?.trim() ||
     readAppEnv('FLY_COMPUTER_REGION')
   const flyRuntimeEnv = readFlyMachineRuntimeEnv()

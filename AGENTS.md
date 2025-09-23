@@ -26,10 +26,11 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
   (`curl -fsSL https://fly.io/install.sh | sh`) and place it on `PATH`.
 - Do not add fallback env vars or heuristics when calling Fly helpers—fail
   immediately if the expected inputs are missing or malformed.
-- Flycast is Fly's private HTTP ingress. Allocate a private IPv6 (`fly ips
-  allocate-v6 --private --app <name>`) for every actor app so `fly-replay`
-  headers can target it; without that address, replay-to-Flycast inflight
-  routing will fail.
+- Flycast is Fly's private HTTP ingress. Allocate a private IPv6
+  (`fly ips
+  allocate-v6 --private --app <name>`) for every actor app so
+  `fly-replay` headers can target it; without that address, replay-to-Flycast
+  inflight routing will fail.
 - `fly-replay` only works with HTTP listeners. Keep service definitions exactly
   as sourced from the template app and let provisioning add the image override
   only; avoid any auto-generated service defaults.
@@ -91,9 +92,13 @@ is a greenfields project so you never need to worry about legacy.
 
 To verify the code works, run `deno task ok`.
 
-Every deno project in the workspace must expose an `ok` task in its
-`deno.json`, and that task must run `deno check`, `deno task test`,
-`deno fmt --check`, and `deno lint` in that order.
+Every deno project in the workspace must expose an `ok` task in its `deno.json`,
+and that task must run `deno check`, `deno task test`, `deno fmt --check`, and
+`deno lint` in that order.
+
+Do not add environment fallbacks when resolving runtime configuration. Read the
+authoritative value (for example, Fly template machine configuration) at the
+point of use and fail immediately if it is missing or invalid.
 
 To fix formatting errors quickly, run `deno fmt`.
 
