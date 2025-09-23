@@ -8,16 +8,19 @@ import {
   flyCliAppsDestroy,
   flyCliAppStatus,
   flyCliGetMachine,
-  flyCliMachineRun,
   flyCliSecretsList,
   flyCliSecretsSet,
   FlyCommandError,
+  parseFlyJson,
+  runFlyCommand,
 } from '@artifact/tasks'
 import type { FlyCliAppStatus } from '@artifact/tasks'
+import { parse as parseToml, stringify as stringifyToml } from '@std/toml'
 
 const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
 const TEMPLATE_COMPUTER_APP = 'fly-computer'
+
 export type EnsureActorAppResult = {
   appName: string
   existed: boolean
@@ -25,22 +28,8 @@ export type EnsureActorAppResult = {
 
 type TemplateMachineInfo = {
   sourceApp: string
-  machineId: string
   image: string
-  config: Record<string, unknown>
   region?: string
-  name?: string
-}
-
-async function getAppStatus(appName: string): Promise<FlyCliAppStatus | null> {
-  try {
-    return await flyCliAppStatus({ appName })
-  } catch (error) {
-    if (error instanceof FlyCommandError) {
-      return null
-    }
-    throw error
-  }
 }
 
 export function deriveActorAppName(clerkId: string): string {
@@ -55,14 +44,22 @@ export async function ensureActorApp(
   appName: string,
 ): Promise<EnsureActorAppResult> {
   const controllerToken = readRequiredAppEnv('FLY_API_TOKEN')
-  const template = await loadTemplateMachine()
+  const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
+    TEMPLATE_COMPUTER_APP
+  const templateMachine = await loadTemplateMachine(templateApp)
+  const templateConfig = await loadTemplateAppConfig(templateApp)
+  const actorConfig = prepareActorAppConfig(
+    templateConfig,
+    templateMachine,
+    appName,
+  )
 
   const existingStatus = await getAppStatus(appName)
   if (existingStatus) {
     const secretExisted = await actorApiTokenSecretExists(appName)
     await ensureActorAppSecrets({
       appName,
-      agentImage: template.image,
+      agentImage: templateMachine.image,
       targetApp: appName,
       controllerToken,
     })
@@ -88,22 +85,29 @@ export async function ensureActorApp(
 
   await ensureActorAppSecrets({
     appName,
-    agentImage: template.image,
+    agentImage: templateMachine.image,
     targetApp: appName,
     controllerToken,
   })
 
-  const machineConfig = prepareActorMachineConfig(template, appName)
   try {
-    await flyCliMachineRun({
+    await deployActorApp({
       appName,
-      image: template.image,
-      config: machineConfig,
-      name: template.name,
-      region: template.region,
+      image: templateMachine.image,
+      config: actorConfig,
     })
   } catch (error) {
-    console.error('failed to launch template machine for actor app', error)
+    console.error('failed to deploy actor app', error)
+    try {
+      await flyCliAppsDestroy({ appName, force: true })
+    } catch (destroyError) {
+      if (!isFlyResourceNotFound(destroyError)) {
+        console.error(
+          'failed to remove actor app after deploy failure',
+          destroyError,
+        )
+      }
+    }
     throw error
   }
 
@@ -125,41 +129,20 @@ export async function destroyActorApp(appName: string): Promise<void> {
   }
 }
 
-async function ensureActorAppSecrets(
-  {
-    appName,
-    agentImage,
-    targetApp,
-    controllerToken,
-  }: {
-    appName: string
-    agentImage: string
-    targetApp: string
-    controllerToken: string
-  },
-): Promise<void> {
-  console.info('configuring actor secrets', { appName, agentImage, targetApp })
-  await flyCliSecretsSet({
-    appName,
-    secrets: {
-      FLY_API_TOKEN: controllerToken,
-      FLY_COMPUTER_TARGET_APP: targetApp,
-      FLY_COMPUTER_AGENT_IMAGE: agentImage,
-    },
-  })
+async function getAppStatus(appName: string): Promise<FlyCliAppStatus | null> {
+  try {
+    return await flyCliAppStatus({ appName })
+  } catch (error) {
+    if (error instanceof FlyCommandError) {
+      return null
+    }
+    throw error
+  }
 }
 
-async function actorApiTokenSecretExists(appName: string): Promise<boolean> {
-  const secrets = await flyCliSecretsList({ appName })
-  return secrets.some((secret) =>
-    secret.name.trim().toUpperCase() === 'FLY_API_TOKEN'
-  )
-}
-
-async function loadTemplateMachine(): Promise<TemplateMachineInfo> {
-  const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
-    TEMPLATE_COMPUTER_APP
-
+async function loadTemplateMachine(
+  templateApp: string,
+): Promise<TemplateMachineInfo> {
   const status = await flyCliAppStatus({ appName: templateApp })
   const candidate = status.machines[0]
   if (!candidate || !candidate.id) {
@@ -180,18 +163,203 @@ async function loadTemplateMachine(): Promise<TemplateMachineInfo> {
     )
   }
 
-  const config = detail.config && isPlainObject(detail.config)
-    ? structuredClone(detail.config)
-    : {}
-  ;(config as { image?: string }).image = image
-
   return {
     sourceApp: templateApp,
-    machineId: candidate.id,
     image,
-    config,
     region: detail.region ?? candidate.region,
-    name: detail.name ?? candidate.name,
+  }
+}
+
+async function loadTemplateAppConfig(
+  templateApp: string,
+): Promise<Record<string, unknown>> {
+  const result = await runFlyCommand(['config', 'show', '--app', templateApp])
+  const raw = result.stdout
+  const trimmed = raw.trimStart()
+  if (!trimmed) {
+    throw new Error(
+      `Fly config show returned empty output for template app '${templateApp}'`,
+    )
+  }
+
+  const firstCharIndex = trimmed.search(/\S/)
+  const firstChar = firstCharIndex === -1 ? undefined : trimmed[firstCharIndex]
+
+  if (firstChar === '{' || firstChar === '[') {
+    const json = parseFlyJson<Record<string, unknown>>(raw)
+    return extractFlyConfigFromJson(json)
+  }
+
+  return parseToml(trimmed) as Record<string, unknown>
+}
+
+function prepareActorAppConfig(
+  templateConfig: Record<string, unknown>,
+  template: TemplateMachineInfo,
+  appName: string,
+): Record<string, unknown> {
+  const config = structuredClone(templateConfig)
+  config.app = appName
+
+  if (
+    template.region &&
+    (!config.primary_region || typeof config.primary_region !== 'string')
+  ) {
+    config.primary_region = template.region
+  }
+
+  if (isPlainObject(config.build)) {
+    ;(config.build as Record<string, unknown>).image = template.image
+  } else {
+    config.build = { image: template.image }
+  }
+
+  config.services = normalizeServices(
+    (config as { services?: unknown }).services,
+  )
+
+  return config
+}
+
+function normalizeServices(value: unknown): Array<Record<string, unknown>> {
+  const services = Array.isArray(value)
+    ? value.filter(isPlainObject).map((service) =>
+      structuredClone(service as Record<string, unknown>)
+    )
+    : []
+
+  if (services.length === 0) {
+    services.push(createDefaultService())
+  }
+
+  for (const service of services) {
+    service.internal_port = normalizePortNumber(service.internal_port, 8080)
+    service.protocol = typeof service.protocol === 'string'
+      ? service.protocol
+      : 'tcp'
+    if (!('force_instance_id' in service)) {
+      service.force_instance_id = true
+    }
+
+    const ports = Array.isArray(service.ports)
+      ? service.ports.filter(isPlainObject).map((port) =>
+        structuredClone(port as Record<string, unknown>)
+      )
+      : []
+    if (ports.length === 0) {
+      ports.push(createDefaultPort())
+    }
+
+    for (const port of ports) {
+      port.port = normalizePortNumber(port.port, 80)
+      port.handlers = normalizeHandlers(port.handlers)
+    }
+
+    service.ports = ports
+  }
+
+  return services
+}
+
+function normalizePortNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value)
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return fallback
+}
+
+function normalizeHandlers(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .filter((item): item is string =>
+        typeof item === 'string' && item.trim().length > 0
+      )
+      .map((item) => item.trim().toLowerCase())
+    if (normalized.length > 0) {
+      if (
+        !normalized.some((handler) => handler === 'http' || handler === 'https')
+      ) {
+        normalized.push('http')
+      }
+      return Array.from(new Set(normalized))
+    }
+  }
+  return ['http']
+}
+
+function createDefaultService(): Record<string, unknown> {
+  return {
+    internal_port: 8080,
+    protocol: 'tcp',
+    force_instance_id: true,
+    ports: [createDefaultPort()],
+  }
+}
+
+function createDefaultPort(): Record<string, unknown> {
+  return {
+    port: 80,
+    handlers: ['http'],
+  }
+}
+
+async function ensureActorAppSecrets(
+  {
+    appName,
+    agentImage,
+    targetApp,
+    controllerToken,
+  }: {
+    appName: string
+    agentImage: string
+    targetApp: string
+    controllerToken: string
+  },
+): Promise<void> {
+  await flyCliSecretsSet({
+    appName,
+    secrets: {
+      FLY_API_TOKEN: controllerToken,
+      FLY_COMPUTER_TARGET_APP: targetApp,
+      FLY_COMPUTER_AGENT_IMAGE: agentImage,
+    },
+  })
+}
+
+async function actorApiTokenSecretExists(appName: string): Promise<boolean> {
+  const secrets = await flyCliSecretsList({ appName })
+  return secrets.some((secret) =>
+    secret.name.trim().toUpperCase() === 'FLY_API_TOKEN'
+  )
+}
+
+async function deployActorApp(
+  { appName, image, config }: {
+    appName: string
+    image: string
+    config: Record<string, unknown>
+  },
+): Promise<void> {
+  const tomlText = stringifyToml(config)
+  const tempFile = await Deno.makeTempFile({ suffix: '.toml' })
+  try {
+    await Deno.writeTextFile(tempFile, tomlText)
+    await runFlyCommand([
+      'deploy',
+      '--config',
+      tempFile,
+      '--app',
+      appName,
+      '--image',
+      image,
+      '--yes',
+    ])
+  } finally {
+    await Deno.remove(tempFile)
   }
 }
 
@@ -208,101 +376,6 @@ function extractMachineImage(
   return undefined
 }
 
-function prepareActorMachineConfig(
-  template: TemplateMachineInfo,
-  appName: string,
-): Record<string, unknown> {
-  const cloned = structuredClone(template.config)
-  const config = isPlainObject(cloned) ? cloned : {}
-
-  pruneMachineIdentity(config)
-  ;(config as { image?: string }).image = template.image
-
-  if (isPlainObject(config.metadata)) {
-    const metadata = structuredClone(config.metadata)
-    replaceExactStringValues(metadata, template.sourceApp, appName)
-    metadata.app ??= appName
-    metadata.app_name ??= appName
-    metadata.appName ??= appName
-    metadata.fly_app ??= appName
-    metadata.flyApp ??= appName
-    metadata['fly.app'] = appName
-    config.metadata = metadata
-  } else {
-    config.metadata = {
-      app: appName,
-      'fly.app': appName,
-    }
-  }
-
-  if (isPlainObject(config.env)) {
-    replaceExactStringValues(
-      config.env as Record<string, unknown>,
-      template.sourceApp,
-      appName,
-    )
-  }
-
-  const services = Array.isArray((config as { services?: unknown }).services)
-    ? structuredClone((config as { services: unknown[] }).services)
-    : []
-  const normalizedServices = services.filter((service) =>
-    isPlainObject(service)
-  ) as Array<Record<string, unknown>>
-
-  if (normalizedServices.length === 0) {
-    normalizedServices.push(createDefaultService())
-  }
-
-  for (const service of normalizedServices) {
-    service.internal_port ??= 8080
-    service.protocol ??= 'tcp'
-    service.force_instance_id ??= true
-    if (!Array.isArray(service.ports) || service.ports.length === 0) {
-      service.ports = [createDefaultPort()]
-    } else {
-      service.ports = (service.ports as unknown[]).map((raw) => {
-        const port = isPlainObject(raw) ? structuredClone(raw) : {}
-        ;(port as { handlers?: unknown[] }).handlers = normalizeHandlers(
-          port.handlers,
-        )
-        port.port ??= 80
-        return port
-      })
-    }
-  }
-
-  ;(config as { services?: unknown }).services = normalizedServices
-
-  return config
-}
-
-function createDefaultService(): Record<string, unknown> {
-  return {
-    internal_port: 8080,
-    protocol: 'tcp',
-    ports: [createDefaultPort()],
-    force_instance_id: true,
-  }
-}
-
-function createDefaultPort(): Record<string, unknown> {
-  return {
-    port: 80,
-    handlers: ['http'],
-  }
-}
-
-function normalizeHandlers(value: unknown): string[] {
-  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-    const handlers = value.map((item) => item.toLowerCase())
-    if (handlers.includes('http') || handlers.includes('tls')) {
-      return handlers
-    }
-  }
-  return ['http']
-}
-
 function sanitizeClerkId(clerkId: string): string {
   const lower = clerkId.trim().toLowerCase()
   const replaced = lower.replace(/[^a-z0-9]+/g, '-')
@@ -317,51 +390,51 @@ function resolveOrgSlug(): string {
   throw new Error('Missing FLY_ORG_SLUG; set it to your Fly organization slug')
 }
 
-function pruneMachineIdentity(node: unknown): void {
-  if (Array.isArray(node)) {
-    for (const value of node) {
-      pruneMachineIdentity(value)
-    }
-    return
-  }
-  if (!isPlainObject(node)) return
-
-  const record = node as Record<string, unknown>
-  const identityKeys = [
-    'id',
-    'ID',
-    'app_id',
-    'appId',
-    'AppID',
-    'machine_id',
-    'machineId',
-    'MachineID',
-    'created_at',
-    'CreatedAt',
-    'updated_at',
-    'UpdatedAt',
-  ]
-  for (const key of identityKeys) {
-    if (key in record) {
-      delete record[key]
+function extractFlyConfigFromJson(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const candidates: unknown[] = [payload]
+  if (isPlainObject(payload)) {
+    for (const key of ['definition', 'Definition', 'config', 'Config']) {
+      if (key in payload) candidates.push(payload[key])
     }
   }
 
-  for (const value of Object.values(record)) {
-    pruneMachineIdentity(value)
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const text = candidate.trim()
+      if (!text) continue
+      if (text.startsWith('{') || text.startsWith('[')) {
+        const nested = parseFlyJson<Record<string, unknown>>(text)
+        if (isPlainObject(nested) && isLikelyFlyConfig(nested)) {
+          return structuredClone(nested)
+        }
+        continue
+      }
+      try {
+        const nestedToml = parseToml(text)
+        if (isPlainObject(nestedToml) && isLikelyFlyConfig(nestedToml)) {
+          return structuredClone(nestedToml)
+        }
+      } catch {
+        continue
+      }
+    }
+    if (isPlainObject(candidate) && isLikelyFlyConfig(candidate)) {
+      return structuredClone(candidate)
+    }
   }
+
+  throw new Error('Failed to locate Fly app configuration in JSON output')
 }
 
-function replaceExactStringValues(
-  record: Record<string, unknown>,
-  target: string,
-  replacement: string,
-): void {
-  for (const [key, value] of Object.entries(record)) {
-    if (typeof value === 'string' && value === target) {
-      record[key] = replacement
-    }
+function isLikelyFlyConfig(value: Record<string, unknown>): boolean {
+  if (typeof value.app === 'string' && value.app.trim().length > 0) {
+    return true
   }
+  if (isPlainObject(value.build)) return true
+  if (Array.isArray((value as { services?: unknown }).services)) return true
+  return false
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
