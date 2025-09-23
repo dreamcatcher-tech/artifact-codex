@@ -1,4 +1,8 @@
-import { agentToSubdomain, subdomainToAgent } from '@artifact/shared'
+import {
+  agentToSubdomain,
+  subdomainToAgent,
+  PATH_SEPARATOR,
+} from '@artifact/shared'
 
 export function resolveHost(request: Request): string | undefined {
   const headers = request.headers
@@ -42,12 +46,23 @@ export function resolveComputerHost(
   if (remainder.length === 0) {
     return { computer: null, agentPath: [] }
   }
-  const computer = remainder[remainder.length - 1]
-  const agentLabels = remainder.slice(0, -1)
+
+  const labelsBeforeCombined = remainder.slice(0, -1)
+  const combinedLabel = remainder[remainder.length - 1] ?? ''
+
   const agentPath: string[] = []
-  for (const label of agentLabels) {
+  for (const label of labelsBeforeCombined) {
     agentPath.push(...subdomainToAgent(label))
   }
+
+  const combinedSegments = subdomainToAgent(combinedLabel)
+  if (combinedSegments.length === 0) {
+    return null
+  }
+  const computer = combinedSegments.pop()!
+  if (!computer) return null
+  agentPath.push(...combinedSegments)
+
   return { computer, agentPath }
 }
 
@@ -57,7 +72,7 @@ export function buildAgentHost(
   baseDomain: string,
 ): string {
   const prefix = agentPath.length > 0
-    ? `${agentToSubdomain(agentPath)}.${computer}`
+    ? `${agentToSubdomain(agentPath)}${PATH_SEPARATOR}${computer}`
     : computer
   return `${prefix}.${baseDomain}`
 }

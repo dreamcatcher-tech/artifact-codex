@@ -29,12 +29,6 @@ function parseArgs(argv: string[]): ParsedArgs {
       case '--source':
         mountOptions.source = argv[++i]
         break
-      case '--host':
-        mountOptions.host = argv[++i]
-        break
-      case '--app':
-        mountOptions.app = argv[++i]
-        break
       case '--retries':
         mountOptions.retries = Number.parseInt(argv[++i], 10)
         break

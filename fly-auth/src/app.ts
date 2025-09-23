@@ -289,14 +289,43 @@ function redirectToActorHost(
   requestUrl: URL,
 ): Response {
   actorLog('redirect -> %s from %s', actorHost, requestUrl.hostname)
+  const protoHeader = c.req.header('fly-forwarded-proto') ??
+    c.req.header('x-forwarded-proto') ?? ''
+  const forwardedProto = protoHeader.split(',')[0]?.trim().toLowerCase()
   const target = new URL(requestUrl.toString())
+  if (forwardedProto) {
+    target.protocol = forwardedProto.endsWith(':')
+      ? forwardedProto
+      : `${forwardedProto}:`
+  } else {
+    target.protocol = 'https:'
+  }
   target.hostname = actorHost
   target.port = ''
   return c.redirect(target.toString(), 302)
 }
 
-function hostsMatch(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase()
+function hostsMatch(actual: string, desired: string): boolean {
+  const actualLower = actual.toLowerCase()
+  const desiredLower = desired.toLowerCase()
+  if (actualLower === desiredLower) return true
+
+  const dotIndex = desiredLower.indexOf('.')
+  if (dotIndex === -1) return false
+
+  const desiredLabel = desiredLower.slice(0, dotIndex)
+  const desiredDomain = desiredLower.slice(dotIndex + 1)
+
+  if (!actualLower.endsWith(`.${desiredDomain}`)) return false
+
+  const prefix = actualLower.slice(
+    0,
+    actualLower.length - (desiredDomain.length + 1),
+  )
+  if (prefix === desiredLabel) return true
+  if (prefix.endsWith(`--${desiredLabel}`)) return true
+
+  return false
 }
 
 function resolveBaseDomain(): string {

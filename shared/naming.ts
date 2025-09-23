@@ -44,7 +44,7 @@ export function generateFlyMachineName(): string {
   return `${words}-${randomFourDigits()}`
 }
 
-const PATH_SEPARATOR = '--'
+export const PATH_SEPARATOR = '--'
 const DNS_SEGMENT_PATTERN = /^[a-z0-9-]+$/
 
 function normalizeSubdomainSegment(input: string): string {

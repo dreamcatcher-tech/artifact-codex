@@ -6,6 +6,7 @@ import type { MachineDetail, MachineSummary } from '@artifact/shared'
 import { createApp } from './app.ts'
 import type { FlyApi } from './fly.ts'
 import { slugify } from './naming.ts'
+import { buildAgentHost } from './routing.ts'
 
 const BASE_DOMAIN = 'example.test'
 const COMPUTER_NAME = 'computer'
@@ -52,6 +53,14 @@ async function writeAgentConfig(
   await Deno.mkdir(dir, { recursive: true })
   const body = JSON.stringify({ id, ...config }, null, 2) + '\n'
   await Deno.writeTextFile(join(dir, 'config.json'), body)
+}
+
+function hostForAgentSlug(slug: string): string {
+  return buildAgentHost([slug], COMPUTER_NAME, BASE_DOMAIN)
+}
+
+function hostForAgentPath(path: string[]): string {
+  return buildAgentHost(path, COMPUTER_NAME, BASE_DOMAIN)
 }
 
 type FlyStub = FlyApi & {
@@ -145,7 +154,8 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
       await Deno.readTextFile(join(agentDir, 'config.json')),
     ) as { name: string; id: string }
     const expectedSlug = slugify(agentConfig.name)
-    expect(locationHost.startsWith(`${expectedSlug}.`)).toBe(true)
+    const expectedHost = hostForAgentSlug(expectedSlug)
+    expect(locationHost).toBe(expectedHost)
     expect(fly.created.length).toBe(1)
   } finally {
     await Deno.remove(tmp, { recursive: true })
@@ -219,9 +229,10 @@ Deno.test('replays to configured machine without restarting when already running
       },
     })
 
+    const agentHost = hostForAgentSlug('foo')
     const res = await handler(
-      new Request(`http://foo.${COMPUTER_HOST}/`, {
-        headers: { host: `foo.${COMPUTER_HOST}` },
+      new Request(`http://${agentHost}/`, {
+        headers: { host: agentHost },
       }),
     )
     expect(res.status).toBe(204)
@@ -277,9 +288,10 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
       },
     })
 
+    const agentHost = hostForAgentSlug('foo')
     const res = await handler(
-      new Request(`http://foo.${COMPUTER_HOST}/`, {
-        headers: { host: `foo.${COMPUTER_HOST}` },
+      new Request(`http://${agentHost}/`, {
+        headers: { host: agentHost },
       }),
     )
     expect(res.status).toBe(204)
@@ -328,9 +340,10 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
       },
     })
 
+    const agentHost = hostForAgentSlug('foo')
     const res = await handler(
-      new Request(`http://foo.${COMPUTER_HOST}/`, {
-        headers: { host: `foo.${COMPUTER_HOST}` },
+      new Request(`http://${agentHost}/`, {
+        headers: { host: agentHost },
       }),
     )
     expect(res.status).toBe(204)
@@ -379,9 +392,10 @@ Deno.test('creates new machine when none exist and updates registry', async () =
       },
     })
 
+    const agentHost = hostForAgentSlug('foo')
     const res = await handler(
-      new Request(`http://foo.${COMPUTER_HOST}/`, {
-        headers: { host: `foo.${COMPUTER_HOST}` },
+      new Request(`http://${agentHost}/`, {
+        headers: { host: agentHost },
       }),
     )
     expect(res.status).toBe(204)
@@ -437,9 +451,10 @@ Deno.test('resolves nested agent path using parent links', async () => {
       },
     })
 
+    const nestedHost = hostForAgentPath(['alpha', 'beta-child'])
     const res = await handler(
-      new Request(`http://alpha--beta-child.${COMPUTER_HOST}/`, {
-        headers: { host: `alpha--beta-child.${COMPUTER_HOST}` },
+      new Request(`http://${nestedHost}/`, {
+        headers: { host: nestedHost },
       }),
     )
     expect(res.status).toBe(204)

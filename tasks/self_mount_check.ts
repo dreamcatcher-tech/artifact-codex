@@ -2,7 +2,7 @@ import { join } from '@std/path/join'
 
 import { runCommand } from '@artifact/procman'
 
-import { NFS_EXPORT_BASE, resolveNfsSource } from '@artifact/shared'
+import { NFS_EXPORT_BASE } from '@artifact/shared'
 
 import { ensureNfsMount } from './mount.ts'
 import type {
@@ -42,9 +42,6 @@ export async function runSelfMountCheck(
     await Deno.mkdir(mountDir, { recursive: true })
   }
 
-  const source = resolveNfsSource(baseEnv, {
-    source: options.mountOptions?.source,
-  })
   const mountOpts = baseEnv.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
 
   const mountEnv = {

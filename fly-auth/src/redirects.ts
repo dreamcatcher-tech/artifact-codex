@@ -65,6 +65,7 @@ function readUrlFromEnv(key: string): string | undefined {
 function normalizeRedirectBack(requestUrl: string): string {
   try {
     const url = new URL(requestUrl)
+    url.protocol = 'https:'
     const hostname = url.hostname
     if (!shouldSanitizeHostname(hostname)) return url.toString()
     const labels = hostname.split('.')

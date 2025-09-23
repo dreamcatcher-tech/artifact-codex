@@ -18,6 +18,7 @@ const INTEGRATION_ACTOR_APP = deriveActorAppName(INTEGRATION_TEST_USER)
 
 type EnvSnapshot = {
   secret?: string
+  publishable?: string
   signIn?: string
   signUp?: string
   baseDomain?: string
@@ -26,17 +27,23 @@ type EnvSnapshot = {
 function setClerkEnv(): () => void {
   const snapshot: EnvSnapshot = {
     secret: Deno.env.get('CLERK_SECRET_KEY') ?? undefined,
+    publishable: Deno.env.get('CLERK_PUBLISHABLE_KEY') ?? undefined,
     signIn: Deno.env.get('CLERK_SIGN_IN_URL') ?? undefined,
     signUp: Deno.env.get('CLERK_SIGN_UP_URL') ?? undefined,
     baseDomain: Deno.env.get('FLY_AUTH_BASE_DOMAIN') ?? undefined,
   }
   Deno.env.set('CLERK_SECRET_KEY', TEST_SECRET)
+  Deno.env.set(
+    'CLERK_PUBLISHABLE_KEY',
+    'pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk',
+  )
   Deno.env.set('CLERK_SIGN_IN_URL', TEST_SIGN_IN_URL)
   Deno.env.set('CLERK_SIGN_UP_URL', TEST_SIGN_UP_URL)
   Deno.env.set('FLY_AUTH_BASE_DOMAIN', TEST_BASE_DOMAIN)
 
   return () => {
     restore('CLERK_SECRET_KEY', snapshot.secret)
+    restore('CLERK_PUBLISHABLE_KEY', snapshot.publishable)
     restore('CLERK_SIGN_IN_URL', snapshot.signIn)
     restore('CLERK_SIGN_UP_URL', snapshot.signUp)
     restore('FLY_AUTH_BASE_DOMAIN', snapshot.baseDomain)
@@ -83,7 +90,7 @@ Deno.test('redirects unauthorized request to Clerk sign-up', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://localhost/',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://localhost/',
     )
   } finally {
     cleanup()
@@ -99,7 +106,7 @@ Deno.test('redirects to sign-up when requested', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://localhost/?flow=sign-up',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://localhost/?flow=sign-up',
     )
   } finally {
     cleanup()
@@ -115,7 +122,7 @@ Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://scoped--sub-part.example.test/',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://scoped--sub-part.example.test/',
     )
   } finally {
     cleanup()
@@ -149,7 +156,7 @@ Deno.test('replays existing actor app via redirect then fly-replay', async () =>
   const initial = await app.request('http://localhost/')
   expect(initial.status).toBe(302)
   expect(initial.headers.get('location')).toBe(
-    'http://actor-user-test.example.test/',
+    'https://actor-user-test.example.test/',
   )
 
   const follow = await app.request('http://actor-user-test.example.test/')
@@ -191,7 +198,7 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
   const initial = await app.request('http://localhost/')
   expect(initial.status).toBe(302)
   expect(initial.headers.get('location')).toBe(
-    'http://actor-new-user.example.test/',
+    'https://actor-new-user.example.test/',
   )
 
   const follow = await app.request('http://actor-new-user.example.test/')
@@ -266,7 +273,7 @@ Deno.test('creates missing folder for existing app then redirects', async () => 
   const initial = await app.request('http://localhost/')
   expect(initial.status).toBe(302)
   expect(initial.headers.get('location')).toBe(
-    'http://actor-existing-user.example.test/',
+    'https://actor-existing-user.example.test/',
   )
 
   const follow = await app.request('http://actor-existing-user.example.test/')
@@ -321,7 +328,7 @@ Deno.test('bypasses Clerk auth when test header is present', async () => {
 
   expect(initial.status).toBe(302)
   expect(initial.headers.get('location')).toBe(
-    `http://${INTEGRATION_ACTOR_APP}.example.test/`,
+    `https://${INTEGRATION_ACTOR_APP}.example.test/`,
   )
 
   const follow = await app.request(
