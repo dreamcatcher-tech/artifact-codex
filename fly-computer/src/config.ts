@@ -22,7 +22,7 @@ const DEFAULT_MOUNT_DIR = '/mnt/computer'
 
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const flyApiToken = overrides.flyApiToken?.trim() ||
-    readRequiredAppEnv('FLY_API_TOKEN')
+    readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
   const targetApp = overrides.targetApp?.trim() ||
     readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
   const agentImage = overrides.agentImage?.trim() ||

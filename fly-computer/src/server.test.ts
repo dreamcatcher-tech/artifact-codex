@@ -116,7 +116,7 @@ Deno.test('replays to configured machine without restarting when already running
     )
     expect(res.status).toBe(204)
     expect(res.headers.get('fly-replay')).toBe(
-      'app=universal-compute;instance=m-1',
+      'app=universal-compute;fly_force_instance=m-1',
     )
     expect(fly.startCalls).toEqual([])
 

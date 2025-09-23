@@ -6,10 +6,10 @@ import {
 import {
   flyCliAppsCreate,
   flyCliAppsDestroy,
-  flyCliAppsInfo,
-  flyCliCreateMachine,
+  type FlyCliAppStatus,
+  flyCliAppStatus,
   flyCliGetMachine,
-  flyCliListMachines,
+  flyCliMachineRun,
   flyCliSecretsSet,
   flyCliTokensCreateDeploy,
   FlyCommandError,
@@ -20,27 +20,27 @@ const ACTOR_PREFIX = 'actor-'
 const TEMPLATE_COMPUTER_APP = 'fly-computer'
 export type EnsureActorAppResult = {
   appName: string
-  appId: string
   existed: boolean
 }
 
-async function appExists(
+async function getAppStatus(
   options: { token: string; appName: string },
-): Promise<boolean> {
+): Promise<FlyCliAppStatus | null> {
   try {
-    await flyCliAppsInfo(options)
-    return true
+    return await flyCliAppStatus(options)
   } catch (error) {
     if (error instanceof FlyCommandError) {
-      return false
+      return null
     }
     throw error
   }
 }
 
 type TemplateMachineInfo = {
-  config: Record<string, unknown>
+  sourceApp: string
+  machineId: string
   image: string
+  config: Record<string, unknown>
   region?: string
   name?: string
 }
@@ -53,27 +53,22 @@ export function deriveActorAppName(clerkId: string): string {
   return `${ACTOR_PREFIX}${normalized}`
 }
 
-export async function ensureActorAppExists(
+export async function ensureActorApp(
   appName: string,
 ): Promise<EnsureActorAppResult> {
-  const token = readRequiredAppEnv('FLY_API_TOKEN')
+  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
 
   const template = await loadTemplateMachine(token)
 
-  const exists = await appExists({ token, appName })
-  if (exists) {
-    const existing = await flyCliAppsInfo({ token, appName })
-    if (!existing.id) {
-      throw new Error(`Existing Fly app '${appName}' is missing an id`)
-    }
+  const existingStatus = await getAppStatus({ token, appName })
+  if (existingStatus) {
     await ensureActorAppDeployToken({
       token,
       appName,
-      appId: existing.id,
       agentImage: template.image,
       targetApp: appName,
     })
-    return { appName, existed: true, appId: existing.id }
+    return { appName, existed: true }
   }
 
   const createdApp = await flyCliAppsCreate({
@@ -81,15 +76,15 @@ export async function ensureActorAppExists(
     appName,
     orgSlug: resolveOrgSlug(),
   })
-  if (!createdApp.id) {
-    throw new Error(`Created Fly app '${appName}' did not return an id`)
+  const createdName = createdApp.name ?? appName
+  if (!createdName || createdName.trim().length === 0) {
+    throw new Error(`Created Fly app '${appName}' did not return a name`)
   }
 
   try {
     await ensureActorAppDeployToken({
       token,
       appName,
-      appId: createdApp.id,
       agentImage: template.image,
       targetApp: appName,
     })
@@ -106,34 +101,42 @@ export async function ensureActorAppExists(
     throw error
   }
 
+  const machineConfig = prepareActorMachineConfig(template, appName)
+
   try {
-    await flyCliCreateMachine({
+    await flyCliMachineRun({
       appName,
       token,
-      name: template.name ?? 'web',
-      config: template.config,
+      image: template.image,
+      config: machineConfig,
+      name: template.name,
       region: template.region,
     })
   } catch (error) {
-    console.error('failed to create template machine for actor app', error)
+    console.error('failed to launch template machine for actor app', error)
     throw error
   }
 
-  return { appName, existed: false, appId: createdApp.id }
+  return { appName, existed: false }
+}
+
+export async function actorAppExists(appName: string): Promise<boolean> {
+  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
+  const status = await getAppStatus({ token, appName })
+  return status !== null
 }
 
 type EnsureActorTokenInput = {
   token: string
   appName: string
-  appId: string
   agentImage: string
   targetApp: string
 }
 
 async function ensureActorAppDeployToken(
-  { token, appName, appId, agentImage, targetApp }: EnsureActorTokenInput,
+  { token, appName, agentImage, targetApp }: EnsureActorTokenInput,
 ): Promise<void> {
-  console.info('provisioning actor deploy token', { appName, appId })
+  console.info('provisioning actor deploy token', { appName })
   let deployToken: string
   try {
     deployToken = await createDeployTokenWithRetry({ token, appName })
@@ -156,7 +159,7 @@ async function ensureActorAppDeployToken(
     token,
     appName,
     secrets: {
-      FLY_API_TOKEN: deployToken,
+      FLY_API_DEPLOY_TOKEN: deployToken,
       FLY_COMPUTER_TARGET_APP: targetApp,
       FLY_COMPUTER_AGENT_IMAGE: agentImage,
     },
@@ -200,7 +203,7 @@ async function delay(ms: number): Promise<void> {
 }
 
 export async function destroyActorApp(appName: string): Promise<void> {
-  const token = readRequiredAppEnv('FLY_API_TOKEN')
+  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
   try {
     await flyCliAppsDestroy({ token, appName, force: true })
   } catch (error) {
@@ -243,19 +246,13 @@ async function loadTemplateMachine(
   const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
     TEMPLATE_COMPUTER_APP
 
-  const machines = await flyCliListMachines({ appName: templateApp, token })
-  if (machines.length === 0) {
+  const status = await flyCliAppStatus({ appName: templateApp, token })
+  const candidate = status.machines[0]
+  if (!candidate || !candidate.id) {
     throw new Error(
       `Template app '${templateApp}' has no machines to replicate configuration from`,
     )
   }
-
-  const sorted = [...machines].sort((a, b) => {
-    const aTime = Date.parse(a.createdAt ?? '') || 0
-    const bTime = Date.parse(b.createdAt ?? '') || 0
-    return bTime - aTime
-  })
-  const candidate = sorted[0]
 
   const detail = await flyCliGetMachine({
     appName: templateApp,
@@ -276,10 +273,12 @@ async function loadTemplateMachine(
   ;(config as { image?: string }).image = image
 
   return {
-    config,
+    sourceApp: templateApp,
+    machineId: candidate.id,
     image,
-    region: detail.region,
-    name: detail.name,
+    config,
+    region: detail.region ?? candidate.region,
+    name: detail.name ?? candidate.name,
   }
 }
 
@@ -294,6 +293,91 @@ function extractMachineImage(
     return detail.image
   }
   return undefined
+}
+
+function prepareActorMachineConfig(
+  template: TemplateMachineInfo,
+  appName: string,
+): Record<string, unknown> {
+  const cloned = structuredClone(template.config)
+  const config = isPlainObject(cloned) ? cloned : {}
+
+  pruneMachineIdentity(config)
+  ;(config as { image?: string }).image = template.image
+
+  if (isPlainObject(config.metadata)) {
+    const metadata = structuredClone(config.metadata)
+    replaceExactStringValues(metadata, template.sourceApp, appName)
+    metadata.app ??= appName
+    metadata.app_name ??= appName
+    metadata.appName ??= appName
+    metadata.fly_app ??= appName
+    metadata.flyApp ??= appName
+    metadata['fly.app'] = appName
+    config.metadata = metadata
+  } else {
+    config.metadata = {
+      app: appName,
+      'fly.app': appName,
+    }
+  }
+
+  if (isPlainObject(config.env)) {
+    replaceExactStringValues(
+      config.env as Record<string, unknown>,
+      template.sourceApp,
+      appName,
+    )
+  }
+
+  return config
+}
+
+function pruneMachineIdentity(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const value of node) {
+      pruneMachineIdentity(value)
+    }
+    return
+  }
+  if (!isPlainObject(node)) return
+
+  const record = node as Record<string, unknown>
+  const identityKeys = [
+    'id',
+    'ID',
+    'app_id',
+    'appId',
+    'AppID',
+    'machine_id',
+    'machineId',
+    'MachineID',
+    'created_at',
+    'CreatedAt',
+    'updated_at',
+    'UpdatedAt',
+  ]
+  for (const key of identityKeys) {
+    if (key in record) {
+      delete record[key]
+    }
+  }
+
+  for (const value of Object.values(record)) {
+    pruneMachineIdentity(value)
+  }
+}
+
+function replaceExactStringValues(
+  record: Record<string, unknown>,
+  target: string,
+  replacement: string,
+): void {
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === 'string' && value === target) {
+      record[key] = replacement
+    }
+  }
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

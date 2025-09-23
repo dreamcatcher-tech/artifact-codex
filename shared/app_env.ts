@@ -129,13 +129,20 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     description:
       'Controller token with permission to manage Fly apps and machines for Artifact services.',
     requiredFor: [
+      'mcp-agents',
+      'mcp-computers',
+    ],
+  },
+  {
+    name: 'FLY_API_DEPLOY_TOKEN',
+    description:
+      'Deploy-scoped Fly API token used by automation that provisions or manages actor apps.',
+    requiredFor: [
       'fly-auth',
       'fly-computer',
       'tasks/mount',
       'tasks/self_mount_check',
       'tasks/fly',
-      'mcp-agents',
-      'mcp-computers',
     ],
   },
   {

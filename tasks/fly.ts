@@ -37,11 +37,26 @@ export async function runFlyCommand(
     check = true,
   } = options
 
-  const mergedEnv: Record<string, string> = { ...env }
-  if (token) {
-    mergedEnv.FLY_API_TOKEN ??= token
-    mergedEnv.FLY_ACCESS_TOKEN ??= token
+  let resolvedToken = token ?? env.FLY_API_DEPLOY_TOKEN ?? env.FLY_API_TOKEN
+  if (!resolvedToken) {
+    try {
+      resolvedToken = Deno.env.get('FLY_API_DEPLOY_TOKEN') ??
+        Deno.env.get('FLY_API_TOKEN') ?? undefined
+    } catch {
+      resolvedToken = undefined
+    }
   }
+
+  if (!resolvedToken) {
+    throw new Error(
+      'Missing Fly API deploy token; set FLY_API_DEPLOY_TOKEN in the environment.',
+    )
+  }
+
+  const mergedEnv: Record<string, string> = { ...env }
+  mergedEnv.FLY_API_DEPLOY_TOKEN ??= resolvedToken
+  mergedEnv.FLY_API_TOKEN ??= resolvedToken
+  mergedEnv.FLY_ACCESS_TOKEN ??= resolvedToken
 
   const result = await commandExecutor({
     command: FLY_BIN,
@@ -101,6 +116,12 @@ export type FlyCliAppInfo = {
   createdAt?: string
 }
 
+export type FlyCliAppStatus = {
+  appId?: string
+  appName?: string
+  machines: FlyCliMachineSummary[]
+}
+
 export async function flyCliListMachines(
   options: { appName: string } & FlyCliOptions,
 ): Promise<FlyCliMachineSummary[]> {
@@ -156,6 +177,42 @@ export async function flyCliCreateMachine(
   return list[list.length - 1]
 }
 
+export async function flyCliMachineRun(
+  options: {
+    appName: string
+    image: string
+    config: Record<string, unknown>
+    name?: string
+    region?: string
+    detach?: boolean
+  } & FlyCliOptions,
+): Promise<FlyCliMachineSummary> {
+  const { appName, image, config, name, region, detach = false, ...rest } =
+    options
+  const machineConfig = JSON.stringify(config)
+  const args = [
+    'machine',
+    'run',
+    image,
+    '--app',
+    appName,
+    '--machine-config',
+    machineConfig,
+  ]
+  if (name) args.push('--name', name)
+  if (region) args.push('--region', region)
+  if (detach) args.push('--detach')
+  await runFlyCommand(args, rest)
+  const list = await flyCliListMachines({ appName, ...rest })
+  if (name) {
+    const found = list.find((machine) =>
+      (machine.name ?? '').toLowerCase() === name.toLowerCase()
+    )
+    if (found) return found
+  }
+  return list[list.length - 1]
+}
+
 export async function flyCliDestroyMachine(
   options:
     & { appName: string; machineId: string; force?: boolean }
@@ -196,6 +253,35 @@ export async function flyCliAppsInfo(
   )
   const data = parseFlyJson<Record<string, unknown>>(result.stdout)
   return mapAppInfo(data)
+}
+
+export async function flyCliAppStatus(
+  options: { appName: string } & FlyCliOptions,
+): Promise<FlyCliAppStatus> {
+  const { appName, ...rest } = options
+  const result = await runFlyCommand(
+    ['status', '--app', appName, '--json'],
+    rest,
+  )
+  const data = parseFlyJson<Record<string, unknown>>(result.stdout)
+  const app = readRecord(data, ['App', 'app']) ?? data
+  const machinesRaw = readArray(data, ['Machines', 'machines']) ??
+    readArray(app, ['Machines', 'machines']) ??
+    readArray(readRecord(data, ['Deployment', 'deployment']), [
+      'Machines',
+      'machines',
+    ]) ?? []
+  const machines = machinesRaw
+    .map((row) => mapMachineSummary(row))
+    .filter((machine) => Boolean(machine.id))
+  return {
+    appId: readString(app, ['id', 'ID']) ?? readString(data, ['id', 'ID']),
+    appName: readString(app, ['name', 'Name']) ?? readString(data, [
+      'name',
+      'Name',
+    ]),
+    machines,
+  }
 }
 
 export async function flyCliAppsCreate(
@@ -414,6 +500,31 @@ function readRecord(
     const value = source[key]
     if (value && typeof value === 'object') {
       return value as Record<string, unknown>
+    }
+  }
+  return undefined
+}
+
+function readArray(
+  source: Record<string, unknown> | undefined,
+  keys: string[],
+): Record<string, unknown>[] | undefined {
+  if (!source) return undefined
+  for (const key of keys) {
+    const value = source[key]
+    if (Array.isArray(value)) {
+      return value.filter((item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === 'object'
+      )
+    }
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      const nodes = record.nodes ?? record.Nodes
+      if (Array.isArray(nodes)) {
+        return nodes.filter((item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === 'object'
+        )
+      }
     }
   }
   return undefined

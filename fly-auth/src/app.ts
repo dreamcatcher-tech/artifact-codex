@@ -7,9 +7,10 @@ import {
 import Debug from 'debug'
 
 import {
+  actorAppExists,
   deriveActorAppName,
   destroyActorApp,
-  ensureActorAppExists,
+  ensureActorApp,
   type EnsureActorAppResult,
 } from './actors.ts'
 import {
@@ -45,6 +46,7 @@ type AppDependencies = {
   ensureActorApp: (appName: string) => Promise<EnsureActorAppResult>
   destroyActorApp: (appName: string) => Promise<void>
   removeFolder: (appName: string) => Promise<void>
+  appExists: (appName: string) => Promise<boolean>
   auth: AuthDependencies
   baseDomain: string
 }
@@ -79,7 +81,10 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
 
       const destination = resolveRedirectUrl(c, redirects)
       if (!destination) {
-        errorLog('unauthenticated request without redirect host=%s', requestUrl.host)
+        errorLog(
+          'unauthenticated request without redirect host=%s',
+          requestUrl.host,
+        )
         return c.json({ error: 'unauthenticated' }, 401)
       }
 
@@ -104,12 +109,37 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
       folderExists = await deps.folderExists(actorApp)
       storageLog('folderExists(%s) -> %s', actorApp, folderExists)
     } catch (error) {
-      errorLog('failed to inspect computers directory for %s: %O', actorApp, error)
+      errorLog(
+        'failed to inspect computers directory for %s: %O',
+        actorApp,
+        error,
+      )
       return c.json({ error: 'filesystem_error' }, 500)
     }
 
-    if (folderExists) {
-      actorLog('folder ready for %s', actorApp)
+    let appExists = false
+    try {
+      appExists = await deps.appExists(actorApp)
+      actorLog('appExists(%s) -> %s', actorApp, appExists)
+    } catch (error) {
+      errorLog('failed to inspect fly app for %s: %O', actorApp, error)
+      return c.json({ error: 'provision_failed' }, 500)
+    }
+
+    if (folderExists && !appExists) {
+      storageLog('removing folder for %s (missing fly app)', actorApp)
+      try {
+        await deps.removeFolder(actorApp)
+        folderExists = false
+        storageLog('removed folder for %s before reprovisioning', actorApp)
+      } catch (error) {
+        errorLog('failed to remove stale folder for %s: %O', actorApp, error)
+        return c.json({ error: 'filesystem_error' }, 500)
+      }
+    }
+
+    if (folderExists && appExists) {
+      actorLog('folder and app ready for %s', actorApp)
       if (!onActorHost) {
         actorLog('redirecting to actor host %s', desiredHost)
         return redirectToActorHost(c, desiredHost, requestUrl)
@@ -124,6 +154,25 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
       actorLog('actor app ready %s', actorApp)
     } catch (error) {
       errorLog('failed to ensure actor app %s: %O', actorApp, error)
+      if (!appExists) {
+        try {
+          storageLog(
+            'cleaning up folder for %s after provisioning failure',
+            actorApp,
+          )
+          await deps.removeFolder(actorApp)
+          storageLog(
+            'removed folder for %s after provisioning failure',
+            actorApp,
+          )
+        } catch (cleanupError) {
+          errorLog(
+            'failed to remove folder for %s after provisioning failure: %O',
+            actorApp,
+            cleanupError,
+          )
+        }
+      }
       return c.json({ error: 'provision_failed' }, 500)
     }
 
@@ -161,7 +210,11 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
       await deps.ensureMount()
       storageLog('ensureMount success (integration) for %s', actorApp)
     } catch (error) {
-      errorLog('integration failed to mount computers share for %s: %O', actorApp, error)
+      errorLog(
+        'integration failed to mount computers share for %s: %O',
+        actorApp,
+        error,
+      )
       return c.json({ error: 'storage_unavailable' }, 503)
     }
 
@@ -199,9 +252,10 @@ function createDependencies(
     ensureMount: overrides.ensureMount ?? ensureComputersMounted,
     folderExists: overrides.folderExists ?? computerFolderExists,
     createFolder: overrides.createFolder ?? createComputerFolder,
-    ensureActorApp: overrides.ensureActorApp ?? ensureActorAppExists,
+    ensureActorApp: overrides.ensureActorApp ?? ensureActorApp,
     destroyActorApp: overrides.destroyActorApp ?? destroyActorApp,
     removeFolder: overrides.removeFolder ?? removeComputerFolder,
+    appExists: overrides.appExists ?? actorAppExists,
     auth: {
       middleware: authOverride.middleware ?? clerkMiddleware(),
       resolve: authOverride.resolve ?? getAuth,

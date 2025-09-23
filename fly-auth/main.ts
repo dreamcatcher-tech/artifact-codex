@@ -1,8 +1,6 @@
 import Debug from 'debug'
 import { createApp } from './src/app.ts'
 
-Debug.enable('@artifact/fly-auth*')
-
 const log = Debug('@artifact/fly-auth:main')
 const app = createApp()
 

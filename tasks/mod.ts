@@ -12,10 +12,12 @@ export {
   flyCliAppsDestroy,
   flyCliAppsInfo,
   flyCliAppsList,
+  flyCliAppStatus,
   flyCliCreateMachine,
   flyCliDestroyMachine,
   flyCliGetMachine,
   flyCliListMachines,
+  flyCliMachineRun,
   flyCliSecretsSet,
   flyCliStartMachine,
   flyCliTokensCreateDeploy,
@@ -25,6 +27,7 @@ export {
 } from './fly.ts'
 export type {
   FlyCliAppInfo,
+  FlyCliAppStatus,
   FlyCliMachineDetail,
   FlyCliMachineSummary,
   FlyCliOptions,

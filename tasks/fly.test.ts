@@ -3,9 +3,11 @@ import { expect } from '@std/expect'
 import {
   flyCliAppsDestroy,
   flyCliAppsInfo,
+  flyCliAppStatus,
   flyCliCreateMachine,
   flyCliGetMachine,
   flyCliListMachines,
+  flyCliMachineRun,
   flyCliStartMachine,
   flyCliTokensCreateDeploy,
 } from './mod.ts'
@@ -160,6 +162,66 @@ Deno.test('flyCliCreateMachine reuses list output when name matches', async () =
   expect(created.id).toBe('789')
 })
 
+Deno.test('flyCliMachineRun launches machine from config', async () => {
+  const machineConfig = { metadata: { app: 'actor-new' } }
+  const runCommand = [
+    'fly',
+    'machine',
+    'run',
+    'registry.fly.io/template:latest',
+    '--app',
+    'actor-new',
+    '--machine-config',
+    JSON.stringify(machineConfig),
+    '--name',
+    'web',
+    '--region',
+    'ord',
+  ].join(' ')
+
+  const { executor, calls } = createRecordingExecutor({
+    [runCommand]: makeResult(true),
+    'fly machine list --app actor-new --json': makeResult(true, {
+      stdout: JSON.stringify([
+        { ID: 'run-1', Name: 'web', Region: 'ord' },
+      ]),
+    }),
+  })
+
+  const runResult = await flyCliMachineRun({
+    appName: 'actor-new',
+    image: 'registry.fly.io/template:latest',
+    config: machineConfig,
+    name: 'web',
+    region: 'ord',
+    commandExecutor: executor,
+  })
+
+  expect(calls[0]).toEqual([
+    'fly',
+    'machine',
+    'run',
+    'registry.fly.io/template:latest',
+    '--app',
+    'actor-new',
+    '--machine-config',
+    JSON.stringify(machineConfig),
+    '--name',
+    'web',
+    '--region',
+    'ord',
+  ])
+  expect(calls[1]).toEqual([
+    'fly',
+    'machine',
+    'list',
+    '--app',
+    'actor-new',
+    '--json',
+  ])
+  expect(runResult.id).toBe('run-1')
+})
+
 Deno.test('flyCliAppsInfo maps organization', async () => {
   const { executor } = createRecordingExecutor({
     'fly status --app computers --json': makeResult(true, {
@@ -182,6 +244,45 @@ Deno.test('flyCliAppsInfo maps organization', async () => {
     organizationSlug: 'artifact',
     createdAt: undefined,
   })
+})
+
+Deno.test('flyCliAppStatus parses machines from status output', async () => {
+  const statusJson = JSON.stringify({
+    App: { ID: 'app_456', Name: 'template-app' },
+    Machines: [
+      {
+        ID: 'machine-1',
+        Name: 'web',
+        Region: 'ord',
+        Image: 'registry.fly.io/template:latest',
+      },
+    ],
+  })
+  const { executor } = createRecordingExecutor({
+    'fly status --app template-app --json': makeResult(true, {
+      stdout: statusJson,
+    }),
+  })
+
+  const status = await flyCliAppStatus({
+    appName: 'template-app',
+    commandExecutor: executor,
+  })
+
+  expect(status.appId).toBe('app_456')
+  expect(status.appName).toBe('template-app')
+  expect(status.machines).toEqual([
+    {
+      id: 'machine-1',
+      name: 'web',
+      region: 'ord',
+      image: 'registry.fly.io/template:latest',
+      state: undefined,
+      privateIp: undefined,
+      createdAt: undefined,
+      metadata: undefined,
+    },
+  ])
 })
 
 Deno.test('flyCliTokensCreateDeploy extracts token field', async () => {

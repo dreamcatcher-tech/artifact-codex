@@ -134,10 +134,10 @@ Deno.test('replays existing actor app via redirect then fly-replay', async () =>
         ensureCalls += 1
         return Promise.resolve({
           appName: 'actor-user-test',
-          appId: 'app-actor-user-test',
           existed: true,
         })
       },
+      appExists: () => Promise.resolve(true),
       auth: stubAuth('User_Test'),
     },
   })
@@ -159,6 +159,7 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
   let ensureCalls = 0
   let created = false
   let folderExistsState = false
+  let appExistsState = false
   const app = createApp({
     dependencies: {
       baseDomain: TEST_BASE_DOMAIN,
@@ -172,12 +173,13 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
       ensureActorApp: (name) => {
         ensureCalls += 1
         expect(name).toBe('actor-new-user')
+        appExistsState = true
         return Promise.resolve({
           appName: name,
-          appId: `id-${name}`,
           existed: false,
         })
       },
+      appExists: () => Promise.resolve(appExistsState),
       auth: stubAuth('new.user'),
     },
   })
@@ -195,6 +197,48 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
   expect(created).toBe(true)
 })
 
+Deno.test('recreates folder when fly app is missing', async () => {
+  let ensureCalls = 0
+  const removals: string[] = []
+  let folderExistsState = true
+  let appExistsState = false
+  const app = createApp({
+    dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
+      ensureMount: () => Promise.resolve(),
+      folderExists: () => Promise.resolve(folderExistsState),
+      removeFolder: (name) => {
+        removals.push(name)
+        folderExistsState = false
+        return Promise.resolve()
+      },
+      createFolder: () => {
+        folderExistsState = true
+        return Promise.resolve()
+      },
+      ensureActorApp: (name) => {
+        ensureCalls += 1
+        appExistsState = true
+        return Promise.resolve({
+          appName: name,
+          existed: false,
+        })
+      },
+      appExists: () => Promise.resolve(appExistsState),
+      auth: stubAuth('Orphan_User'),
+    },
+  })
+
+  const initial = await app.request('http://localhost/')
+  expect(initial.status).toBe(302)
+  expect(removals).toEqual(['actor-orphan-user'])
+  expect(ensureCalls).toBe(1)
+
+  const follow = await app.request('http://actor-orphan-user.example.test/')
+  expect(follow.status).toBe(204)
+  expect(follow.headers.get('fly-replay')).toBe('app=actor-orphan-user')
+})
+
 Deno.test('creates missing folder for existing app then redirects', async () => {
   let created = false
   let folderExistsState = false
@@ -209,7 +253,8 @@ Deno.test('creates missing folder for existing app then redirects', async () => 
         return Promise.resolve()
       },
       ensureActorApp: (name) =>
-        Promise.resolve({ appName: name, appId: `id-${name}`, existed: true }),
+        Promise.resolve({ appName: name, existed: true }),
+      appExists: () => Promise.resolve(true),
       auth: stubAuth('Existing_User'),
     },
   })
@@ -231,6 +276,7 @@ Deno.test('bypasses Clerk auth when test header is present', async () => {
   const created: string[] = []
   let authResolves = 0
   let folderExistsState = false
+  let appExistsState = false
   const app = createApp({
     dependencies: {
       baseDomain: TEST_BASE_DOMAIN,
@@ -246,19 +292,20 @@ Deno.test('bypasses Clerk auth when test header is present', async () => {
       },
       ensureActorApp: (name) => {
         ensured.push(name)
+        appExistsState = true
         return Promise.resolve({
           appName: name,
-          appId: `id-${name}`,
           existed: false,
         })
       },
+      appExists: () => Promise.resolve(appExistsState),
       auth: {
         middleware: (async (_c, next) => {
           await next()
         }) as MiddlewareHandler<{ Variables: ClerkAuthVariables }>,
         resolve: (() => {
           authResolves += 1
-          return { userId: undefined } as ReturnType<typeof getAuth>
+          return null as ReturnType<typeof getAuth>
         }) as typeof getAuth,
       },
     },
@@ -290,11 +337,12 @@ Deno.test('bypasses Clerk auth when test header is present', async () => {
 Deno.test('returns 503 when NFS mount fails', async () => {
   const app = createApp({
     dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
       ensureMount: () => Promise.reject(new Error('mount failed')),
       folderExists: () => Promise.resolve(false),
       createFolder: () => Promise.resolve(),
       ensureActorApp: (name) =>
-        Promise.resolve({ appName: name, appId: `id-${name}`, existed: false }),
+        Promise.resolve({ appName: name, existed: false }),
       auth: stubAuth('Mount_Failure'),
     },
   })
@@ -304,12 +352,37 @@ Deno.test('returns 503 when NFS mount fails', async () => {
   expect(await res.json()).toEqual({ error: 'storage_unavailable' })
 })
 
+Deno.test('removes folder after provisioning failure', async () => {
+  const removals: string[] = []
+  const app = createApp({
+    dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
+      ensureMount: () => Promise.resolve(),
+      folderExists: () => Promise.resolve(false),
+      appExists: () => Promise.resolve(false),
+      ensureActorApp: () => Promise.reject(new Error('deploy token failed')),
+      removeFolder: (name) => {
+        removals.push(name)
+        return Promise.resolve()
+      },
+      createFolder: () => Promise.resolve(),
+      auth: stubAuth('Cleanup_User'),
+    },
+  })
+
+  const res = await app.request('http://localhost/')
+  expect(res.status).toBe(500)
+  expect(await res.json()).toEqual({ error: 'provision_failed' })
+  expect(removals).toEqual(['actor-cleanup-user'])
+})
+
 Deno.test('deletes integration actor when header matches', async () => {
   const destroyed: string[] = []
   const removed: string[] = []
   let mountCalls = 0
   const app = createApp({
     dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
       ensureMount: () => {
         mountCalls += 1
         return Promise.resolve()
@@ -340,6 +413,7 @@ Deno.test('deletes integration actor when header matches', async () => {
 Deno.test('rejects integration delete when header mismatches', async () => {
   const app = createApp({
     dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
       // track if these were called unexpectedly
       ensureMount: () => Promise.reject(new Error('should not mount')),
       destroyActorApp: () => Promise.reject(new Error('should not destroy')),

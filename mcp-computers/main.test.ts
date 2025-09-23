@@ -36,7 +36,7 @@ Deno.test('no org token => tools/list not available', async () => {
 
 Deno.test('org-scoped token => computer tools exposed', async () => {
   await using srv = await spawnStdioMcpServer({
-    env: { FLY_API_TOKEN: 'TEST_ORG', FLY_APP_NAME: 'dummy' },
+    env: { FLY_API_DEPLOY_TOKEN: 'TEST_ORG', FLY_APP_NAME: 'dummy' },
   })
   await srv.request('initialize', {
     protocolVersion: '2024-11-05',
@@ -55,7 +55,7 @@ Deno.test('org-scoped token => computer tools exposed', async () => {
 
 Deno.test('create_computer rejects invalid userId early (org token)', async () => {
   await using srv = await spawnStdioMcpServer({
-    env: { FLY_API_TOKEN: 'TEST_ORG', FLY_APP_NAME: 'dummy' },
+    env: { FLY_API_DEPLOY_TOKEN: 'TEST_ORG', FLY_APP_NAME: 'dummy' },
   })
   await srv.request('initialize', {
     protocolVersion: '2024-11-05',
