@@ -63,8 +63,6 @@ remain in sync.
 
 | Variable                | Description                                                                                     | Replacement    | Projects   |
 | ----------------------- | ----------------------------------------------------------------------------------------------- | -------------- | ---------- |
-| `FLY_AUTH_ORG_SLUG`     | Deprecated fallback organization slug read only when `FLY_ORG_SLUG` is unset.                   | `FLY_ORG_SLUG` | `fly-auth` |
-| `FLY_ORGANIZATION_SLUG` | Deprecated Fly Launch slug; maintained for backward compatibility when provisioning actor apps. | `FLY_ORG_SLUG` | `fly-auth` |
 
 Code that needs a Flycast hostname should call `resolveNfsSource` rather than
 reimplementing fallback logic. When you add new environment variable

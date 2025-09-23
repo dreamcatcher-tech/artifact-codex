@@ -61,7 +61,6 @@ Deno.test('returns 404 when no subdomain is present', async () => {
     await Deno.mkdir(registryRoot, { recursive: true })
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
@@ -98,7 +97,6 @@ Deno.test('replays to configured machine without restarting when already running
 
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
@@ -155,7 +153,6 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
 
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
@@ -205,7 +202,6 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
 
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
@@ -255,7 +251,6 @@ Deno.test('creates new machine when none exist and updates registry', async () =
 
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
@@ -312,7 +307,6 @@ Deno.test('resolves nested agent path using parent links', async () => {
 
     const handler = await createHandler({
       config: {
-        flyApiToken: 'token',
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,

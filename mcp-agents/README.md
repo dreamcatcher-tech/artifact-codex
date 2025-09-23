@@ -50,9 +50,9 @@ authoritative definitions.
 - FLY_REGION: Current region of this Machine. If set, `create_agent` uses this
   as the region for the new Agent; otherwise region is omitted and Fly schedules
   per its defaults.
-- FLY_API_DEPLOY_TOKEN: Deploy-scoped token used by the Fly CLI. Set it yourself
-  (for example with `fly secrets set` or via your process environment) so the
-  MCP server can authenticate.
+- FLY_API_TOKEN: Token used by the Fly CLI. Set it yourself (for example with
+  `fly secrets set` or via your process environment) so the MCP server can
+  authenticate.
 
 No fallbacks are used (for example, `FLY_APP`, `FLY_ACCESS_TOKEN`,
 `AGENT_IMAGE`, `FLY_IMAGE` have been removed). If a required variable is

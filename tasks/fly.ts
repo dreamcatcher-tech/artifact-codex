@@ -5,7 +5,6 @@ import type { CommandExecutor, CommandResult } from './types.ts'
 const FLY_BIN = 'fly'
 
 export type FlyCliOptions = {
-  token?: string
   env?: Record<string, string>
   commandExecutor?: CommandExecutor
   stdin?: string | string[]
@@ -30,18 +29,16 @@ export async function runFlyCommand(
   options: FlyCliOptions = {},
 ): Promise<CommandResult> {
   const {
-    token,
     env = {},
     commandExecutor = runCommand,
     stdin,
     check = true,
   } = options
 
-  let resolvedToken = token ?? env.FLY_API_DEPLOY_TOKEN ?? env.FLY_API_TOKEN
+  let resolvedToken: string | undefined = env.FLY_API_TOKEN
   if (!resolvedToken) {
     try {
-      resolvedToken = Deno.env.get('FLY_API_DEPLOY_TOKEN') ??
-        Deno.env.get('FLY_API_TOKEN') ?? undefined
+      resolvedToken = Deno.env.get('FLY_API_TOKEN') ?? undefined
     } catch {
       resolvedToken = undefined
     }
@@ -49,14 +46,14 @@ export async function runFlyCommand(
 
   if (!resolvedToken) {
     throw new Error(
-      'Missing Fly API deploy token; set FLY_API_DEPLOY_TOKEN in the environment.',
+      'Missing Fly API token; set FLY_API_TOKEN in the environment.',
     )
   }
 
   const mergedEnv: Record<string, string> = { ...env }
-  mergedEnv.FLY_API_DEPLOY_TOKEN ??= resolvedToken
-  mergedEnv.FLY_API_TOKEN ??= resolvedToken
-  mergedEnv.FLY_ACCESS_TOKEN ??= resolvedToken
+  const tokenValue = resolvedToken
+  mergedEnv.FLY_API_TOKEN ??= tokenValue
+  mergedEnv.FLY_ACCESS_TOKEN ??= tokenValue
 
   const result = await commandExecutor({
     command: FLY_BIN,
@@ -120,6 +117,11 @@ export type FlyCliAppStatus = {
   appId?: string
   appName?: string
   machines: FlyCliMachineSummary[]
+}
+
+export type FlyCliSecretInfo = {
+  name: string
+  createdAt?: string
 }
 
 export async function flyCliListMachines(
@@ -211,6 +213,21 @@ export async function flyCliMachineRun(
     if (found) return found
   }
   return list[list.length - 1]
+}
+
+export async function flyCliSecretsList(
+  options: { appName: string } & FlyCliOptions,
+): Promise<FlyCliSecretInfo[]> {
+  const { appName, ...rest } = options
+  const result = await runFlyCommand(
+    ['secrets', 'list', '--app', appName, '--json'],
+    rest,
+  )
+  const rows = parseFlyJson<Array<Record<string, unknown>>>(result.stdout)
+  return rows.map((row) => ({
+    name: readString(row, ['name', 'Name']) ?? '',
+    createdAt: readString(row, ['created_at', 'CreatedAt']),
+  })).filter((secret) => secret.name.length > 0)
 }
 
 export async function flyCliDestroyMachine(
@@ -322,22 +339,6 @@ export async function flyCliSecretsSet(
     `${key}=${value}`
   )
   await runFlyCommand([...args, ...kvPairs], rest)
-}
-
-export async function flyCliTokensCreateDeploy(
-  options: { appName: string; name?: string; expiry?: string } & FlyCliOptions,
-): Promise<string> {
-  const { appName, name, expiry, ...rest } = options
-  const args = ['tokens', 'create', 'deploy', '--app', appName, '--json']
-  if (name) args.push('--name', name)
-  if (expiry) args.push('--expiry', expiry)
-  const result = await runFlyCommand(args, rest)
-  const data = parseFlyJson<Record<string, unknown>>(result.stdout)
-  const token = (data.token ?? data['token'] ?? '') as string
-  if (!token) {
-    throw new Error('deploy token response missing token field')
-  }
-  return token
 }
 
 function parseMachineStatusOutput(output: string): Record<string, unknown> {

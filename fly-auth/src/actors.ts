@@ -6,14 +6,14 @@ import {
 import {
   flyCliAppsCreate,
   flyCliAppsDestroy,
-  type FlyCliAppStatus,
   flyCliAppStatus,
   flyCliGetMachine,
   flyCliMachineRun,
+  flyCliSecretsList,
   flyCliSecretsSet,
-  flyCliTokensCreateDeploy,
   FlyCommandError,
 } from '@artifact/tasks'
+import type { FlyCliAppStatus } from '@artifact/tasks'
 
 const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
@@ -23,19 +23,6 @@ export type EnsureActorAppResult = {
   existed: boolean
 }
 
-async function getAppStatus(
-  options: { token: string; appName: string },
-): Promise<FlyCliAppStatus | null> {
-  try {
-    return await flyCliAppStatus(options)
-  } catch (error) {
-    if (error instanceof FlyCommandError) {
-      return null
-    }
-    throw error
-  }
-}
-
 type TemplateMachineInfo = {
   sourceApp: string
   machineId: string
@@ -43,6 +30,17 @@ type TemplateMachineInfo = {
   config: Record<string, unknown>
   region?: string
   name?: string
+}
+
+async function getAppStatus(appName: string): Promise<FlyCliAppStatus | null> {
+  try {
+    return await flyCliAppStatus({ appName })
+  } catch (error) {
+    if (error instanceof FlyCommandError) {
+      return null
+    }
+    throw error
+  }
 }
 
 export function deriveActorAppName(clerkId: string): string {
@@ -56,23 +54,30 @@ export function deriveActorAppName(clerkId: string): string {
 export async function ensureActorApp(
   appName: string,
 ): Promise<EnsureActorAppResult> {
-  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
+  const controllerToken = readRequiredAppEnv('FLY_API_TOKEN')
+  const template = await loadTemplateMachine()
 
-  const template = await loadTemplateMachine(token)
-
-  const existingStatus = await getAppStatus({ token, appName })
+  const existingStatus = await getAppStatus(appName)
   if (existingStatus) {
-    await ensureActorAppDeployToken({
-      token,
+    const secretExisted = await actorApiTokenSecretExists(appName)
+    await ensureActorAppSecrets({
       appName,
       agentImage: template.image,
       targetApp: appName,
+      controllerToken,
     })
+    if (!secretExisted) {
+      console.info(
+        'provisioned missing controller token secret for actor app',
+        {
+          appName,
+        },
+      )
+    }
     return { appName, existed: true }
   }
 
   const createdApp = await flyCliAppsCreate({
-    token,
     appName,
     orgSlug: resolveOrgSlug(),
   })
@@ -81,32 +86,17 @@ export async function ensureActorApp(
     throw new Error(`Created Fly app '${appName}' did not return a name`)
   }
 
-  try {
-    await ensureActorAppDeployToken({
-      token,
-      appName,
-      agentImage: template.image,
-      targetApp: appName,
-    })
-  } catch (error) {
-    console.error('failed to provision deploy token for actor app', error)
-    try {
-      await flyCliAppsDestroy({ token, appName, force: true })
-    } catch (destroyError) {
-      console.error(
-        'failed to remove actor app after credential failure',
-        destroyError,
-      )
-    }
-    throw error
-  }
+  await ensureActorAppSecrets({
+    appName,
+    agentImage: template.image,
+    targetApp: appName,
+    controllerToken,
+  })
 
   const machineConfig = prepareActorMachineConfig(template, appName)
-
   try {
     await flyCliMachineRun({
       appName,
-      token,
       image: template.image,
       config: machineConfig,
       name: template.name,
@@ -121,91 +111,12 @@ export async function ensureActorApp(
 }
 
 export async function actorAppExists(appName: string): Promise<boolean> {
-  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
-  const status = await getAppStatus({ token, appName })
-  return status !== null
-}
-
-type EnsureActorTokenInput = {
-  token: string
-  appName: string
-  agentImage: string
-  targetApp: string
-}
-
-async function ensureActorAppDeployToken(
-  { token, appName, agentImage, targetApp }: EnsureActorTokenInput,
-): Promise<void> {
-  console.info('provisioning actor deploy token', { appName })
-  let deployToken: string
-  try {
-    deployToken = await createDeployTokenWithRetry({ token, appName })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (
-      message.includes('Not authorized to access this createlimitedaccesstoken')
-    ) {
-      console.warn(
-        'createDeployToken unauthorized; reusing controller token for actor app',
-        { appName },
-      )
-      deployToken = token
-    } else {
-      throw error
-    }
-  }
-  console.info('configuring actor secrets', { appName, agentImage, targetApp })
-  await flyCliSecretsSet({
-    token,
-    appName,
-    secrets: {
-      FLY_API_DEPLOY_TOKEN: deployToken,
-      FLY_COMPUTER_TARGET_APP: targetApp,
-      FLY_COMPUTER_AGENT_IMAGE: agentImage,
-    },
-  })
-}
-
-const CREATE_DEPLOY_TOKEN_ATTEMPTS = 5
-const CREATE_DEPLOY_TOKEN_DELAY_MS = 2_000
-
-type CreateDeployTokenRetryInput = {
-  token: string
-  appName: string
-}
-
-async function createDeployTokenWithRetry(
-  { token, appName }: CreateDeployTokenRetryInput,
-): Promise<string> {
-  let lastError: unknown
-  for (let attempt = 1; attempt <= CREATE_DEPLOY_TOKEN_ATTEMPTS; attempt++) {
-    try {
-      return await flyCliTokensCreateDeploy({ token, appName })
-    } catch (error) {
-      lastError = error
-      const done = attempt === CREATE_DEPLOY_TOKEN_ATTEMPTS
-      console.warn(
-        'createDeployToken attempt failed',
-        { appName, attempt, retries: CREATE_DEPLOY_TOKEN_ATTEMPTS, done },
-        error instanceof Error ? error.message : error,
-      )
-      if (done) break
-      await delay(CREATE_DEPLOY_TOKEN_DELAY_MS * attempt)
-    }
-  }
-  throw lastError instanceof Error
-    ? lastError
-    : new Error('Failed to create deploy token after retries')
-}
-
-async function delay(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms))
+  return (await getAppStatus(appName)) !== null
 }
 
 export async function destroyActorApp(appName: string): Promise<void> {
-  const token = readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
   try {
-    await flyCliAppsDestroy({ token, appName, force: true })
+    await flyCliAppsDestroy({ appName, force: true })
   } catch (error) {
     if (isFlyResourceNotFound(error)) {
       return
@@ -214,39 +125,42 @@ export async function destroyActorApp(appName: string): Promise<void> {
   }
 }
 
-function sanitizeClerkId(clerkId: string): string {
-  const lower = clerkId.trim().toLowerCase()
-  const replaced = lower.replace(/[^a-z0-9]+/g, '-')
-  const collapsed = replaced.replace(/-+/g, '-')
-  const stripped = collapsed.replace(/^-+|-+$/g, '')
-  return stripped || 'user'
+async function ensureActorAppSecrets(
+  {
+    appName,
+    agentImage,
+    targetApp,
+    controllerToken,
+  }: {
+    appName: string
+    agentImage: string
+    targetApp: string
+    controllerToken: string
+  },
+): Promise<void> {
+  console.info('configuring actor secrets', { appName, agentImage, targetApp })
+  await flyCliSecretsSet({
+    appName,
+    secrets: {
+      FLY_API_TOKEN: controllerToken,
+      FLY_COMPUTER_TARGET_APP: targetApp,
+      FLY_COMPUTER_AGENT_IMAGE: agentImage,
+    },
+  })
 }
 
-function resolveOrgSlug(): string {
-  const primary = readAppEnv('FLY_ORG_SLUG')
-  if (primary) return primary
-
-  const fallbacks = ['FLY_AUTH_ORG_SLUG', 'FLY_ORGANIZATION_SLUG']
-  for (const key of fallbacks) {
-    const value = readAppEnv(key)
-    if (value) {
-      console.warn(
-        `${key} is deprecated; set FLY_ORG_SLUG instead for provisioning actor apps.`,
-      )
-      return value
-    }
-  }
-
-  throw new Error('Missing FLY_ORG_SLUG; set it to your Fly organization slug')
+async function actorApiTokenSecretExists(appName: string): Promise<boolean> {
+  const secrets = await flyCliSecretsList({ appName })
+  return secrets.some((secret) =>
+    secret.name.trim().toUpperCase() === 'FLY_API_TOKEN'
+  )
 }
 
-async function loadTemplateMachine(
-  token: string,
-): Promise<TemplateMachineInfo> {
+async function loadTemplateMachine(): Promise<TemplateMachineInfo> {
   const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
     TEMPLATE_COMPUTER_APP
 
-  const status = await flyCliAppStatus({ appName: templateApp, token })
+  const status = await flyCliAppStatus({ appName: templateApp })
   const candidate = status.machines[0]
   if (!candidate || !candidate.id) {
     throw new Error(
@@ -256,7 +170,6 @@ async function loadTemplateMachine(
 
   const detail = await flyCliGetMachine({
     appName: templateApp,
-    token,
     machineId: candidate.id,
   })
 
@@ -330,7 +243,78 @@ function prepareActorMachineConfig(
     )
   }
 
+  const services = Array.isArray((config as { services?: unknown }).services)
+    ? structuredClone((config as { services: unknown[] }).services)
+    : []
+  const normalizedServices = services.filter((service) =>
+    isPlainObject(service)
+  ) as Array<Record<string, unknown>>
+
+  if (normalizedServices.length === 0) {
+    normalizedServices.push(createDefaultService())
+  }
+
+  for (const service of normalizedServices) {
+    service.internal_port ??= 8080
+    service.protocol ??= 'tcp'
+    service.force_instance_id ??= true
+    if (!Array.isArray(service.ports) || service.ports.length === 0) {
+      service.ports = [createDefaultPort()]
+    } else {
+      service.ports = (service.ports as unknown[]).map((raw) => {
+        const port = isPlainObject(raw) ? structuredClone(raw) : {}
+        ;(port as { handlers?: unknown[] }).handlers = normalizeHandlers(
+          port.handlers,
+        )
+        port.port ??= 80
+        return port
+      })
+    }
+  }
+
+  ;(config as { services?: unknown }).services = normalizedServices
+
   return config
+}
+
+function createDefaultService(): Record<string, unknown> {
+  return {
+    internal_port: 8080,
+    protocol: 'tcp',
+    ports: [createDefaultPort()],
+    force_instance_id: true,
+  }
+}
+
+function createDefaultPort(): Record<string, unknown> {
+  return {
+    port: 80,
+    handlers: ['http'],
+  }
+}
+
+function normalizeHandlers(value: unknown): string[] {
+  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+    const handlers = value.map((item) => item.toLowerCase())
+    if (handlers.includes('http') || handlers.includes('tls')) {
+      return handlers
+    }
+  }
+  return ['http']
+}
+
+function sanitizeClerkId(clerkId: string): string {
+  const lower = clerkId.trim().toLowerCase()
+  const replaced = lower.replace(/[^a-z0-9]+/g, '-')
+  const collapsed = replaced.replace(/-+/g, '-')
+  const stripped = collapsed.replace(/^-+|-+$/g, '')
+  return stripped || 'user'
+}
+
+function resolveOrgSlug(): string {
+  const primary = readAppEnv('FLY_ORG_SLUG')
+  if (primary) return primary
+  throw new Error('Missing FLY_ORG_SLUG; set it to your Fly organization slug')
 }
 
 function pruneMachineIdentity(node: unknown): void {

@@ -8,8 +8,8 @@ import {
   flyCliGetMachine,
   flyCliListMachines,
   flyCliMachineRun,
+  flyCliSecretsList,
   flyCliStartMachine,
-  flyCliTokensCreateDeploy,
 } from './mod.ts'
 import type { CommandExecutor, CommandResult } from './types.ts'
 
@@ -69,6 +69,7 @@ Deno.test('flyCliListMachines maps JSON fields', async () => {
   const results = await flyCliListMachines({
     appName: 'test',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
   expect(results).toEqual([
     {
@@ -110,6 +111,7 @@ Deno.test('flyCliGetMachine parses config', async () => {
     appName: 'test',
     machineId: '456',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
   expect(detail.id).toBe('456')
   expect(detail.config).toEqual({
@@ -136,6 +138,7 @@ Deno.test('flyCliCreateMachine reuses list output when name matches', async () =
     name: 'agent-3',
     region: 'ord',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(calls[0]).toEqual([
@@ -195,6 +198,7 @@ Deno.test('flyCliMachineRun launches machine from config', async () => {
     name: 'web',
     region: 'ord',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(calls[0]).toEqual([
@@ -236,6 +240,7 @@ Deno.test('flyCliAppsInfo maps organization', async () => {
   const info = await flyCliAppsInfo({
     appName: 'computers',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(info).toEqual({
@@ -267,6 +272,7 @@ Deno.test('flyCliAppStatus parses machines from status output', async () => {
   const status = await flyCliAppStatus({
     appName: 'template-app',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(status.appId).toBe('app_456')
@@ -285,18 +291,25 @@ Deno.test('flyCliAppStatus parses machines from status output', async () => {
   ])
 })
 
-Deno.test('flyCliTokensCreateDeploy extracts token field', async () => {
+Deno.test('flyCliSecretsList parses secret metadata', async () => {
+  const json = JSON.stringify([
+    { Name: 'FLY_API_TOKEN', CreatedAt: '2025-01-01T00:00:00Z' },
+    { name: 'FLY_COMPUTER_TARGET_APP' },
+  ])
   const { executor } = createRecordingExecutor({
-    'fly tokens create deploy --app test --json': makeResult(true, {
-      stdout: JSON.stringify({ token: 'deploy-token' }),
-    }),
+    'fly secrets list --app demo --json': makeResult(true, { stdout: json }),
   })
 
-  const token = await flyCliTokensCreateDeploy({
-    appName: 'test',
+  const secrets = await flyCliSecretsList({
+    appName: 'demo',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
-  expect(token).toBe('deploy-token')
+
+  expect(secrets).toEqual([
+    { name: 'FLY_API_TOKEN', createdAt: '2025-01-01T00:00:00Z' },
+    { name: 'FLY_COMPUTER_TARGET_APP', createdAt: undefined },
+  ])
 })
 
 Deno.test('flyCliAppsDestroy adds --force when requested', async () => {
@@ -308,6 +321,7 @@ Deno.test('flyCliAppsDestroy adds --force when requested', async () => {
     appName: 'demo',
     force: true,
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(calls[0]).toEqual([
@@ -327,6 +341,7 @@ Deno.test('flyCliStartMachine invokes machine start', async () => {
     appName: 'test',
     machineId: '999',
     commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
   })
 
   expect(calls[0]).toEqual([

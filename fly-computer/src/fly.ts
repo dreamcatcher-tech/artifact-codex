@@ -39,7 +39,6 @@ export function createFlyApi(
       mapMachineDetail(
         await flyCliGetMachine({
           appName: config.targetApp,
-          token: config.flyApiToken,
           machineId,
           commandExecutor,
         }),
@@ -47,14 +46,12 @@ export function createFlyApi(
     listMachines: async () =>
       (await flyCliListMachines({
         appName: config.targetApp,
-        token: config.flyApiToken,
         commandExecutor,
       })).map(mapMachineSummary),
     createMachine: async ({ name, config: machineConfig, region }) =>
       mapMachineSummary(
         await flyCliCreateMachine({
           appName: config.targetApp,
-          token: config.flyApiToken,
           name,
           config: machineConfig,
           region,
@@ -64,7 +61,6 @@ export function createFlyApi(
     startMachine: (machineId: string) =>
       flyCliStartMachine({
         appName: config.targetApp,
-        token: config.flyApiToken,
         machineId,
         commandExecutor,
       }),

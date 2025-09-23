@@ -18,9 +18,9 @@ export {
   flyCliGetMachine,
   flyCliListMachines,
   flyCliMachineRun,
+  flyCliSecretsList,
   flyCliSecretsSet,
   flyCliStartMachine,
-  flyCliTokensCreateDeploy,
   FlyCommandError,
   parseFlyJson,
   runFlyCommand,
@@ -31,4 +31,5 @@ export type {
   FlyCliMachineDetail,
   FlyCliMachineSummary,
   FlyCliOptions,
+  FlyCliSecretInfo,
 } from './fly.ts'

@@ -48,21 +48,22 @@ const readComputerOutput = readComputerOutputSchema
 await loadEnvFromShared()
 
 // Helpers (toStructured, toError, getEnv, isValidFlyName) moved to shared/util.ts
-function getDeployToken(): string | null {
-  const token = getEnv('FLY_API_DEPLOY_TOKEN')
-  if (!token) return null
-  const trimmed = token.trim()
-  return trimmed.length > 0 ? trimmed : null
+function toFlyErrorResult(err: unknown): CallToolResult {
+  if (
+    err instanceof Error &&
+    err.message.includes('Missing Fly API token')
+  ) {
+    return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
+  }
+  return toError(err)
 }
 function buildComputerNameFromUserId(userId: string): string {
   return `computer-user-${userId}`
 }
 
-async function appExists(
-  options: { token: string; appName: string },
-): Promise<boolean> {
+async function appExists(appName: string): Promise<boolean> {
   try {
-    await flyCliAppsInfo(options)
+    await flyCliAppsInfo({ appName })
     return true
   } catch (error) {
     if (error instanceof FlyCommandError) {
@@ -74,10 +75,6 @@ async function appExists(
 
 function createServer(): McpServer {
   const server = new McpServer({ name: 'computer-mcp', version: '0.0.1' })
-
-  // Decide whether to expose any tools based on token scope
-  const token = getDeployToken() ?? ''
-  if (!token) return server
 
   server.registerTool(
     'create_computer',
@@ -98,16 +95,12 @@ function createServer(): McpServer {
       }
 
       const currentApp = getEnv('FLY_APP_NAME')
-      const flyToken = getDeployToken()
       const image = getEnv('FLY_IMAGE_REF')
       const region = getEnv('FLY_REGION')
       const currentMachineId = getEnv('FLY_MACHINE_ID')
 
       if (!currentApp) {
         return toError('Missing app name. Set FLY_APP_NAME in env.')
-      }
-      if (!flyToken) {
-        return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
       }
       if (!image) {
         return toError('Missing agent image. Set FLY_IMAGE_REF in env.')
@@ -116,7 +109,6 @@ function createServer(): McpServer {
       try {
         const srcApp = await flyCliAppsInfo({
           appName: currentApp,
-          token: flyToken,
         })
         const orgSlug = srcApp.organizationSlug
         if (!orgSlug) {
@@ -127,7 +119,6 @@ function createServer(): McpServer {
 
         const newAppName = desiredName
         const createdApp = await flyCliAppsCreate({
-          token: flyToken,
           appName: newAppName,
           orgSlug,
         })
@@ -138,7 +129,6 @@ function createServer(): McpServer {
         const resolveConfigFromMachine = async (machineId: string) => {
           const base = await flyCliGetMachine({
             appName: currentApp,
-            token: flyToken,
             machineId,
           })
           const cfg = base.config && JSON.parse(JSON.stringify(base.config))
@@ -154,7 +144,6 @@ function createServer(): McpServer {
         } else {
           const machines = await flyCliListMachines({
             appName: currentApp,
-            token: flyToken,
           })
           if (machines.length > 0) {
             await resolveConfigFromMachine(machines[0].id)
@@ -164,7 +153,6 @@ function createServer(): McpServer {
         const targetAppName = createdApp.name ?? newAppName
         const existingInNewApp = await flyCliListMachines({
           appName: targetAppName,
-          token: flyToken,
         })
         const firstIdx = nextIndexForName(
           existingInNewApp.map((m) => m.name),
@@ -179,7 +167,6 @@ function createServer(): McpServer {
 
         const createdMachine = await flyCliCreateMachine({
           appName: targetAppName,
-          token: flyToken,
           name: firstAgentName,
           config: machineConfig,
           region: machineRegion,
@@ -190,7 +177,7 @@ function createServer(): McpServer {
           firstAgent: mapMachineSummary(createdMachine),
         })
       } catch (err) {
-        return toError(err)
+        return toFlyErrorResult(err)
       }
     },
   )
@@ -203,10 +190,6 @@ function createServer(): McpServer {
       outputSchema: listComputersOutput.shape,
     },
     async (): Promise<CallToolResult> => {
-      const flyToken = getDeployToken()
-      if (!flyToken) {
-        return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-      }
       try {
         const currentApp = (getEnv('FLY_APP_NAME') ?? '').trim()
         if (!currentApp) {
@@ -216,7 +199,6 @@ function createServer(): McpServer {
         }
         const appInfo = await flyCliAppsInfo({
           appName: currentApp,
-          token: flyToken,
         })
         const orgSlug = (appInfo.organizationSlug ?? '').trim()
         if (!orgSlug) {
@@ -224,7 +206,7 @@ function createServer(): McpServer {
             'Unable to infer organization from current app. Ensure FLY_APP_NAME points to an existing app your token can access.',
           )
         }
-        const apps = await flyCliAppsList({ token: flyToken, orgSlug })
+        const apps = await flyCliAppsList({ orgSlug })
         return toStructured({
           computers: apps.map((a) => ({
             id: a.id,
@@ -234,7 +216,7 @@ function createServer(): McpServer {
           })),
         })
       } catch (err) {
-        return toError(err)
+        return toFlyErrorResult(err)
       }
     },
   )
@@ -248,19 +230,15 @@ function createServer(): McpServer {
       outputSchema: readComputerOutput.shape,
     },
     async ({ userId }): Promise<CallToolResult> => {
-      const flyToken = getDeployToken()
-      if (!flyToken) {
-        return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-      }
       try {
         const name = buildComputerNameFromUserId(userId)
         if (!isValidFlyName(name)) return toStructured({ exists: false })
-        const exists = await appExists({ token: flyToken, appName: name })
+        const exists = await appExists(name)
         if (!exists) return toStructured({ exists: false })
-        const info = await flyCliAppsInfo({ appName: name, token: flyToken })
+        const info = await flyCliAppsInfo({ appName: name })
         return toStructured({ exists: true, computer: info })
       } catch (err) {
-        return toError(err)
+        return toFlyErrorResult(err)
       }
     },
   )
@@ -284,19 +262,14 @@ function createServer(): McpServer {
       if (currentApp && targetApp === currentApp) {
         return toError('I cannot self terminate')
       }
-      const flyToken = getDeployToken()
-      if (!flyToken) {
-        return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-      }
       try {
         await flyCliAppsDestroy({
-          token: flyToken,
           appName: targetApp,
           force,
         })
         return toStructured({ destroyed: true, name: targetApp })
       } catch (err) {
-        return toError(err)
+        return toFlyErrorResult(err)
       }
     },
   )

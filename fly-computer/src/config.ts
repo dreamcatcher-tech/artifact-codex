@@ -6,7 +6,6 @@ import {
 import type { FlyMachineRuntimeEnv } from '@artifact/shared'
 
 export type AppConfig = {
-  flyApiToken: string
   targetApp: string
   agentImage: string
   registryRoot: string
@@ -21,8 +20,6 @@ export type ConfigOverrides = Partial<AppConfig> & {
 const DEFAULT_MOUNT_DIR = '/mnt/computer'
 
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
-  const flyApiToken = overrides.flyApiToken?.trim() ||
-    readRequiredAppEnv('FLY_API_DEPLOY_TOKEN')
   const targetApp = overrides.targetApp?.trim() ||
     readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
   const agentImage = overrides.agentImage?.trim() ||
@@ -37,7 +34,6 @@ export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   }
 
   return {
-    flyApiToken,
     targetApp,
     agentImage,
     registryRoot,

@@ -131,13 +131,6 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: [
       'mcp-agents',
       'mcp-computers',
-    ],
-  },
-  {
-    name: 'FLY_API_DEPLOY_TOKEN',
-    description:
-      'Deploy-scoped Fly API token used by automation that provisions or manages actor apps.',
-    requiredFor: [
       'fly-auth',
       'fly-computer',
       'tasks/mount',
@@ -150,22 +143,6 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     description:
       'Primary Fly organization slug used when creating per-user actor apps.',
     requiredFor: ['fly-auth'],
-  },
-  {
-    name: 'FLY_AUTH_ORG_SLUG',
-    description:
-      'Deprecated fallback organization slug read only when FLY_ORG_SLUG is unset.',
-    requiredFor: ['fly-auth'],
-    deprecated: true,
-    replacement: 'FLY_ORG_SLUG',
-  },
-  {
-    name: 'FLY_ORGANIZATION_SLUG',
-    description:
-      'Deprecated Fly Launch slug; maintained for backward compatibility when provisioning actor apps.',
-    requiredFor: ['fly-auth'],
-    deprecated: true,
-    replacement: 'FLY_ORG_SLUG',
   },
   {
     name: 'FLY_AUTH_BASE_DOMAIN',

@@ -37,7 +37,7 @@ This is a Stdio MCP server focused on Computer management in Fly.io.
 - `FLY_IMAGE_REF`: Docker image for the current Agent; used to seed the first
   Agent in a newly created Computer.
 - `FLY_REGION`: Region for Machine operations when applicable.
-- `FLY_API_DEPLOY_TOKEN`: Fly API deploy token.
+- `FLY_API_TOKEN`: Fly API access token.
 
 Run with Deno permissions `--allow-env --allow-net`.
 

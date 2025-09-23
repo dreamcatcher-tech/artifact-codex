@@ -45,11 +45,14 @@ const server = new McpServer({ name: 'fly-mcp', version: '0.0.1' })
 
 // (Computer name helper removed in fly-mcp)
 
-function getDeployToken(): string | null {
-  const token = getEnv('FLY_API_DEPLOY_TOKEN')
-  if (!token) return null
-  const trimmed = token.trim()
-  return trimmed.length > 0 ? trimmed : null
+function toFlyErrorResult(err: unknown): CallToolResult {
+  if (
+    err instanceof Error &&
+    err.message.includes('Missing Fly API token')
+  ) {
+    return toError('Missing Fly API token. Set FLY_API_TOKEN in env.')
+  }
+  return toError(err)
 }
 
 // Detailed machine schema (summary + optional config)
@@ -75,16 +78,11 @@ server.registerTool(
   async ({ id }, extra): Promise<CallToolResult> => {
     console.log('read_agent', { id, extra })
     const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getDeployToken()
 
     if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-    }
     try {
       const machines: MachineSummary[] = (await flyCliListMachines({
         appName,
-        token: flyToken,
       })).map(mapMachineSummary)
       const matches = machines.filter((m) => m.name === id)
       if (matches.length === 0) {
@@ -100,7 +98,6 @@ server.registerTool(
       const detail: MachineDetail = mapMachineDetail(
         await flyCliGetMachine({
           appName,
-          token: flyToken,
           machineId,
         }),
       )
@@ -112,7 +109,7 @@ server.registerTool(
           reason: 'Agent not found via API (404).',
         })
       }
-      return toError(err)
+      return toFlyErrorResult(err)
     }
   },
 )
@@ -128,21 +125,16 @@ server.registerTool(
   async (_, extra): Promise<CallToolResult> => {
     console.log('list_agents', { extra })
     const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getDeployToken()
 
     if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-    }
     try {
       // Single request includes metadata (from config)
       const machines = (await flyCliListMachines({
         appName,
-        token: flyToken,
       })).map(mapMachineSummary)
       return toStructured({ machines })
     } catch (err) {
-      return toError(err)
+      return toFlyErrorResult(err)
     }
   },
 )
@@ -170,20 +162,16 @@ server.registerTool(
     }
 
     const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getDeployToken()
     const image = getEnv('FLY_IMAGE_REF')
     const region = getEnv('FLY_REGION')
 
     if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-    }
     if (!image) return toError('Missing agent image. Set FLY_IMAGE_REF in env.')
 
     try {
       // Determine next indexed name: <base>-<n>
       const base = deriveBaseName(name)
-      const existing = await flyCliListMachines({ appName, token: flyToken })
+      const existing = await flyCliListMachines({ appName })
       const next = nextIndexForName(existing.map((m) => m.name), base)
       const indexedName = `${base}-${next}`
       if (!isValidFlyName(indexedName)) {
@@ -195,14 +183,13 @@ server.registerTool(
       // Ensure agents are launched in the 'worker' process group
       const created = await flyCliCreateMachine({
         appName,
-        token: flyToken,
         name: indexedName,
         config: { image, metadata: { 'fly_process_group': 'worker' } },
         region,
       })
       return toStructured({ machine: mapMachineSummary(created) })
     } catch (err) {
-      return toError(err)
+      return toFlyErrorResult(err)
     }
   },
 )
@@ -228,17 +215,13 @@ server.registerTool(
   },
   async ({ id, name, force }): Promise<CallToolResult> => {
     const appName = getEnv('FLY_APP_NAME')
-    const flyToken = getDeployToken()
     if (!appName) return toError('Missing app name. Set FLY_APP_NAME in env.')
-    if (!flyToken) {
-      return toError('Missing Fly deploy token. Set FLY_API_DEPLOY_TOKEN in env.')
-    }
     if (!id && !name) return toError('Provide agent id or name.')
     try {
       let targetId = id ?? ''
       let resolvedName = name
       if (!targetId) {
-        const list = await flyCliListMachines({ appName, token: flyToken })
+        const list = await flyCliListMachines({ appName })
         const matches = list.filter((m) => m.name === name)
         if (matches.length === 0) {
           return toError(`Agent named '${name}' not found.`)
@@ -251,13 +234,12 @@ server.registerTool(
       }
       await flyCliDestroyMachine({
         appName,
-        token: flyToken,
         machineId: targetId,
         force,
       })
       return toStructured({ destroyed: true, id: targetId, name: resolvedName })
     } catch (err) {
-      return toError(err)
+      return toFlyErrorResult(err)
     }
   },
 )
