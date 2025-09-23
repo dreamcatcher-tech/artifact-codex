@@ -3,8 +3,9 @@ import { join } from '@std/path'
 
 import type { MachineDetail, MachineSummary } from '@artifact/shared'
 
-import { createHandler } from './server.ts'
+import { createApp } from './app.ts'
 import type { FlyApi } from './fly.ts'
+import { slugify } from './naming.ts'
 
 async function writeAgentConfig(
   root: string,
@@ -54,21 +55,56 @@ function createFlyStub(overrides: Partial<FlyApi> = {}): FlyStub {
   return Object.assign(stub, overrides)
 }
 
-Deno.test('returns 404 when no subdomain is present', async () => {
+function templateDetail(
+  image = 'registry.fly.io/fly-agent:latest',
+): MachineDetail {
+  return {
+    id: 'template-machine',
+    name: 'template-machine',
+    state: 'started',
+    config: { image },
+  }
+}
+
+Deno.test('creates a new agent and redirects when no subdomain is present', async () => {
   const tmp = await Deno.makeTempDir()
   try {
     const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
-    const handler = await createHandler({
+    const fly = createFlyStub()
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
         registryRoot,
       },
+      dependencies: {
+        fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
+      },
     })
-    const res = await handler(new Request('http://example.test/'))
-    expect(res.status).toBe(404)
-    expect(await res.json()).toEqual({ error: 'agent not found' })
+    const res = await handler(
+      new Request('http://example.test/', {
+        headers: { host: 'example.test' },
+      }),
+    )
+    expect(res.status).toBe(302)
+    const location = res.headers.get('location')
+    expect(location).not.toBeNull()
+    const locationHost = location ? new URL(location).hostname : ''
+
+    const createdDirs: string[] = []
+    for await (const entry of Deno.readDir(registryRoot)) {
+      if (entry.isDirectory) createdDirs.push(entry.name)
+    }
+    expect(createdDirs.length).toBe(1)
+    const agentDir = join(registryRoot, createdDirs[0]!)
+    const agentConfig = JSON.parse(
+      await Deno.readTextFile(join(agentDir, 'config.json')),
+    ) as { name: string; id: string }
+    const expectedSlug = slugify(agentConfig.name)
+    expect(locationHost.startsWith(`${expectedSlug}.`)).toBe(true)
+    expect(fly.created.length).toBe(1)
   } finally {
     await Deno.remove(tmp, { recursive: true })
   }
@@ -95,7 +131,7 @@ Deno.test('replays to configured machine without restarting when already running
       },
     })
 
-    const handler = await createHandler({
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
@@ -104,6 +140,7 @@ Deno.test('replays to configured machine without restarting when already running
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
         fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
       },
     })
 
@@ -151,7 +188,7 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
       },
     })
 
-    const handler = await createHandler({
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
@@ -160,6 +197,7 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
         fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
       },
     })
 
@@ -200,7 +238,7 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
       },
     })
 
-    const handler = await createHandler({
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
@@ -209,6 +247,7 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
         fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
       },
     })
 
@@ -249,7 +288,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
       },
     })
 
-    const handler = await createHandler({
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
@@ -258,6 +297,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
         fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
       },
     })
 
@@ -305,7 +345,7 @@ Deno.test('resolves nested agent path using parent links', async () => {
       },
     })
 
-    const handler = await createHandler({
+    const handler = await createApp({
       config: {
         targetApp: 'universal-compute',
         agentImage: 'registry.fly.io/universal-compute:latest',
@@ -314,6 +354,7 @@ Deno.test('resolves nested agent path using parent links', async () => {
       dependencies: {
         now: () => new Date('2025-01-01T00:00:00Z'),
         fly,
+        loadTemplateMachine: () => Promise.resolve(templateDetail()),
       },
     })
 

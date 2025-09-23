@@ -3,6 +3,7 @@ import { readFlyMachineRuntimeEnv } from '@artifact/shared'
 import { join } from '@std/path'
 
 const MOUNT_DIR = '/mnt/computer'
+const AGENTS_DIR = 'agents'
 const LOG_PREFIX = '[fly-computer:nfs]'
 const TREE_MAX_DEPTH = 3
 const TREE_MAX_ENTRIES = 30
@@ -37,9 +38,21 @@ async function mountStorage(): Promise<string> {
     logPrefix: '',
   })
 
+  await ensureAgentsDirectory()
+
   await logDirectoryTree(MOUNT_DIR)
 
   return MOUNT_DIR
+}
+
+async function ensureAgentsDirectory(): Promise<void> {
+  const agentsPath = join(MOUNT_DIR, AGENTS_DIR)
+  try {
+    await Deno.mkdir(agentsPath, { recursive: true })
+  } catch (error) {
+    if (error instanceof Deno.errors.AlreadyExists) return
+    throw error
+  }
 }
 
 async function logDirectoryTree(root: string): Promise<void> {

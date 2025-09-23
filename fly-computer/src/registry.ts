@@ -1,3 +1,4 @@
+import { generateFlyMachineName } from '@artifact/shared'
 import { join } from '@std/path'
 
 import { z } from 'zod'
@@ -42,6 +43,7 @@ export type AgentRegistry = {
   ensureReady: () => Promise<void>
   findByPath: (slugs: string[]) => Promise<AgentRecord | undefined>
   updateMachine: (agentId: string, update: MachineUpdate) => Promise<void>
+  createAgent: (options?: CreateAgentOptions) => Promise<AgentRecord>
 }
 
 type FsDependencies = {
@@ -49,6 +51,12 @@ type FsDependencies = {
   readTextFile: typeof Deno.readTextFile
   writeTextFile: typeof Deno.writeTextFile
   stat: typeof Deno.stat
+  mkdir: typeof Deno.mkdir
+}
+
+export type CreateAgentOptions = {
+  name?: string
+  parentId?: string
 }
 
 export function createAgentRegistry(
@@ -56,6 +64,12 @@ export function createAgentRegistry(
   deps: FsDependencies,
 ): AgentRegistry {
   async function ensureReady() {
+    try {
+      await deps.mkdir(root, { recursive: true })
+    } catch (err) {
+      if (!(err instanceof Deno.errors.AlreadyExists)) throw err
+    }
+
     try {
       const info = await deps.stat(root)
       if (!info.isDirectory) {
@@ -166,7 +180,50 @@ export function createAgentRegistry(
     await deps.writeTextFile(record.configPath, body)
   }
 
-  return { ensureReady, findByPath, updateMachine }
+  async function createAgent(
+    options: CreateAgentOptions = {},
+  ): Promise<AgentRecord> {
+    await ensureReady()
+    const existingAgents = await loadAgents()
+
+    const dirName = await nextDirectoryName(existingAgents)
+    const dirPath = join(root, dirName)
+    try {
+      await deps.mkdir(dirPath, { recursive: false })
+    } catch (error) {
+      if (error instanceof Deno.errors.AlreadyExists) {
+        return createAgent(options)
+      }
+      throw error
+    }
+
+    const agentId = crypto.randomUUID()
+    const name = options.name?.trim() || defaultAgentName()
+    const parentId = options.parentId
+    const config: AgentConfig = {
+      id: agentId,
+      name,
+      parentId,
+    }
+    const validated = agentConfigSchema.parse(config)
+    const body = JSON.stringify(validated, null, 2) + '\n'
+    const configPath = join(dirPath, 'config.json')
+    await deps.writeTextFile(configPath, body)
+
+    const slug = slugify(name)
+    const record: AgentRecord = {
+      id: agentId,
+      name,
+      parentId,
+      slug,
+      configPath,
+      dirPath,
+      config: validated,
+    }
+    return record
+  }
+
+  return { ensureReady, findByPath, updateMachine, createAgent }
 }
 
 function parseAgentConfig(body: string): AgentConfig | undefined {
@@ -206,6 +263,27 @@ function computePath(
 function matchesPath(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
   return a.every((segment, index) => segment === b[index])
+}
+
+async function nextDirectoryName(
+  agents: Map<string, AgentRecord>,
+): Promise<string> {
+  const existing = new Set<number>()
+  for (const record of agents.values()) {
+    const parts = record.dirPath.split('/').filter(Boolean)
+    const last = parts[parts.length - 1]
+    const parsed = Number.parseInt(last ?? '', 10)
+    if (Number.isFinite(parsed)) existing.add(parsed)
+  }
+  let candidate = existing.size
+  while (existing.has(candidate)) {
+    candidate += 1
+  }
+  return String(candidate)
+}
+
+function defaultAgentName(): string {
+  return generateFlyMachineName()
 }
 
 function toId(value: string | number): string {

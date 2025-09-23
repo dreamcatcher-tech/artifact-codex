@@ -13,6 +13,11 @@ primary_region = 'syd'
 
 [env]
 FLY_NFS_APP = 'nfs-proto'
+FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+
+DEBUG = '@artifact/fly-agent*'
+DEBUG_HIDE_DATE = '1'
+DEBUG_COLORS = '1'
 
 [build]
 dockerfile = 'fly-agent/Dockerfile'
@@ -45,7 +50,9 @@ end_port = 30000
 
 [[services.machine_checks]]
 entrypoint = ["/bin/bash", "-lc"]
-command = ["deno run -A --config /agent/deno.json /agent/fly-agent/scripts/self-mount-check.ts"]
+command = [
+    "deno run -A --config /agent/deno.json /agent/fly-agent/scripts/self-mount-check.ts",
+]
 timeout = '60s'
 kill_signal = 'SIGKILL'
 kill_timeout = '5s'

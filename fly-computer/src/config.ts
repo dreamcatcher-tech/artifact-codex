@@ -7,8 +7,9 @@ import type { FlyMachineRuntimeEnv } from '@artifact/shared'
 
 export type AppConfig = {
   targetApp: string
-  agentImage: string
   registryRoot: string
+  agentImage?: string
+  agentTemplateApp: string
   defaultRegion?: string
 }
 
@@ -18,16 +19,20 @@ export type ConfigOverrides = Partial<AppConfig> & {
 }
 
 const DEFAULT_MOUNT_DIR = '/mnt/computer'
+const DEFAULT_AGENT_TEMPLATE_APP = 'fly-agent'
 
 export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
   const targetApp = overrides.targetApp?.trim() ||
     readRequiredAppEnv('FLY_COMPUTER_TARGET_APP')
   const agentImage = overrides.agentImage?.trim() ||
-    readRequiredAppEnv('FLY_COMPUTER_AGENT_IMAGE')
+    readAppEnv('FLY_COMPUTER_AGENT_IMAGE')
   const defaultRegion = overrides.defaultRegion?.trim() ||
     readAppEnv('FLY_COMPUTER_REGION')
   const flyRuntimeEnv = readFlyMachineRuntimeEnv()
   const registryRoot = resolveRegistryRoot(overrides, flyRuntimeEnv)
+  const agentTemplateApp = overrides.agentTemplateApp?.trim() ||
+    readAppEnv('FLY_AGENT_TEMPLATE_APP') ||
+    DEFAULT_AGENT_TEMPLATE_APP
 
   if (!registryRoot.trim()) {
     throw new Error('Unable to resolve registry root directory')
@@ -37,6 +42,7 @@ export function resolveConfig(overrides: ConfigOverrides = {}): AppConfig {
     targetApp,
     agentImage,
     registryRoot,
+    agentTemplateApp,
     defaultRegion,
   }
 }
@@ -57,5 +63,5 @@ function resolveRegistryRoot(
     )
   }
 
-  return mountDir
+  return `${mountDir}/agents`
 }

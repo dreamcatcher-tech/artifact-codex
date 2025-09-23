@@ -4,6 +4,9 @@ import {
   FLY_NFS_SUBPATH,
   NFS_EXPORT_BASE,
 } from '@artifact/shared'
+import Debug from 'debug'
+
+const log = Debug('@artifact/fly-agent:entrypoint')
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback
@@ -23,6 +26,8 @@ async function launchProcess(command: string, args: string[]): Promise<never> {
 }
 
 async function main(): Promise<void> {
+  Debug.enable('@artifact/*')
+  log('starting entrypoint: args=%o', Deno.args)
   const mountEnabled = Deno.env.get('FLY_NFS_ENABLE_MOUNT') ?? '1'
   const retries = parsePositiveInt(Deno.env.get('FLY_NFS_RETRIES'), 5)
   const delaySeconds = parsePositiveInt(
@@ -36,6 +41,12 @@ async function main(): Promise<void> {
       throw new Error('FLY_NFS_APP must be set for NFS mounting')
     }
     const host = `${nfsApp}.flycast`
+    log(
+      'mounting NFS share host=%s mountDir=%s subpath=%s',
+      host,
+      FLY_NFS_MOUNT_DIR,
+      FLY_NFS_SUBPATH,
+    )
     await ensureNfsMount({
       retries,
       delayMs: delaySeconds * 1_000,
@@ -46,23 +57,28 @@ async function main(): Promise<void> {
       logger: (msg) => console.error(`[entrypoint] ${msg}`),
       logPrefix: '',
     })
+    log('mounted NFS share host=%s', host)
   } else {
-    console.error(
-      '[entrypoint] NFS mount disabled via FLY_NFS_ENABLE_MOUNT',
-    )
+    log('NFS mount disabled via FLY_NFS_ENABLE_MOUNT')
   }
 
   if (Deno.args.length > 0) {
+    log(
+      'delegating to provided command=%s args=%o',
+      Deno.args[0],
+      Deno.args.slice(1),
+    )
     await launchProcess(Deno.args[0]!, Deno.args.slice(1))
   }
 
+  log('launching default web-server entrypoint')
   await launchProcess('deno', ['run', '-A', '/agent/web-server/main.ts'])
 }
 
 if (import.meta.main) {
   main().catch((error) => {
     const message = error instanceof Error ? error.message : String(error)
-    console.error(`[entrypoint] ${message}`)
+    log('fatal error: %s', message)
     Deno.exit(1)
   })
 }
