@@ -9,6 +9,7 @@ import {
   flyCliCreateMachine,
   flyCliGetMachine,
   flyCliListMachines,
+  flyCliMachineRun,
   flyCliStartMachine,
 } from '@artifact/tasks'
 import type { CommandExecutor } from '@artifact/tasks'

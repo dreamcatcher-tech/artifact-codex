@@ -265,9 +265,9 @@ function matchesPath(a: string[], b: string[]): boolean {
   return a.every((segment, index) => segment === b[index])
 }
 
-async function nextDirectoryName(
+function nextDirectoryName(
   agents: Map<string, AgentRecord>,
-): Promise<string> {
+): string {
   const existing = new Set<number>()
   for (const record of agents.values()) {
     const parts = record.dirPath.split('/').filter(Boolean)

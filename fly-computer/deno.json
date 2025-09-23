@@ -2,6 +2,9 @@
   "tasks": {
     "start": "deno run -A main.ts",
     "dev": "deno run -A --watch main.ts",
-    "test": "deno test -A"
+    "test": "deno test -A",
+    "lint": "deno lint --fix",
+    "fmt": "deno fmt",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
   }
 }

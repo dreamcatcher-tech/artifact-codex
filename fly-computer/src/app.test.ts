@@ -11,6 +11,36 @@ const BASE_DOMAIN = 'example.test'
 const COMPUTER_NAME = 'computer'
 const COMPUTER_HOST = `${COMPUTER_NAME}.${BASE_DOMAIN}`
 
+const REQUIRED_FLY_ENV: Record<string, string> = {
+  FLY_APP_NAME: 'test-computer',
+  FLY_MACHINE_ID: 'test-machine',
+  FLY_ALLOC_ID: 'test-machine',
+  FLY_REGION: 'syd',
+  FLY_PUBLIC_IP: '2001:db8::1',
+  FLY_IMAGE_REF: 'registry.fly.io/test:latest',
+  FLY_MACHINE_VERSION: '1',
+  FLY_PRIVATE_IP: 'fdaa:0:1',
+  FLY_PROCESS_GROUP: 'app',
+  FLY_VM_MEMORY_MB: '256',
+  PRIMARY_REGION: 'syd',
+}
+
+const previousFlyEnv = new Map<string, string | undefined>()
+for (const [key, value] of Object.entries(REQUIRED_FLY_ENV)) {
+  previousFlyEnv.set(key, Deno.env.get(key))
+  Deno.env.set(key, value)
+}
+
+addEventListener('unload', () => {
+  for (const [key, value] of previousFlyEnv.entries()) {
+    if (value === undefined) {
+      Deno.env.delete(key)
+    } else {
+      Deno.env.set(key, value)
+    }
+  }
+})
+
 async function writeAgentConfig(
   root: string,
   id: string,
@@ -27,6 +57,7 @@ type FlyStub = FlyApi & {
   created: {
     name: string
     config: Record<string, unknown>
+    image: string
     region?: string
   }[]
 }
@@ -114,6 +145,38 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
     const expectedSlug = slugify(agentConfig.name)
     expect(locationHost.startsWith(`${expectedSlug}.`)).toBe(true)
     expect(fly.created.length).toBe(1)
+  } finally {
+    await Deno.remove(tmp, { recursive: true })
+  }
+})
+
+Deno.test('uses template image when agentImage override is not provided', async () => {
+  const tmp = await Deno.makeTempDir()
+  try {
+    const registryRoot = join(tmp, 'registry')
+    await Deno.mkdir(registryRoot, { recursive: true })
+    const fly = createFlyStub()
+    const templateImage = 'registry.fly.io/fly-agent:stable'
+    const handler = await createApp({
+      config: {
+        targetApp: 'universal-compute',
+        registryRoot,
+        baseDomain: BASE_DOMAIN,
+      },
+      dependencies: {
+        fly,
+        loadTemplateMachine: () =>
+          Promise.resolve(templateDetail(templateImage)),
+      },
+    })
+
+    await handler(
+      new Request(`http://${COMPUTER_HOST}/`, {
+        headers: { host: COMPUTER_HOST },
+      }),
+    )
+
+    expect(fly.created[0]?.image).toBe(templateImage)
   } finally {
     await Deno.remove(tmp, { recursive: true })
   }

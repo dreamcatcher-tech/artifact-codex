@@ -1,8 +1,4 @@
-import {
-  type MachineDetail,
-  type MachineSummary,
-  mapMachineDetail,
-} from '@artifact/shared'
+import { type MachineDetail, mapMachineDetail } from '@artifact/shared'
 
 import {
   type AppConfig,
@@ -188,10 +184,19 @@ async function reconcileMachine(
     }
   }
 
-  const template = await selectTemplateMachine(machines, config, deps)
-  const templateImage =
-    (template ? extractMachineImage(template) : undefined) ??
-      config.agentImage
+  let template: MachineDetail | undefined
+  try {
+    template = await deps.loadTemplateMachine()
+  } catch (error) {
+    machineLog(
+      'failed to load template machine app=%s error=%o',
+      config.agentTemplateApp,
+      error,
+    )
+  }
+
+  const templateImage = config.agentImage ??
+    (template ? extractMachineImage(template) : undefined)
   if (!templateImage) {
     throw new Error('Unable to determine agent machine image')
   }
@@ -223,41 +228,6 @@ async function reconcileMachine(
   machineLog('created machine id=%s agent=%s', detail.id, agent.id)
   await ensureMachineRunning(detail, deps.fly)
   return detail
-}
-
-async function selectTemplateMachine(
-  machines: MachineSummary[],
-  config: AppConfig,
-  deps: Dependencies,
-): Promise<MachineDetail | undefined> {
-  const candidate = machines[0]
-  if (!candidate) {
-    try {
-      machineLog(
-        'no machines available; loading template from app=%s',
-        config.agentTemplateApp,
-      )
-      return await deps.loadTemplateMachine()
-    } catch {
-      return undefined
-    }
-  }
-  try {
-    const detail = await deps.fly.getMachine(candidate.id)
-    machineLog('selected existing machine id=%s for template', candidate.id)
-    return detail
-  } catch {
-    try {
-      machineLog(
-        'failed to inspect machine id=%s; loading template app=%s',
-        candidate.id,
-        config.agentTemplateApp,
-      )
-      return await deps.loadTemplateMachine()
-    } catch {
-      return undefined
-    }
-  }
 }
 
 function buildMachineConfig(

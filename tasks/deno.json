@@ -7,6 +7,6 @@
     "test": "deno test -A",
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "ok": "deno fmt --check && deno lint && deno test -A"
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
   }
 }

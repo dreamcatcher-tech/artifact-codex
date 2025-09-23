@@ -91,6 +91,10 @@ is a greenfields project so you never need to worry about legacy.
 
 To verify the code works, run `deno task ok`.
 
+Every deno project in the workspace must expose an `ok` task in its
+`deno.json`, and that task must run `deno check`, `deno task test`,
+`deno fmt --check`, and `deno lint` in that order.
+
 To fix formatting errors quickly, run `deno fmt`.
 
 To check types quickly, run `deno check`.
