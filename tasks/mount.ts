@@ -185,8 +185,6 @@ export async function ensureNfsMount(
     DEFAULT_MOUNT_OPTS
   const source = resolveNfsSource(env, {
     source: options.source,
-    host: options.host,
-    app: options.app,
   })
 
   const logger = options.logger ?? ((message: string) => console.error(message))

@@ -6,14 +6,14 @@ import {
 } from '@artifact/shared'
 
 async function main() {
-  const nfsApp = Deno.env.get('FLY_NFS_APP')?.trim()
-  if (!nfsApp) {
+  const app = Deno.env.get('FLY_NFS_APP')?.trim()
+  if (!app) {
     throw new Error('FLY_NFS_APP must be set for self mount check')
   }
-  const host = `${nfsApp}.flycast`
+  const source = `${app}.flycast`
   await runSelfMountCheck({
     mountOptions: {
-      host,
+      source,
       mountDir: FLY_NFS_MOUNT_DIR,
       exportBase: NFS_EXPORT_BASE,
       subpath: FLY_NFS_SUBPATH,

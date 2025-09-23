@@ -15,8 +15,6 @@ export interface EnsureMountOptions {
   exportBase?: string
   mountOpts?: string
   source?: string
-  host?: string
-  app?: string
   retries?: number
   delayMs?: number
   logger?: (message: string) => void

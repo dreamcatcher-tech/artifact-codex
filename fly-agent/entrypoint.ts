@@ -40,10 +40,10 @@ async function main(): Promise<void> {
     if (!nfsApp) {
       throw new Error('FLY_NFS_APP must be set for NFS mounting')
     }
-    const host = `${nfsApp}.flycast`
+    const nfsSource = `${nfsApp}.flycast`
     log(
       'mounting NFS share host=%s mountDir=%s subpath=%s',
-      host,
+      nfsSource,
       FLY_NFS_MOUNT_DIR,
       FLY_NFS_SUBPATH,
     )
@@ -53,11 +53,11 @@ async function main(): Promise<void> {
       mountDir: FLY_NFS_MOUNT_DIR,
       exportBase: NFS_EXPORT_BASE,
       subpath: FLY_NFS_SUBPATH,
-      host,
+      source: nfsSource,
       logger: (msg) => console.error(`[entrypoint] ${msg}`),
       logPrefix: '',
     })
-    log('mounted NFS share host=%s', host)
+    log('mounted NFS share host=%s', nfsSource)
   } else {
     log('NFS mount disabled via FLY_NFS_ENABLE_MOUNT')
   }

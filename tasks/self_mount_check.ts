@@ -44,8 +44,6 @@ export async function runSelfMountCheck(
 
   const source = resolveNfsSource(baseEnv, {
     source: options.mountOptions?.source,
-    host: options.mountOptions?.host,
-    app: options.mountOptions?.app,
   })
   const mountOpts = baseEnv.FLY_NFS_MOUNT_OPTS ?? 'nfsvers=4.1'
 
@@ -53,7 +51,6 @@ export async function runSelfMountCheck(
     ...(options.mountOptions?.env ?? {}),
     ...baseEnv,
     FLY_NFS_MOUNT_DIR: mountDir,
-    FLY_NFS_SOURCE: source,
     FLY_NFS_MOUNT_OPTS: mountOpts,
   }
 

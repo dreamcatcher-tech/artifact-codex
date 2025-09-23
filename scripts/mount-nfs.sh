@@ -4,14 +4,11 @@ set -euo pipefail
 DEFAULT_MOUNT_DIR="${FLY_NFS_MOUNT_DIR:-/mnt/computers}"
 DEFAULT_EXPORT_BASE="/data"
 DEFAULT_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
-DEFAULT_HOST="nfs-proto.flycast"
-
 MOUNT_DIR="${DEFAULT_MOUNT_DIR}"
 EXPORT_BASE="${DEFAULT_EXPORT_BASE}"
 MOUNT_OPTS="${DEFAULT_MOUNT_OPTS}"
 SUBPATH=""
 SOURCE_OVERRIDE=""
-HOST_OVERRIDE=""
 APP_OVERRIDE=""
 
 usage() {
@@ -29,13 +26,12 @@ Options:
   --subpath PATH        Same as positional SUBPATH.
   --mount-dir DIR       Target directory on the local filesystem.
   --mount-opts OPTS     Options string passed to mount -o.
-  --source HOST         Explicit NFS endpoint (takes precedence over others).
-  --host HOST           Alias for --source.
-  --app NAME            Resolve as NAME.flycast when source not provided.
+  --source HOST         Explicit NFS endpoint (takes precedence over environment).
+  --app NAME            Resolve NAME to NAME.flycast when --source not provided.
   -h, --help            Show this message.
 
 Environment variables:
-  FLY_NFS_SOURCE, FLY_NFS_HOST, FLY_NFS_APP override endpoint resolution.
+  FLY_NFS_APP provides the NFS endpoint slug when --source is omitted.
   FLY_NFS_MOUNT_DIR sets the mount directory.
   FLY_NFS_MOUNT_OPTS sets mount options.
 USAGE
@@ -121,14 +117,6 @@ while [[ $# -gt 0 ]]; do
       SOURCE_OVERRIDE="$2"
       shift 2
       ;;
-    --host)
-      if [[ $# -lt 2 ]]; then
-        echo "--host requires a value" >&2
-        exit 1
-      fi
-      HOST_OVERRIDE="$2"
-      shift 2
-      ;;
     --app)
       if [[ $# -lt 2 ]]; then
         echo "--app requires a value" >&2
@@ -172,26 +160,19 @@ fi
 
 EXPORT_PATH="$(join_relative "${EXPORT_BASE}" "${SUBPATH}")"
 
+
 if [[ -z "${SOURCE_OVERRIDE}" ]]; then
-  if [[ -n "${FLY_NFS_SOURCE:-}" ]]; then
-    SOURCE_OVERRIDE="${FLY_NFS_SOURCE}"
-  elif [[ -n "${HOST_OVERRIDE}" ]]; then
-    SOURCE_OVERRIDE="${HOST_OVERRIDE}"
-  elif [[ -n "${FLY_NFS_HOST:-}" ]]; then
-    SOURCE_OVERRIDE="${FLY_NFS_HOST}"
+  if [[ -n "${FLY_NFS_APP:-}" ]]; then
+    SOURCE_OVERRIDE="${FLY_NFS_APP}.flycast"
   elif [[ -n "${APP_OVERRIDE}" ]]; then
     SOURCE_OVERRIDE="${APP_OVERRIDE}.flycast"
-  elif [[ -n "${FLY_NFS_APP:-}" ]]; then
-    SOURCE_OVERRIDE="${FLY_NFS_APP}.flycast"
-  else
-    SOURCE_OVERRIDE="${DEFAULT_HOST}"
   fi
 fi
 
 SOURCE="${SOURCE_OVERRIDE}"
 
 if [[ -z "${SOURCE}" ]]; then
-  echo "An NFS host must be specified" >&2
+  echo "FLY_NFS_APP must be specified via --source or environment" >&2
   exit 1
 fi
 

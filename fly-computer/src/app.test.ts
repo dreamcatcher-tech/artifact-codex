@@ -24,6 +24,7 @@ const REQUIRED_FLY_ENV: Record<string, string> = {
   FLY_VM_MEMORY_MB: '256',
   PRIMARY_REGION: 'syd',
   FLY_AGENT_TEMPLATE_APP: 'universal-computer',
+  FLY_NFS_APP: 'nfs-proto',
 }
 
 const previousFlyEnv = new Map<string, string | undefined>()

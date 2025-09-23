@@ -23,15 +23,14 @@ trap cleanup EXIT
 mkdir -p "${MOUNT_DIR}"
 
 export FLY_NFS_MOUNT_DIR="${MOUNT_DIR}"
-export FLY_NFS_SOURCE="${TARGET_IP}"
 export FLY_NFS_MOUNT_OPTS="${MOUNT_OPTS}"
 
 if [[ -n "${SUBPATH}" ]]; then
   echo "[self-check] mounting ${TARGET_IP}:${SUBPATH} to ${MOUNT_DIR}" >&2
-  /usr/local/bin/mount-nfs.sh "${SUBPATH}"
+  /usr/local/bin/mount-nfs.sh "${SUBPATH}" --source "${TARGET_IP}"
 else
   echo "[self-check] mounting ${TARGET_IP} (base ${BASE_EXPORT}) to ${MOUNT_DIR}" >&2
-  /usr/local/bin/mount-nfs.sh
+  /usr/local/bin/mount-nfs.sh --source "${TARGET_IP}"
 fi
 
 # basic smoke: list directory, create temp file

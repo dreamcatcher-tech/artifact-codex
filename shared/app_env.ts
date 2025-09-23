@@ -24,34 +24,13 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
   {
     name: 'FLY_NFS_APP',
     description:
-      'Fly app slug that exposes the NFS volume; resolved as <app>.flycast when HOST/SOURCE are absent.',
+      'Fly app slug that exposes the shared NFS volume; resolved to <app>.flycast at mount time.',
     requiredFor: [
       'tasks/mount',
       'tasks/self_mount_check',
       'fly-agent',
       'fly-auth',
-    ],
-  },
-  {
-    name: 'FLY_NFS_HOST',
-    description:
-      'Direct hostname or IP override for the NFS endpoint, bypassing automatic <app>.flycast resolution.',
-    requiredFor: [
-      'tasks/mount',
-      'tasks/self_mount_check',
-      'fly-agent',
-      'fly-auth',
-    ],
-  },
-  {
-    name: 'FLY_NFS_SOURCE',
-    description:
-      'Fully qualified hostname used when mounting the NFS export (without :/path). Highest-precedence override.',
-    requiredFor: [
-      'tasks/mount',
-      'tasks/self_mount_check',
-      'fly-agent',
-      'fly-auth',
+      'fly-computer',
     ],
   },
   {
@@ -264,16 +243,9 @@ export function readRequiredAppEnv(
 
 export interface ResolveNfsSourceOptions {
   readonly source?: string
-  readonly host?: string
-  readonly app?: string
 }
 
-export type NfsSourceEnv = Partial<
-  Record<
-    'FLY_NFS_SOURCE' | 'FLY_NFS_HOST' | 'FLY_NFS_APP' | 'FLY_TEST_MACHINE_IP',
-    string
-  >
->
+export type NfsSourceEnv = Partial<Record<'FLY_NFS_APP', string>>
 
 function firstNonEmpty(
   ...values: Array<string | undefined>
@@ -289,19 +261,11 @@ export function resolveNfsSource(
   env: NfsSourceEnv,
   overrides: ResolveNfsSourceOptions = {},
 ): string {
-  const source = firstNonEmpty(overrides.source, env.FLY_NFS_SOURCE)
+  const source = firstNonEmpty(overrides.source)
   if (source) return source
 
-  const host = firstNonEmpty(overrides.host, env.FLY_NFS_HOST)
-  if (host) return host
-
-  const app = firstNonEmpty(overrides.app, env.FLY_NFS_APP)
+  const app = env.FLY_NFS_APP?.trim()
   if (app) return `${app}.flycast`
 
-  const machineIp = firstNonEmpty(env.FLY_TEST_MACHINE_IP)
-  if (machineIp) return machineIp
-
-  throw new Error(
-    'Unable to resolve NFS source. Set FLY_NFS_SOURCE, FLY_NFS_HOST, or FLY_NFS_APP.',
-  )
+  throw new Error('Missing FLY_NFS_APP environment variable')
 }

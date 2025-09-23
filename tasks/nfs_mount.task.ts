@@ -30,12 +30,6 @@ function parseArgs(argv: string[]): ParsedArgs {
       case '--source':
         options.source = argv[++i]
         break
-      case '--host':
-        options.host = argv[++i]
-        break
-      case '--app':
-        options.app = argv[++i]
-        break
       case '--retries':
         options.retries = Number.parseInt(argv[++i], 10)
         break

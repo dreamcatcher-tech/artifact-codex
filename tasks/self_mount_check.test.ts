@@ -21,10 +21,16 @@ function successResult(overrides: Partial<CommandResult> = {}): CommandResult {
 }
 
 Deno.test('runSelfMountCheck sets mount environment and runs cleanup', async () => {
-  const calls: Array<{ command: string; env?: Record<string, string> }> = []
+  const calls: Array<
+    { command: string; env?: Record<string, string>; args?: string[] }
+  > = []
   let verifying = false
   const executor: CommandExecutor = (options) => {
-    calls.push({ command: options.command, env: options.env })
+    calls.push({
+      command: options.command,
+      env: options.env,
+      args: options.args,
+    })
     switch (options.command) {
       case 'mountpoint':
         if (verifying) {
@@ -51,7 +57,7 @@ Deno.test('runSelfMountCheck sets mount environment and runs cleanup', async () 
   const mountDir = await Deno.makeTempDir()
   const env = {
     FLY_NFS_CHECK_DIR: mountDir,
-    FLY_NFS_SOURCE: 'explicit-source',
+    FLY_NFS_APP: 'example-app',
     FLY_NFS_MOUNT_OPTS: 'nfsvers=4.2',
   }
 
@@ -59,6 +65,7 @@ Deno.test('runSelfMountCheck sets mount environment and runs cleanup', async () 
     env,
     commandExecutor: executor,
     mountOptions: {
+      source: 'explicit-source',
       validateBinaries: false,
       validatePrivileges: false,
       delayMs: 0,
@@ -67,54 +74,36 @@ Deno.test('runSelfMountCheck sets mount environment and runs cleanup', async () 
   })
 
   const mountCall = calls.find((call) => call.command === 'mount')!
-  expect(mountCall.env?.FLY_NFS_SOURCE).toBe('explicit-source')
   expect(mountCall.env?.FLY_NFS_MOUNT_DIR).toBe(mountDir)
+  expect(mountCall.args ?? []).toContain(mountDir)
+  expect((mountCall.args ?? []).some((arg) => arg.includes('explicit-source')))
+    .toBe(true)
   expect(calls.some((call) => call.command === 'umount')).toBe(true)
 
   await Deno.remove(mountDir, { recursive: true }).catch(() => {})
 })
 
-Deno.test('runSelfMountCheck falls back to app host when source missing', async () => {
-  const calls: Array<{ command: string; env?: Record<string, string> }> = []
-  let verifying = false
-  const executor: CommandExecutor = (options) => {
-    calls.push({ command: options.command, env: options.env })
-    if (options.command === 'mountpoint') {
-      if (verifying) {
-        verifying = false
-        return Promise.resolve(successResult())
-      }
-      return Promise.resolve(
-        successResult({ success: false, state: 'failed', code: 1 }),
-      )
-    }
-    if (options.command === 'mount') {
-      verifying = true
-      return Promise.resolve(successResult())
-    }
-    return Promise.resolve(successResult())
-  }
-
+Deno.test('runSelfMountCheck throws when source missing', async () => {
   const mountDir = await Deno.makeTempDir()
-
-  await runSelfMountCheck({
-    env: {
-      FLY_NFS_CHECK_DIR: mountDir,
-      FLY_NFS_APP: 'example-app',
-    },
-    commandExecutor: executor,
-    mountOptions: {
-      validateBinaries: false,
-      validatePrivileges: false,
-      delayMs: 0,
-      retries: 1,
-    },
-  })
-
-  const mountCall = calls.find((call) => call.command === 'mount')!
-  expect(mountCall.env?.FLY_NFS_SOURCE).toBe('example-app.flycast')
-
-  await Deno.remove(mountDir, { recursive: true }).catch(() => {})
+  try {
+    await expect(runSelfMountCheck({
+      env: {
+        FLY_NFS_CHECK_DIR: mountDir,
+      },
+      mountOptions: {
+        validateBinaries: false,
+        validatePrivileges: false,
+        delayMs: 0,
+        retries: 1,
+      },
+      commandExecutor: (_opts) =>
+        Promise.resolve(
+          successResult({ success: false, state: 'failed', code: 1 }),
+        ),
+    })).rejects.toThrow('Missing FLY_NFS_APP environment variable')
+  } finally {
+    await Deno.remove(mountDir, { recursive: true }).catch(() => {})
+  }
 })
 
 Deno.test('runSelfMountCheck removes temporary directory when mount fails', async () => {
@@ -133,13 +122,14 @@ Deno.test('runSelfMountCheck removes temporary directory when mount fails', asyn
   }
 
   await expect(runSelfMountCheck({
-    env: { FLY_NFS_SOURCE: 'test-source' },
+    env: { FLY_NFS_APP: 'example-app' },
     commandExecutor: executor,
     mountOptions: {
       validateBinaries: false,
       validatePrivileges: false,
       delayMs: 0,
       retries: 1,
+      source: 'test-source',
     },
   })).rejects.toThrow('mount failed')
 
@@ -173,7 +163,7 @@ Deno.test('runSelfMountCheck uses custom list command when provided', async () =
 
   const mountDir = await Deno.makeTempDir()
   await runSelfMountCheck({
-    env: { FLY_NFS_CHECK_DIR: mountDir, FLY_NFS_SOURCE: 'test-source' },
+    env: { FLY_NFS_CHECK_DIR: mountDir, FLY_NFS_APP: 'example-app' },
     commandExecutor: executor,
     listCommand: {
       command: 'echo',
@@ -185,6 +175,7 @@ Deno.test('runSelfMountCheck uses custom list command when provided', async () =
       validatePrivileges: false,
       delayMs: 0,
       retries: 1,
+      source: 'test-source',
     },
   })
 

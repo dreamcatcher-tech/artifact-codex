@@ -100,6 +100,10 @@ Do not add environment fallbacks when resolving runtime configuration. Read the
 authoritative value (for example, Fly template machine configuration) at the
 point of use and fail immediately if it is missing or invalid.
 
+Document every new environment variable by adding it to `shared/app_env.ts` and
+`design/docs/app-env.md` before landing the change, and if removing or modifying
+env vars, be sure to update the documentation
+
 To fix formatting errors quickly, run `deno fmt`.
 
 To check types quickly, run `deno check`.

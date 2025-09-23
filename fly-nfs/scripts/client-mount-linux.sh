@@ -34,15 +34,14 @@ fi
 mkdir -p "${MOUNT_DIR}"
 
 export FLY_NFS_MOUNT_DIR="${MOUNT_DIR}"
-export FLY_NFS_SOURCE="${TARGET_ADDR}"
 export FLY_NFS_MOUNT_OPTS="${FLY_NFS_MOUNT_OPTS:-nfsvers=4.1}"
 
 if [[ -n "${SUBPATH}" ]]; then
   echo "Mounting ${TARGET_HOST} (${TARGET_ADDR}) subpath ${SUBPATH} to ${MOUNT_DIR}" >&2
-  "${MOUNT_SCRIPT}" "${SUBPATH}"
+  "${MOUNT_SCRIPT}" "${SUBPATH}" --source "${TARGET_ADDR}"
 else
   echo "Mounting ${TARGET_HOST} (${TARGET_ADDR}) to ${MOUNT_DIR}" >&2
-  "${MOUNT_SCRIPT}"
+  "${MOUNT_SCRIPT}" --source "${TARGET_ADDR}"
 fi
 
 mount | grep "${MOUNT_DIR}" || true
