@@ -228,15 +228,10 @@ function buildMachineConfig(
     ? structuredClone(template)
     : {}
   base.image = image
-  const templateMetadata = isPlainObject(base.metadata)
+  const metadata: Record<string, unknown> = isPlainObject(base.metadata)
     ? { ...(base.metadata as Record<string, unknown>) }
     : {}
-  const metadata: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(templateMetadata)) {
-    if (!key.toLowerCase().startsWith('fly_')) {
-      metadata[key] = value
-    }
-  }
+  delete metadata.fly_platform_version
   metadata[AGENT_METADATA_KEY] = agentId
   base.metadata = metadata
   return base

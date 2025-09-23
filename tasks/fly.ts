@@ -264,6 +264,25 @@ export async function flyCliStartMachine(
   await runFlyCommand(['machine', 'start', machineId, '--app', appName], rest)
 }
 
+export async function flyCliUpdateMachine(
+  options:
+    & { appName: string; machineId: string; image: string; restart?: boolean }
+    & FlyCliOptions,
+): Promise<void> {
+  const { appName, machineId, image, restart = false, ...rest } = options
+  const args = [
+    'machine',
+    'update',
+    machineId,
+    '--app',
+    appName,
+    '--image',
+    image,
+  ]
+  if (restart) args.push('--restart')
+  await runFlyCommand(args, rest)
+}
+
 export async function flyCliAppsList(
   options: { orgSlug: string } & FlyCliOptions,
 ): Promise<FlyCliAppInfo[]> {

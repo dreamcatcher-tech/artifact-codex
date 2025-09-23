@@ -24,6 +24,7 @@ export {
   flyCliSecretsList,
   flyCliSecretsSet,
   flyCliStartMachine,
+  flyCliUpdateMachine,
   FlyCommandError,
   parseFlyJson,
   runFlyCommand,

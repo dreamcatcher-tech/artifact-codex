@@ -10,6 +10,7 @@ import {
   flyCliMachineRun,
   flyCliSecretsList,
   flyCliStartMachine,
+  flyCliUpdateMachine,
 } from './mod.ts'
 import type { CommandExecutor, CommandResult } from './types.ts'
 
@@ -353,5 +354,33 @@ Deno.test('flyCliStartMachine invokes machine start', async () => {
     '999',
     '--app',
     'test',
+  ])
+})
+
+Deno.test('flyCliUpdateMachine updates image and can restart', async () => {
+  const { executor, calls } = createRecordingExecutor({
+    'fly machine update 777 --app test --image registry.fly.io/fly-agent:latest --restart':
+      makeResult(true),
+  })
+
+  await flyCliUpdateMachine({
+    appName: 'test',
+    machineId: '777',
+    image: 'registry.fly.io/fly-agent:latest',
+    restart: true,
+    commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
+  })
+
+  expect(calls[0]).toEqual([
+    'fly',
+    'machine',
+    'update',
+    '777',
+    '--app',
+    'test',
+    '--image',
+    'registry.fly.io/fly-agent:latest',
+    '--restart',
   ])
 })
