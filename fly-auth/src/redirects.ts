@@ -24,7 +24,7 @@ export function resolveRedirectUrl(
     (search.get('flow') ?? search.get('intent') ?? search.get('mode') ?? '')
       .toLowerCase()
   const wantsSignUp = intent === 'sign-up' || intent === 'signup'
-  const base = wantsSignUp ? signUp ?? signIn : signIn ?? signUp
+  const base = wantsSignUp ? signUp ?? signIn : signUp ?? signIn
   if (!base) return undefined
 
   return appendRedirectBack(base, c.req.url)

@@ -74,7 +74,7 @@ Deno.test('unauthorized JSON request is rejected', async () => {
   }
 })
 
-Deno.test('redirects unauthorized request to Clerk sign-in', async () => {
+Deno.test('redirects unauthorized request to Clerk sign-up', async () => {
   const cleanup = setClerkEnv()
   try {
     const app = createApp()
@@ -83,7 +83,7 @@ Deno.test('redirects unauthorized request to Clerk sign-in', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://legible-llama-32.accounts.dev/sign-in?redirect_url=http://localhost/',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://localhost/',
     )
   } finally {
     cleanup()
@@ -115,7 +115,7 @@ Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
     })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe(
-      'https://legible-llama-32.accounts.dev/sign-in?redirect_url=http://scoped--sub-part.example.test/',
+      'https://legible-llama-32.accounts.dev/sign-up?redirect_url=http://scoped--sub-part.example.test/',
     )
   } finally {
     cleanup()
