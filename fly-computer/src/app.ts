@@ -203,13 +203,13 @@ async function reconcileMachine(
   )
 
   machineLog(
-    'creating machine name=%s agent=%s image=%s region=%s',
+    'creating machine via run name=%s agent=%s image=%s region=%s',
     machineName,
     agent.id,
     templateImage,
     config.defaultRegion ?? 'default',
   )
-  const created = await deps.fly.createMachine({
+  const created = await deps.fly.runMachine({
     name: machineName,
     config: machineConfig,
     image: templateImage,

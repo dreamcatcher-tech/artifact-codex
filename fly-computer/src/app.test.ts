@@ -49,6 +49,10 @@ function createFlyStub(overrides: Partial<FlyApi> = {}): FlyStub {
       created.push(input)
       return Promise.resolve({ id: 'new-machine', name: input.name })
     },
+    runMachine(input) {
+      created.push(input)
+      return Promise.resolve({ id: 'new-machine', name: input.name })
+    },
     startMachine(machineId) {
       startCalls.push(machineId)
       return Promise.resolve()

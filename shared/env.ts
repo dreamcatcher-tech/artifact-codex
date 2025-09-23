@@ -51,8 +51,13 @@ export type FlyMachineRuntimeEnv = {
 }
 
 export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
-  const get = (name: keyof FlyMachineRuntimeEnv) =>
-    (Deno.env.get(name) ?? '').trim()
+  const get = (name: keyof FlyMachineRuntimeEnv) => {
+    const value = (Deno.env.get(name) ?? '').trim()
+    if (value.length === 0) {
+      throw new Error(`Missing ${name} in environment`)
+    }
+    return value
+  }
   return {
     FLY_APP_NAME: get('FLY_APP_NAME'),
     FLY_MACHINE_ID: get('FLY_MACHINE_ID'),

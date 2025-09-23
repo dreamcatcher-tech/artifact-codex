@@ -22,20 +22,13 @@ export function ensureComputerStorageMounted(): Promise<string> {
 
 async function mountStorage(): Promise<string> {
   const { FLY_APP_NAME } = readFlyMachineRuntimeEnv()
-  const appName = FLY_APP_NAME.trim()
-  if (!appName) {
-    throw new Error(
-      'FLY_APP_NAME is not set; unable to determine NFS subpath for fly-computer.',
-    )
-  }
 
-  const subpath = 'computers/' + appName
+  const subpath = 'computers/' + FLY_APP_NAME
 
   await ensureNfsMount({
     mountDir: MOUNT_DIR,
     subpath,
     logger: (message) => console.error(`${LOG_PREFIX} ${message}`),
-    logPrefix: '',
   })
 
   await ensureAgentsDirectory()

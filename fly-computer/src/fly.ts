@@ -28,6 +28,9 @@ export type FlyApi = {
   getMachine: (machineId: string) => Promise<MachineDetail>
   listMachines: () => Promise<MachineSummary[]>
   createMachine: (input: CreateMachineInput) => Promise<MachineSummary>
+  runMachine: (
+    input: CreateMachineInput & { detach?: boolean },
+  ) => Promise<MachineSummary>
   startMachine: (machineId: string) => Promise<void>
 }
 
@@ -57,6 +60,20 @@ export function createFlyApi(
           config: machineConfig,
           image,
           region,
+          commandExecutor,
+        }),
+      ),
+    runMachine: async (
+      { name, config: machineConfig, image, region, detach },
+    ) =>
+      mapMachineSummary(
+        await flyCliMachineRun({
+          appName: config.targetApp,
+          image,
+          config: machineConfig,
+          name,
+          region,
+          detach,
           commandExecutor,
         }),
       ),
