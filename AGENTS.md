@@ -17,8 +17,11 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 
 ## Fly CLI usage
 
-- All Fly automation must go through the helpers exposed in `@artifact/tasks`;
-  never call the Machines API directly from application code.
+- All Fly automation IN CODE must go through the helpers exposed in
+  `@artifact/tasks`; never call the Machines API directly from application code.
+- If you need to run fly commands to test your code, and to deploy to fly.io
+  infrastructure, then you have liberal access to run the `fly` cli tool
+  directly.
 - Prefer the CLI's structured output flags (`--json`, `--machine-config`, etc.)
   so we can map results deterministically without scraping human text.
 - Make sure any runtime images (Docker, CI, devcontainers) install the `fly`
@@ -50,9 +53,13 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 - When adding new Fly-related features, check whether an existing wrapper in
   `tasks/fly.ts` can be reused; otherwise extend that module so the entire
   workspace benefits from a single implementation.
-- When provisioning per-user apps, always pass a unique `--network` when
-  calling `fly apps create` so each tenant’s machines live on an isolated
-  WireGuard segment.
+- When provisioning per-user apps, always pass a unique `--network` when calling
+  `fly apps create` so each tenant’s machines live on an isolated WireGuard
+  segment.
+- Flycast connectivity is per-network: allocate tenant Flycast IPv6 addresses
+  with `--network` set to the source network (for example the controller app’s
+  network), and provision matching addresses on shared services (such as NFS)
+  whenever a new tenant network appears so cross-network replay keeps working.
 
 ## Deployment to fly.io
 
@@ -60,6 +67,9 @@ This project contains multiple fly apps, and the config files for them are all
 in the root under fly.*.toml. To deploy these apps, use:
 
 `fly deploy --config fly.<config name>.toml`
+
+You have liberal access to the `fly` cli command. Use `fly --help` to learn more
+about how it works.
 
 If you have done something that might affect how the fly apps work, be sure to
 deploy or build using the fly.io infrastructure, until you are satisfied things

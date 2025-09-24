@@ -24,6 +24,8 @@ const MAX_FLY_APP_NAME = 63
 const ACTOR_PREFIX = 'actor-'
 const TEMPLATE_COMPUTER_APP = 'fly-computer'
 
+let cachedReplayNetwork: Promise<string> | null = null
+
 export type EnsureActorAppResult = {
   appName: string
   existed: boolean
@@ -47,6 +49,7 @@ export async function ensureActorApp(
   appName: string,
 ): Promise<EnsureActorAppResult> {
   const controllerToken = readRequiredAppEnv('FLY_API_TOKEN')
+  const nfsApp = readRequiredAppEnv('FLY_NFS_APP')
   const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
     TEMPLATE_COMPUTER_APP
   const templateMachine = await loadTemplateMachine(templateApp)
@@ -57,9 +60,12 @@ export async function ensureActorApp(
     appName,
   )
 
+  const flycastNetwork = await resolveReplaySourceNetwork()
   const existingStatus = await getAppStatus(appName)
   if (existingStatus) {
-    await ensurePrivateIp(appName)
+    const actorNetwork = requireAppNetworkName(existingStatus, appName)
+    await ensureNfsNetworkAccess({ nfsApp, network: actorNetwork })
+    await ensurePrivateIp(appName, flycastNetwork)
     const secretExisted = await actorApiTokenSecretExists(appName)
     await ensureActorAppSecrets({
       appName,
@@ -78,10 +84,11 @@ export async function ensureActorApp(
     return { appName, existed: true }
   }
 
+  const actorNetwork = appName
   const createdApp = await flyCliAppsCreate({
     appName,
     orgSlug: resolveOrgSlug(),
-    network: appName,
+    network: actorNetwork,
   })
   const createdName = createdApp.name ?? appName
   if (!createdName || createdName.trim().length === 0) {
@@ -95,7 +102,8 @@ export async function ensureActorApp(
     controllerToken,
   })
 
-  await ensurePrivateIp(appName)
+  await ensureNfsNetworkAccess({ nfsApp, network: actorNetwork })
+  await ensurePrivateIp(appName, flycastNetwork)
 
   try {
     await deployActorApp({
@@ -190,6 +198,69 @@ async function loadTemplateAppConfig(
 
   const json = parseFlyJson<Record<string, unknown>>(raw)
   return extractFlyConfigFromJson(json)
+}
+
+async function resolveReplaySourceNetwork(): Promise<string> {
+  if (!cachedReplayNetwork) {
+    cachedReplayNetwork = (async () => {
+      const appName = resolveCurrentFlyAppName()
+      const status = await flyCliAppStatus({ appName })
+      const network = status.networkName?.trim()
+      if (!network) {
+        throw new Error(
+          `Fly app '${appName}' did not report a network name; upgrade flyctl or verify the app exists.`,
+        )
+      }
+      return network
+    })()
+  }
+  return await cachedReplayNetwork
+}
+
+function resolveCurrentFlyAppName(): string {
+  try {
+    const value = (Deno.env.get('FLY_APP_NAME') ?? '').trim()
+    if (!value) {
+      throw new Error('missing FLY_APP_NAME')
+    }
+    return value
+  } catch (error) {
+    throw new Error(
+      `Unable to resolve FLY_APP_NAME from environment: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
+}
+
+function requireAppNetworkName(
+  status: FlyCliAppStatus,
+  appName: string,
+): string {
+  const network = status.networkName?.trim()
+  if (!network) {
+    throw new Error(
+      `Fly app '${appName}' did not include a network in status output; ensure flyctl is up to date.`,
+    )
+  }
+  return network
+}
+
+async function ensureNfsNetworkAccess(
+  { nfsApp, network }: { nfsApp: string; network: string },
+): Promise<void> {
+  const normalized = network.trim()
+  if (!normalized) {
+    throw new Error('Actor network name resolved to an empty string')
+  }
+
+  const ips = await flyCliIpsList({ appName: nfsApp })
+  const hasMatch = ips.some((ip) =>
+    isPrivateIpv6(ip) && matchesNetwork(ip, normalized)
+  )
+  if (hasMatch) return
+
+  await flyCliAllocatePrivateIp({ appName: nfsApp, network: normalized })
 }
 
 function prepareActorAppConfig(
@@ -295,12 +366,21 @@ function resolveOrgSlug(): string {
   throw new Error('Missing FLY_ORG_SLUG; set it to your Fly organization slug')
 }
 
-async function ensurePrivateIp(appName: string): Promise<void> {
+async function ensurePrivateIp(
+  appName: string,
+  targetNetwork: string,
+): Promise<void> {
+  const normalizedNetwork = targetNetwork.trim()
+  if (!normalizedNetwork) {
+    throw new Error('Target network name for ensurePrivateIp cannot be empty')
+  }
+
   let ips = await flyCliIpsList({ appName })
 
-  const publicIps = ips.filter((ip) => !isPrivateIpv6(ip) && ip.address)
+  const publicIps = ips.filter((ip) => !isPrivateIpv6(ip))
   for (const ip of publicIps) {
-    await flyCliReleaseIp({ appName, ip: ip.address! })
+    const address = requireIpAddress(ip, appName)
+    await flyCliReleaseIp({ appName, ip: address })
   }
 
   if (publicIps.length > 0) {
@@ -308,34 +388,63 @@ async function ensurePrivateIp(appName: string): Promise<void> {
   }
 
   let privateIps = ips.filter(isPrivateIpv6)
+  const mismatched = privateIps.filter((ip) =>
+    !matchesNetwork(ip, normalizedNetwork)
+  )
+  for (const ip of mismatched) {
+    const address = requireIpAddress(ip, appName)
+    await flyCliReleaseIp({ appName, ip: address })
+  }
 
-  if (privateIps.length === 0) {
-    await flyCliAllocatePrivateIp({ appName })
+  if (publicIps.length > 0 || mismatched.length > 0) {
     ips = await flyCliIpsList({ appName })
     privateIps = ips.filter(isPrivateIpv6)
   }
 
-  if (privateIps.length === 0) {
+  let matching = privateIps.filter((ip) =>
+    matchesNetwork(ip, normalizedNetwork)
+  )
+  if (matching.length === 0) {
+    await flyCliAllocatePrivateIp({ appName, network: normalizedNetwork })
+    ips = await flyCliIpsList({ appName })
+    privateIps = ips.filter(isPrivateIpv6)
+    matching = privateIps.filter((ip) => matchesNetwork(ip, normalizedNetwork))
+  }
+
+  if (matching.length === 0) {
     throw new Error(
-      `Failed to allocate private IPv6 for actor app '${appName}'`,
+      `Failed to allocate private IPv6 on network '${normalizedNetwork}' for actor app '${appName}'`,
     )
   }
 
-  if (privateIps.length > 1) {
-    const [, ...extras] = privateIps
+  if (matching.length > 1) {
+    const [, ...extras] = matching
     for (const ip of extras) {
-      if (ip.address) {
-        await flyCliReleaseIp({ appName, ip: ip.address })
-      }
+      const address = requireIpAddress(ip, appName)
+      await flyCliReleaseIp({ appName, ip: address })
     }
     ips = await flyCliIpsList({ appName })
-    privateIps = ips.filter(isPrivateIpv6)
+    matching = ips
+      .filter(isPrivateIpv6)
+      .filter((ip) => matchesNetwork(ip, normalizedNetwork))
   }
 
-  const remainingPublic = ips.filter((ip) => !isPrivateIpv6(ip))
-  if (privateIps.length !== 1 || remainingPublic.length > 0) {
+  const updatedIps = await flyCliIpsList({ appName })
+
+  const remainingPublic = updatedIps.filter((ip) => !isPrivateIpv6(ip))
+  if (remainingPublic.length > 0) {
     throw new Error(
-      `Actor app '${appName}' must have exactly one private IPv6 address and no public addresses`,
+      `Actor app '${appName}' still has public IPs after cleanup`,
+    )
+  }
+
+  const finalPrivate = updatedIps
+    .filter(isPrivateIpv6)
+    .filter((ip) => matchesNetwork(ip, normalizedNetwork))
+
+  if (finalPrivate.length !== 1) {
+    throw new Error(
+      `Actor app '${appName}' must have exactly one private IPv6 on network '${normalizedNetwork}', found ${finalPrivate.length}`,
     )
   }
 }
@@ -372,8 +481,39 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isPrivateIpv6(ip: { type?: string | undefined }): boolean {
+function isPrivateIpv6(ip: FlyCliIpInfo): boolean {
   if (!ip.type) return false
   const normalized = ip.type.trim().toLowerCase()
   return normalized === 'private_v6' || normalized === 'private-v6'
+}
+
+function matchesNetwork(ip: FlyCliIpInfo, target: string): boolean {
+  const name = readNetworkName(ip)
+  if (!name) return false
+  return name.toLowerCase() === target.toLowerCase()
+}
+
+function readNetworkName(info: FlyCliIpInfo): string | undefined {
+  const net = info.network
+  if (!net) return undefined
+  const lookup = net as Record<string, unknown>
+  const keys = ['name', 'Name', 'slug', 'Slug', 'id', 'ID']
+  for (const key of keys) {
+    const candidate = lookup[key]
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed) return trimmed
+    }
+  }
+  return undefined
+}
+
+function requireIpAddress(ip: FlyCliIpInfo, appName: string): string {
+  const address = ip.address?.trim()
+  if (!address) {
+    throw new Error(
+      `Fly API returned an IP entry without an address for app '${appName}'`,
+    )
+  }
+  return address
 }

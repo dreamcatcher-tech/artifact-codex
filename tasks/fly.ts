@@ -414,13 +414,15 @@ export async function flyCliIpsList(
 }
 
 export async function flyCliAllocatePrivateIp(
-  options: { appName: string; network?: string } & FlyCliOptions,
+  options: { appName: string; network: string } & FlyCliOptions,
 ): Promise<void> {
   const { appName, network, ...rest } = options
-  const args = ['ips', 'allocate-v6', '--private', '--app', appName]
-  if (network) {
-    args.push('--network', network)
+  const trimmedNetwork = network.trim()
+  if (!trimmedNetwork) {
+    throw new Error('flyCliAllocatePrivateIp requires a non-empty network name')
   }
+  const args = ['ips', 'allocate-v6', '--private', '--app', appName]
+  args.push('--network', trimmedNetwork)
   await runFlyCommand(args, rest)
 }
 

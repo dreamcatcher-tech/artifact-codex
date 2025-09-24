@@ -1,12 +1,12 @@
 import { expect } from '@std/expect'
 
 import {
+  flyCliAllocatePrivateIp,
   flyCliAppsCreate,
   flyCliAppsDestroy,
   flyCliAppsInfo,
   flyCliAppStatus,
   flyCliCreateMachine,
-  flyCliAllocatePrivateIp,
   flyCliGetMachine,
   flyCliListMachines,
   flyCliMachineRun,
@@ -372,7 +372,7 @@ Deno.test('flyCliSecretsList parses secret metadata', async () => {
   ])
 })
 
-Deno.test('flyCliAllocatePrivateIp forwards network option', async () => {
+Deno.test('flyCliAllocatePrivateIp trims and forwards network option', async () => {
   const { executor, calls } = createRecordingExecutor({
     'fly ips allocate-v6 --private --app actor-app --network default':
       makeResult(true),
@@ -380,7 +380,7 @@ Deno.test('flyCliAllocatePrivateIp forwards network option', async () => {
 
   await flyCliAllocatePrivateIp({
     appName: 'actor-app',
-    network: 'default',
+    network: ' default ',
     commandExecutor: executor,
     env: { FLY_API_TOKEN: 'token' },
   })
@@ -395,6 +395,17 @@ Deno.test('flyCliAllocatePrivateIp forwards network option', async () => {
     '--network',
     'default',
   ])
+})
+
+Deno.test('flyCliAllocatePrivateIp rejects empty network', async () => {
+  await expect(
+    flyCliAllocatePrivateIp({
+      appName: 'actor-app',
+      network: '  ',
+      commandExecutor: () => Promise.resolve(makeResult(true)),
+      env: { FLY_API_TOKEN: 'token' },
+    }),
+  ).rejects.toThrow('flyCliAllocatePrivateIp requires a non-empty network name')
 })
 
 Deno.test('flyCliAppsDestroy adds --force when requested', async () => {

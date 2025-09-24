@@ -157,6 +157,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     description:
       'Fly app whose machine configuration is cloned to provision new agent machines.',
     requiredFor: ['fly-computer'],
+    defaultValue: 'universal-compute',
   },
   {
     name: 'CLERK_SECRET_KEY',
