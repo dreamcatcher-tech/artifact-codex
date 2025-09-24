@@ -41,3 +41,7 @@ path needs to be done at runtime, rather than rewriting the template.
 
 change the process group in fly.agent.toml so that it is something like 'worker'
 rather than '/' since all the machines are the same process group.
+
+check if we can remove the port definitions from fly.computer.toml and still
+have the any port forward to agent thing working, even if the agent is being
+created for the first time.
