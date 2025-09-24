@@ -38,3 +38,6 @@ out the path of the files at runtime. How this project will be deployed, is that
 the whole workspace will be copied over, and then run from there, so the files
 will always be available in the same relative path, but finding the absolute
 path needs to be done at runtime, rather than rewriting the template.
+
+change the process group in fly.agent.toml so that it is something like 'worker'
+rather than '/' since all the machines are the same process group.

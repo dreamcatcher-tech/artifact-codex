@@ -68,7 +68,7 @@ async function main(): Promise<void> {
       Deno.args[0],
       Deno.args.slice(1),
     )
-    await launchProcess(Deno.args[0]!, Deno.args.slice(1))
+    return await launchProcess(Deno.args[0]!, Deno.args.slice(1))
   }
 
   log('launching default web-server entrypoint')

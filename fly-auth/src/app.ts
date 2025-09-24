@@ -61,7 +61,7 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
 
   app.use('*', deps.auth.middleware)
 
-  app.get('/', async (c) => {
+  app.get('*', async (c) => {
     const requestUrl = new URL(c.req.url)
     requestLog('GET / start host=%s', requestUrl.host)
     const testUser = extractTestUserId(c)
