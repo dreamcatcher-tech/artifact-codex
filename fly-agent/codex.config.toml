@@ -1,9 +1,9 @@
-model = "gpt-5"
+model = "gpt-5-codex"
 model_provider = "openai"
-model_reasoning_effort = "low"
 model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
+model_reasoning_effort = "low"
 
 notify = "__CODEX_NOTIFY__"
 
