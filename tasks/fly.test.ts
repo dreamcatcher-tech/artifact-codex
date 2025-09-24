@@ -231,17 +231,18 @@ Deno.test('flyCliMachineRun launches machine from config', async () => {
   expect(runResult.id).toBe('run-1')
 })
 
-Deno.test('flyCliAppsCreate passes network when provided', async () => {
+Deno.test('flyCliAppsCreate sends expected arguments', async () => {
   const responseJson = JSON.stringify({ Name: 'demo', ID: 'app_demo' })
   const { executor, calls } = createRecordingExecutor({
-    'fly apps create --name demo --org artifact --network demo --json --yes':
-      makeResult(true, { stdout: responseJson }),
+    'fly apps create --name demo --org artifact --json --yes': makeResult(
+      true,
+      { stdout: responseJson },
+    ),
   })
 
   const info = await flyCliAppsCreate({
     appName: 'demo',
     orgSlug: 'artifact',
-    network: 'demo',
     commandExecutor: executor,
     env: { FLY_API_TOKEN: 'token' },
   })
@@ -254,8 +255,6 @@ Deno.test('flyCliAppsCreate passes network when provided', async () => {
     'demo',
     '--org',
     'artifact',
-    '--network',
-    'demo',
     '--json',
     '--yes',
   ])
@@ -328,29 +327,6 @@ Deno.test('flyCliAppStatus parses machines from status output', async () => {
   ])
 })
 
-Deno.test('flyCliAppStatus captures network name', async () => {
-  const statusJson = JSON.stringify({
-    App: {
-      ID: 'app_net',
-      Name: 'networked-app',
-      Network: { Name: 'tenant-network' },
-    },
-  })
-  const { executor } = createRecordingExecutor({
-    'fly status --app networked-app --json': makeResult(true, {
-      stdout: statusJson,
-    }),
-  })
-
-  const status = await flyCliAppStatus({
-    appName: 'networked-app',
-    commandExecutor: executor,
-    env: { FLY_API_TOKEN: 'token' },
-  })
-
-  expect(status.networkName).toBe('tenant-network')
-})
-
 Deno.test('flyCliSecretsList parses secret metadata', async () => {
   const json = JSON.stringify([
     { Name: 'FLY_API_TOKEN', CreatedAt: '2025-01-01T00:00:00Z' },
@@ -372,15 +348,13 @@ Deno.test('flyCliSecretsList parses secret metadata', async () => {
   ])
 })
 
-Deno.test('flyCliAllocatePrivateIp trims and forwards network option', async () => {
+Deno.test('flyCliAllocatePrivateIp allocates private address', async () => {
   const { executor, calls } = createRecordingExecutor({
-    'fly ips allocate-v6 --private --app actor-app --network default':
-      makeResult(true),
+    'fly ips allocate-v6 --private --app actor-app': makeResult(true),
   })
 
   await flyCliAllocatePrivateIp({
     appName: 'actor-app',
-    network: ' default ',
     commandExecutor: executor,
     env: { FLY_API_TOKEN: 'token' },
   })
@@ -392,20 +366,7 @@ Deno.test('flyCliAllocatePrivateIp trims and forwards network option', async () 
     '--private',
     '--app',
     'actor-app',
-    '--network',
-    'default',
   ])
-})
-
-Deno.test('flyCliAllocatePrivateIp rejects empty network', async () => {
-  await expect(
-    flyCliAllocatePrivateIp({
-      appName: 'actor-app',
-      network: '  ',
-      commandExecutor: () => Promise.resolve(makeResult(true)),
-      env: { FLY_API_TOKEN: 'token' },
-    }),
-  ).rejects.toThrow('flyCliAllocatePrivateIp requires a non-empty network name')
 })
 
 Deno.test('flyCliAppsDestroy adds --force when requested', async () => {

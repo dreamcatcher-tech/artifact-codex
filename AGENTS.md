@@ -53,13 +53,9 @@ you can read thru the code inside `.refs/codex/codex-rs/`.
 - When adding new Fly-related features, check whether an existing wrapper in
   `tasks/fly.ts` can be reused; otherwise extend that module so the entire
   workspace benefits from a single implementation.
-- When provisioning per-user apps, always pass a unique `--network` when calling
-  `fly apps create` so each tenant’s machines live on an isolated WireGuard
-  segment.
-- Flycast connectivity is per-network: allocate tenant Flycast IPv6 addresses
-  with `--network` set to the source network (for example the controller app’s
-  network), and provision matching addresses on shared services (such as NFS)
-  whenever a new tenant network appears so cross-network replay keeps working.
+  Always provision apps on Fly's default network; do not pass `--network` or
+  rely on custom tenant networks. Isolation is handled at the application layer
+  and by Flycast private ingress.
 
 ## Deployment to fly.io
 
