@@ -11,7 +11,8 @@
     "procman",
     "tasks",
     "shared",
-    "fly-agent",
+    "agent-basic",
+    "agent-dev-suite",
     "fly-auth",
     "fly-computer"
   ],

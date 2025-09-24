@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { HOST } from '@artifact/shared'
-const log = Debug('@artifact/fly-agent:proxy')
+const log = Debug('@artifact/agent-basic:proxy')
 
 const HOP_BY_HOP = [
   'connection',

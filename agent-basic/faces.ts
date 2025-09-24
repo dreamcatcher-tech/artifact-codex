@@ -1,7 +1,11 @@
 import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import type { Face, FaceOptions } from '@artifact/shared'
-import { HOST, toStructured } from '@artifact/shared'
+import type { Face, FaceKindId, FaceOptions } from '@artifact/shared'
+import {
+  HOST,
+  readConfiguredFaceKindSpecs,
+  toStructured,
+} from '@artifact/shared'
 import { join } from '@std/path'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
@@ -28,6 +32,15 @@ function allocateFaceId(): FaceId {
 
 const SELF_KIND_ID = '@self system'
 
+const FACE_KIND_CREATORS: Record<FaceKindId, FaceKind['creator']> = {
+  test: startFaceTest,
+  inspector: startFaceInspector,
+  codex: startFaceCodex,
+  cmd: startFaceCmd,
+}
+
+const configuredFaceKindSpecs = readConfiguredFaceKindSpecs()
+
 const faceKinds: Record<string, FaceKind> = {
   [SELF_KIND_ID]: {
     title: '@self system',
@@ -37,30 +50,22 @@ const faceKinds: Record<string, FaceKind> = {
       throw new Error('@self system face cannot be instantiated')
     },
   },
-  test: {
-    title: 'Test',
-    description: 'A test face',
-    creator: startFaceTest,
-  },
-  inspector: {
-    title: 'Inspector',
-    description: 'MCP Inspector that presents a web server UI',
-    creator: startFaceInspector,
-  },
-  codex: {
-    title: 'Codex',
-    description: 'Runs a Codex session and presents it in a ttyd ui',
-    creator: startFaceCodex,
-  },
-  cmd: {
-    title: 'Command',
-    description: 'Runs an arbitrary shell command in tmux with a ttyd view',
-    creator: startFaceCmd,
-  },
+}
+
+for (const spec of configuredFaceKindSpecs) {
+  const creator = FACE_KIND_CREATORS[spec.id]
+  if (!creator) {
+    throw new Error(`Configured face kind has no creator: ${spec.id}`)
+  }
+  faceKinds[spec.id] = {
+    title: spec.title,
+    description: spec.description,
+    creator,
+  }
 }
 
 export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
-  const log = Debug('@artifact/fly-agent:faces')
+  const log = Debug('@artifact/agent-basic:faces')
 
   const faceIdToKind = new Map<FaceId, string>()
 

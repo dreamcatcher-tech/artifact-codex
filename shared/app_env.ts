@@ -2,7 +2,8 @@ export type ProjectSlug =
   | 'tasks/mount'
   | 'tasks/self_mount_check'
   | 'tasks/fly'
-  | 'fly-agent'
+  | 'agent-basic'
+  | 'agent-dev-suite'
   | 'fly-auth'
   | 'fly-computer'
   | 'fly-nfs/scripts'
@@ -28,7 +29,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: [
       'tasks/mount',
       'tasks/self_mount_check',
-      'fly-agent',
+      'agent-dev-suite',
       'fly-auth',
       'fly-computer',
     ],
@@ -45,7 +46,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: [
       'tasks/mount',
       'tasks/self_mount_check',
-      'fly-agent',
+      'agent-dev-suite',
       'fly-auth',
       'fly-computer',
     ],
@@ -55,7 +56,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     name: 'FLY_NFS_SUBPATH',
     description:
       'Relative path under the export base that machine-specific data should live within.',
-    requiredFor: ['tasks/mount', 'fly-agent', 'fly-auth', 'fly-computer'],
+    requiredFor: ['tasks/mount', 'agent-dev-suite', 'fly-auth', 'fly-computer'],
     defaultValue: 'computers',
   },
   {
@@ -64,7 +65,7 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
     requiredFor: [
       'tasks/mount',
       'tasks/self_mount_check',
-      'fly-agent',
+      'agent-dev-suite',
       'fly-auth',
       'fly-computer',
     ],
@@ -79,20 +80,20 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
   {
     name: 'FLY_NFS_ENABLE_MOUNT',
     description:
-      'When set to 1, the fly-agent entrypoint performs the NFS mount before launching.',
-    requiredFor: ['fly-agent'],
+      'When set to 1, the agent-dev-suite entrypoint performs the NFS mount before launching.',
+    requiredFor: ['agent-dev-suite'],
     defaultValue: '1',
   },
   {
     name: 'FLY_NFS_RETRIES',
     description: 'Number of attempts the agent should make when mounting NFS.',
-    requiredFor: ['fly-agent'],
+    requiredFor: ['agent-dev-suite'],
     defaultValue: '5',
   },
   {
     name: 'FLY_NFS_RETRY_DELAY_SEC',
     description: 'Seconds to wait between agent mount retries.',
-    requiredFor: ['fly-agent'],
+    requiredFor: ['agent-dev-suite'],
     defaultValue: '3',
   },
   {
@@ -182,6 +183,12 @@ export const APP_ENV_VARS: readonly AppEnvVarSpec[] = [
       'Synthetic Clerk user id used by integration flows via the x-artifact-test-user header.',
     requiredFor: ['fly-auth'],
     defaultValue: 'integration-suite',
+  },
+  {
+    name: 'DC_FACES',
+    description:
+      'Comma-separated list of face kind identifiers that agent runtimes must enable.',
+    requiredFor: ['agent-basic'],
   },
 ]
 

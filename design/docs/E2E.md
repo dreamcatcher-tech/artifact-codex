@@ -21,8 +21,8 @@ isolation and as a complete system, including unhappy-path coverage.
   endpoints backed by Clerk.
 - **Fly Computer (`fly-computer`)**: Hosts the computer-facing APIs that agents
   bind to; depends on auth and NFS availability.
-- **Fly Agent (`fly-agent`)**: Runs machines that host MCP agents and exposes
-  faces/TTYD; enforces NFS mount checks and serves hardware bridges.
+- **Agent Dev Suite (`agent-dev-suite`)**: Runs machines that host MCP agents
+  and exposes faces/TTYD; enforces NFS mount checks and serves hardware bridges.
 - **Orchestrator**: The test driver (often a Deno script within `tasks/`) that
   issues Fly API calls, coordinates assertions, and records evidence.
 - **Observer Tooling**: `fly logs`, `fly ssh`, metrics dashboards, and MCP-based

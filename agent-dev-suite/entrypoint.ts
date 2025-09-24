@@ -6,9 +6,12 @@ import {
 } from '@artifact/shared'
 import Debug from 'debug'
 
-const log = Debug('@artifact/fly-agent:entrypoint')
+const log = Debug('@artifact/agent-dev-suite:entrypoint')
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
+export function parsePositiveInt(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) return fallback
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
@@ -71,8 +74,8 @@ async function main(): Promise<void> {
     return await launchProcess(Deno.args[0]!, Deno.args.slice(1))
   }
 
-  log('launching default fly-agent entrypoint')
-  await launchProcess('/agent/fly-agent/main.ts', [])
+  log('launching default agent-basic web server')
+  await launchProcess('/agent/agent-basic/main.ts', [])
 }
 
 if (import.meta.main) {

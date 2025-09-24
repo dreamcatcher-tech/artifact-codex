@@ -82,7 +82,7 @@ RUN npm i -g @openai/codex
 RUN deno install --quiet
 
 RUN set -eux; \
-  SRC="/agent/fly-agent"; \
+  SRC="/agent/agent-dev-suite"; \
   SHARED="/agent/scripts"; \
   install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
   install -Dm755 "${SHARED}/mount-nfs.sh" /usr/local/bin/mount-nfs.sh
@@ -91,4 +91,4 @@ WORKDIR /workspace
 
 ENV PORT="8080"
 
-ENTRYPOINT [ "deno","run","-A","--config","/agent/deno.json","/agent/fly-agent/entrypoint.ts" ]
+ENTRYPOINT [ "deno","run","-A","--config","/agent/deno.json","/agent/agent-dev-suite/entrypoint.ts" ]

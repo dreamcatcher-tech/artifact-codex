@@ -4,7 +4,6 @@ import {
   clerkMiddleware,
   getAuth,
 } from '@hono/clerk-auth'
-import Debug from 'debug'
 
 import {
   actorAppExists,
@@ -28,14 +27,14 @@ import {
   ensureComputersMounted,
   removeComputerFolder,
 } from './storage.ts'
-import { readAppEnv, readRequiredAppEnv } from '@artifact/shared'
+import {
+  readAppEnv,
+  readRequiredAppEnv,
+  setFlyMachineHeader,
+} from '@artifact/shared'
+
 const TEST_USER_HEADER = 'x-artifact-test-user'
-const INTEGRATION_TEST_USER_ID = resolveIntegrationTestUserId()
-const log = Debug('@artifact/fly-auth:app')
-const requestLog = log.extend('request')
-const storageLog = log.extend('storage')
-const actorLog = log.extend('actor')
-const errorLog = log.extend('error')
+const integrationTestUserId = resolveIntegrationTestUserId()
 
 type AuthDependencies = {
   middleware: MiddlewareHandler<{ Variables: ClerkAuthVariables }>
@@ -63,239 +62,8 @@ type CreateAppOptions = {
 }
 
 export function createApp({ dependencies }: CreateAppOptions = {}) {
-  const deps = createDependencies(dependencies)
-  const app = new Hono<{ Variables: ClerkAuthVariables }>()
-
-  app.use('*', deps.auth.middleware)
-
-  app.get('*', async (c) => {
-    const requestUrl = new URL(c.req.url)
-    requestLog('GET / start host=%s', requestUrl.host)
-    const testUser = extractTestUserId(c)
-    const auth = testUser ? { userId: testUser } : deps.auth.resolve(c)
-    requestLog(
-      'authentication resolved user=%s source=%s',
-      auth?.userId ?? 'USER NOT FOUND',
-      testUser ? 'test-header' : 'clerk',
-    )
-    if (!auth?.userId) {
-      const wantsJsonResponse = wantsJson(c)
-      const redirects: ClerkRedirects = resolveClerkRedirects()
-      if (wantsJsonResponse) {
-        errorLog('unauthenticated request (json) host=%s', requestUrl.host)
-        return c.json({ error: 'unauthenticated' }, 401)
-      }
-
-      const destination = resolveRedirectUrl(c, redirects)
-      if (!destination) {
-        errorLog(
-          'unauthenticated request without redirect host=%s',
-          requestUrl.host,
-        )
-        return c.json({ error: 'unauthenticated' }, 401)
-      }
-
-      requestLog('redirecting unauthenticated request to %s', destination)
-      return c.redirect(destination, 302)
-    }
-
-    const actorApp = deriveActorAppName(auth.userId)
-    const desiredHost = `${actorApp}.${deps.baseDomain}`
-    const onActorHost = hostsMatch(requestUrl.hostname, desiredHost)
-
-    const settle = <T>(promise: Promise<T>) =>
-      promise
-        .then((value) => ({ ok: true as const, value }))
-        .catch((error: unknown) => ({ ok: false as const, error }))
-
-    const ensureMountResultPromise = settle(deps.ensureMount())
-    const appExistsResultPromise = settle(deps.appExists(actorApp))
-    const secretProbeResultPromise = settle(deps.probeSecrets(actorApp))
-
-    const mountResult = await ensureMountResultPromise
-    if (!mountResult.ok) {
-      errorLog(
-        'failed to mount computers share for %s: %O',
-        actorApp,
-        mountResult.error,
-      )
-      await Promise.allSettled([
-        appExistsResultPromise,
-        secretProbeResultPromise,
-      ])
-      return c.json({ error: 'storage_unavailable' }, 503)
-    }
-    storageLog('ensureMount success for %s', actorApp)
-
-    let folderExists = false
-    try {
-      folderExists = await deps.folderExists(actorApp)
-      storageLog('folderExists(%s) -> %s', actorApp, folderExists)
-    } catch (error) {
-      errorLog(
-        'failed to inspect computers directory for %s: %O',
-        actorApp,
-        error,
-      )
-      await Promise.allSettled([
-        appExistsResultPromise,
-        secretProbeResultPromise,
-      ])
-      return c.json({ error: 'filesystem_error' }, 500)
-    }
-
-    let appExists = false
-    try {
-      const appExistsResult = await appExistsResultPromise
-      if (!appExistsResult.ok) throw appExistsResult.error
-      appExists = appExistsResult.value
-      actorLog('appExists(%s) -> %s', actorApp, appExists)
-    } catch (error) {
-      errorLog('failed to inspect fly app for %s: %O', actorApp, error)
-      await Promise.allSettled([secretProbeResultPromise])
-      return c.json({ error: 'provision_failed' }, 500)
-    }
-
-    let secretStatus: ActorSecretProbeResult = { status: 'app_missing' }
-    try {
-      const secretProbeResult = await secretProbeResultPromise
-      if (!secretProbeResult.ok) throw secretProbeResult.error
-      secretStatus = secretProbeResult.value
-      if (secretStatus.status === 'missing') {
-        actorLog('controller token secret missing for %s', actorApp)
-      }
-    } catch (error) {
-      errorLog('failed to validate secrets for %s: %O', actorApp, error)
-      return c.json({ error: 'provision_failed' }, 500)
-    }
-
-    const secretsReady = secretStatus.status === 'present'
-
-    if (folderExists && !appExists) {
-      storageLog('removing folder for %s (missing fly app)', actorApp)
-      try {
-        await deps.removeFolder(actorApp)
-        folderExists = false
-        storageLog('removed folder for %s before reprovisioning', actorApp)
-      } catch (error) {
-        errorLog('failed to remove stale folder for %s: %O', actorApp, error)
-        return c.json({ error: 'filesystem_error' }, 500)
-      }
-    }
-
-    const environmentReady = folderExists && appExists && secretsReady
-
-    if (environmentReady) {
-      actorLog('folder and app ready for %s', actorApp)
-      if (!onActorHost) {
-        actorLog('redirecting to actor host %s', desiredHost)
-        return redirectToActorHost(c, desiredHost, requestUrl)
-      }
-      actorLog('replaying request to %s (existing)', actorApp)
-      return replayToActorApp(c, actorApp)
-    }
-
-    try {
-      actorLog('ensuring actor app %s', actorApp)
-      await deps.ensureActorApp(actorApp, { secretStatus })
-      actorLog('actor app ready %s', actorApp)
-    } catch (error) {
-      errorLog('failed to ensure actor app %s: %O', actorApp, error)
-      if (!appExists) {
-        try {
-          storageLog(
-            'cleaning up folder for %s after provisioning failure',
-            actorApp,
-          )
-          await deps.removeFolder(actorApp)
-          storageLog(
-            'removed folder for %s after provisioning failure',
-            actorApp,
-          )
-        } catch (cleanupError) {
-          errorLog(
-            'failed to remove folder for %s after provisioning failure: %O',
-            actorApp,
-            cleanupError,
-          )
-        }
-      }
-      return c.json({ error: 'provision_failed' }, 500)
-    }
-
-    try {
-      storageLog('creating folder for %s', actorApp)
-      await deps.createFolder(actorApp)
-      storageLog('folder created for %s', actorApp)
-    } catch (error) {
-      if (!(error instanceof Deno.errors.AlreadyExists)) {
-        errorLog('failed to create actor directory for %s: %O', actorApp, error)
-        return c.json({ error: 'filesystem_error' }, 500)
-      }
-    }
-
-    if (!onActorHost) {
-      actorLog('redirecting newly provisioned user to %s', desiredHost)
-      return redirectToActorHost(c, desiredHost, requestUrl)
-    }
-
-    actorLog('replaying request to %s (new)', actorApp)
-    return replayToActorApp(c, actorApp)
-  })
-
-  app.delete('/integration/actor', async (c) => {
-    requestLog('DELETE /integration/actor start')
-    const testUser = extractTestUserId(c)
-    if (testUser !== INTEGRATION_TEST_USER_ID) {
-      errorLog('integration destroy attempted without credentials')
-      return c.json({ error: 'unauthorized' }, 401)
-    }
-
-    const actorApp = deriveActorAppName(testUser)
-
-    try {
-      await deps.ensureMount()
-      storageLog('ensureMount success (integration) for %s', actorApp)
-    } catch (error) {
-      errorLog(
-        'integration failed to mount computers share for %s: %O',
-        actorApp,
-        error,
-      )
-      return c.json({ error: 'storage_unavailable' }, 503)
-    }
-
-    try {
-      await deps.destroyActorApp(actorApp)
-      actorLog('destroyed actor app %s', actorApp)
-    } catch (error) {
-      errorLog('failed to destroy actor app %s: %O', actorApp, error)
-      return c.json({ error: 'destroy_failed' }, 502)
-    }
-
-    try {
-      await deps.removeFolder(actorApp)
-      storageLog('removed folder for %s', actorApp)
-    } catch (error) {
-      errorLog('failed to remove actor directory for %s: %O', actorApp, error)
-      return c.json({ error: 'filesystem_error' }, 500)
-    }
-
-    requestLog('DELETE /integration/actor complete for %s', actorApp)
-    return c.body(null, 204)
-  })
-
-  return app
-}
-
-export type { CreateAppOptions }
-export { deriveActorAppName }
-
-function createDependencies(
-  overrides: Partial<AppDependencies> = {},
-): AppDependencies {
-  const authOverride: Partial<AuthDependencies> = overrides.auth ?? {}
-  return {
+  const overrides = dependencies ?? {}
+  const deps: AppDependencies = {
     ensureMount: overrides.ensureMount ?? ensureComputersMounted,
     folderExists: overrides.folderExists ?? computerFolderExists,
     createFolder: overrides.createFolder ?? createComputerFolder,
@@ -305,30 +73,166 @@ function createDependencies(
     appExists: overrides.appExists ?? actorAppExists,
     probeSecrets: overrides.probeSecrets ?? probeActorSecrets,
     auth: {
-      middleware: authOverride.middleware ?? clerkMiddleware(),
-      resolve: authOverride.resolve ?? getAuth,
+      middleware: overrides.auth?.middleware ?? clerkMiddleware(),
+      resolve: overrides.auth?.resolve ?? getAuth,
     },
     baseDomain: overrides.baseDomain ?? resolveBaseDomain(),
   }
+
+  const app = new Hono<{ Variables: ClerkAuthVariables }>()
+
+  app.use('*', async (c, next) => {
+    try {
+      await next()
+    } finally {
+      if (c.res) setFlyMachineHeader(c.res.headers)
+    }
+  })
+
+  app.use('*', deps.auth.middleware)
+
+  app.get('*', async (c) => {
+    const requestUrl = new URL(c.req.url)
+    const userId = resolveUserId(c, deps.auth.resolve)
+
+    if (!userId) {
+      if (wantsJson(c)) {
+        return c.json({ error: 'unauthenticated' }, 401)
+      }
+
+      const destination = resolveRedirectUrl(c, resolveClerkRedirects())
+      if (!destination) return c.json({ error: 'unauthenticated' }, 401)
+      return c.redirect(destination, 302)
+    }
+
+    const actorApp = deriveActorAppName(userId)
+    const expectedHost = `${actorApp}.${deps.baseDomain}`
+
+    try {
+      await deps.ensureMount()
+    } catch {
+      return c.json({ error: 'storage_unavailable' }, 503)
+    }
+
+    let folderExists = false
+    try {
+      folderExists = await deps.folderExists(actorApp)
+    } catch {
+      return c.json({ error: 'filesystem_error' }, 500)
+    }
+
+    let appExists = false
+    try {
+      appExists = await deps.appExists(actorApp)
+    } catch {
+      return c.json({ error: 'provision_failed' }, 500)
+    }
+
+    let secretStatus: ActorSecretProbeResult
+    try {
+      secretStatus = await deps.probeSecrets(actorApp)
+    } catch {
+      return c.json({ error: 'provision_failed' }, 500)
+    }
+
+    if (folderExists && !appExists) {
+      try {
+        await deps.removeFolder(actorApp)
+        folderExists = false
+      } catch {
+        return c.json({ error: 'filesystem_error' }, 500)
+      }
+    }
+
+    const secretsReady = secretStatus.status === 'present'
+    let environmentReady = folderExists && appExists && secretsReady
+
+    if (!environmentReady) {
+      try {
+        await deps.ensureActorApp(actorApp, { secretStatus })
+        appExists = true
+      } catch {
+        if (!appExists) {
+          try {
+            await deps.removeFolder(actorApp)
+          } catch {
+            // ignore cleanup failures for prototypes
+          }
+        }
+        return c.json({ error: 'provision_failed' }, 500)
+      }
+
+      try {
+        await deps.createFolder(actorApp)
+        folderExists = true
+      } catch (error) {
+        if (!(error instanceof Deno.errors.AlreadyExists)) {
+          return c.json({ error: 'filesystem_error' }, 500)
+        }
+      }
+
+      environmentReady = folderExists && appExists
+    }
+
+    if (!isActorHost(requestUrl.hostname, expectedHost)) {
+      return redirectToActorHost(c, expectedHost, requestUrl)
+    }
+
+    return replayToActorApp(c, actorApp)
+  })
+
+  app.delete('/integration/actor', async (c) => {
+    const testUser = extractTestUserId(c)
+    if (testUser !== integrationTestUserId) {
+      return c.json({ error: 'unauthorized' }, 401)
+    }
+
+    const actorApp = deriveActorAppName(testUser)
+
+    try {
+      await deps.ensureMount()
+    } catch {
+      return c.json({ error: 'storage_unavailable' }, 503)
+    }
+
+    try {
+      await deps.destroyActorApp(actorApp)
+    } catch {
+      return c.json({ error: 'destroy_failed' }, 502)
+    }
+
+    try {
+      await deps.removeFolder(actorApp)
+    } catch {
+      return c.json({ error: 'filesystem_error' }, 500)
+    }
+
+    return c.body(null, 204)
+  })
+
+  return app
 }
 
-function replayToActorApp(c: Context, actorApp: string): Response {
-  actorLog('replay -> fly-replay app=%s', actorApp)
-  const res = c.body(null, 204)
-  res.headers.set('fly-replay', `app=${actorApp}`)
-  return res
+export type { CreateAppOptions }
+export { deriveActorAppName }
+
+function resolveUserId(c: Context, resolveAuth: typeof getAuth): string | null {
+  const testUser = extractTestUserId(c)
+  if (testUser) return testUser
+  const auth = resolveAuth(c)
+  return auth?.userId ?? null
 }
 
 function extractTestUserId(c: Context): string | null {
   const header = c.req.header(TEST_USER_HEADER)
   if (!header) return null
   const trimmed = header.trim()
-  if (!trimmed) return null
-  return trimmed === INTEGRATION_TEST_USER_ID ? INTEGRATION_TEST_USER_ID : null
+  return trimmed === integrationTestUserId ? integrationTestUserId : null
 }
 
 function resolveIntegrationTestUserId(): string {
-  return readAppEnv('INTEGRATION_TEST_USER_ID') ?? 'integration-suite'
+  const raw = readAppEnv('INTEGRATION_TEST_USER_ID')?.trim()
+  return raw && raw.length > 0 ? raw : 'integration-suite'
 }
 
 function redirectToActorHost(
@@ -336,24 +240,19 @@ function redirectToActorHost(
   actorHost: string,
   requestUrl: URL,
 ): Response {
-  actorLog('redirect -> %s from %s', actorHost, requestUrl.hostname)
   const protoHeader = c.req.header('fly-forwarded-proto') ??
     c.req.header('x-forwarded-proto') ?? ''
   const forwardedProto = protoHeader.split(',')[0]?.trim().toLowerCase()
   const target = new URL(requestUrl.toString())
-  if (forwardedProto) {
-    target.protocol = forwardedProto.endsWith(':')
-      ? forwardedProto
-      : `${forwardedProto}:`
-  } else {
-    target.protocol = 'https:'
-  }
+  target.protocol = forwardedProto
+    ? forwardedProto.endsWith(':') ? forwardedProto : `${forwardedProto}:`
+    : 'https:'
   target.hostname = actorHost
   target.port = ''
   return c.redirect(target.toString(), 302)
 }
 
-function hostsMatch(actual: string, desired: string): boolean {
+function isActorHost(actual: string, desired: string): boolean {
   const actualLower = actual.toLowerCase()
   const desiredLower = desired.toLowerCase()
   if (actualLower === desiredLower) return true
@@ -374,6 +273,12 @@ function hostsMatch(actual: string, desired: string): boolean {
   if (prefix.endsWith(`--${desiredLabel}`)) return true
 
   return false
+}
+
+function replayToActorApp(c: Context, actorApp: string): Response {
+  const res = c.body(null, 204)
+  res.headers.set('fly-replay', `app=${actorApp}`)
+  return res
 }
 
 function resolveBaseDomain(): string {

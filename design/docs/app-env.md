@@ -12,18 +12,18 @@ remain in sync.
 
 ## Storage (NFS)
 
-| Variable                     | Description                                                                           | Default          | Projects                                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------- |
-| `FLY_NFS_APP`                | Fly app slug whose Flycast hostname backs the shared NFS volume.                      | —                | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
-| `FLY_TEST_MACHINE_IP`        | IPv6 address provided during Fly machine checks so validation hits the check machine. | —                | `tasks/self_mount_check`, `fly-nfs/scripts`                                      |
-| `FLY_NFS_MOUNT_DIR`          | Local mount point for the NFS share.                                                  | `/mnt/computers` | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
-| `FLY_NFS_SUBPATH`            | Relative path under the export base where app data lives.                             | `computers`      | `tasks/mount`, `fly-agent`, `fly-auth`, `fly-computer`                           |
-| `FLY_NFS_MOUNT_OPTS`         | Comma-separated NFS mount options passed to `mount -o`.                               | `nfsvers=4.1`    | `tasks/mount`, `tasks/self_mount_check`, `fly-agent`, `fly-auth`, `fly-computer` |
-| `FLY_NFS_CHECK_DIR`          | Scratch directory used by the self-mount check when listing test files.               | —                | `tasks/self_mount_check`                                                         |
-| `FLY_NFS_ENABLE_MOUNT`       | Toggles whether the agent entrypoint mounts NFS before launching.                     | `1`              | `fly-agent`                                                                      |
-| `FLY_NFS_RETRIES`            | Number of attempts the agent should make when mounting NFS.                           | `5`              | `fly-agent`                                                                      |
-| `FLY_NFS_RETRY_DELAY_SEC`    | Seconds between agent mount retries.                                                  | `3`              | `fly-agent`                                                                      |
-| `FLY_NFS_SELF_CHECK_SUBPATH` | Optional export subpath for Fly NFS self-check scripts.                               | —                | `fly-nfs/scripts`                                                                |
+| Variable                     | Description                                                                           | Default          | Projects                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `FLY_NFS_APP`                | Fly app slug whose Flycast hostname backs the shared NFS volume.                      | —                | `tasks/mount`, `tasks/self_mount_check`, `agent-dev-suite`, `fly-auth`, `fly-computer` |
+| `FLY_TEST_MACHINE_IP`        | IPv6 address provided during Fly machine checks so validation hits the check machine. | —                | `tasks/self_mount_check`, `fly-nfs/scripts`                                            |
+| `FLY_NFS_MOUNT_DIR`          | Local mount point for the NFS share.                                                  | `/mnt/computers` | `tasks/mount`, `tasks/self_mount_check`, `agent-dev-suite`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_SUBPATH`            | Relative path under the export base where app data lives.                             | `computers`      | `tasks/mount`, `agent-dev-suite`, `fly-auth`, `fly-computer`                           |
+| `FLY_NFS_MOUNT_OPTS`         | Comma-separated NFS mount options passed to `mount -o`.                               | `nfsvers=4.1`    | `tasks/mount`, `tasks/self_mount_check`, `agent-dev-suite`, `fly-auth`, `fly-computer` |
+| `FLY_NFS_CHECK_DIR`          | Scratch directory used by the self-mount check when listing test files.               | —                | `tasks/self_mount_check`                                                               |
+| `FLY_NFS_ENABLE_MOUNT`       | Toggles whether the agent entrypoint mounts NFS before launching.                     | `1`              | `agent-dev-suite`                                                                      |
+| `FLY_NFS_RETRIES`            | Number of attempts the agent should make when mounting NFS.                           | `5`              | `agent-dev-suite`                                                                      |
+| `FLY_NFS_RETRY_DELAY_SEC`    | Seconds between agent mount retries.                                                  | `3`              | `agent-dev-suite`                                                                      |
+| `FLY_NFS_SELF_CHECK_SUBPATH` | Optional export subpath for Fly NFS self-check scripts.                               | —                | `fly-nfs/scripts`                                                                      |
 
 ## Fly Access & Provisioning
 
@@ -56,6 +56,12 @@ remain in sync.
 | Variable                   | Description                                                                              | Default             | Projects   |
 | -------------------------- | ---------------------------------------------------------------------------------------- | ------------------- | ---------- |
 | `INTEGRATION_TEST_USER_ID` | Synthetic Clerk user id used by integration flows via the `x-artifact-test-user` header. | `integration-suite` | `fly-auth` |
+
+## Agent Faces
+
+| Variable   | Description                                                            | Default | Projects      |
+| ---------- | ---------------------------------------------------------------------- | ------- | ------------- |
+| `DC_FACES` | Comma-separated face kind identifiers that agent runtimes must enable. | —       | `agent-basic` |
 
 ## Deprecated Fallbacks
 

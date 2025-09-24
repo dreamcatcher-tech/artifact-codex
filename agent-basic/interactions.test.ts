@@ -5,7 +5,7 @@ Deno.test('MCP initialize handshake via SDK client', async () => {
   await using fixtures = await withApp()
   const { client } = fixtures
   const info = client.getServerVersion()
-  expect(info?.name).toBe('fly-agent')
+  expect(info?.name).toBe('agent-basic')
   const caps = client.getServerCapabilities()
   expect(typeof caps).toBe('object')
 })

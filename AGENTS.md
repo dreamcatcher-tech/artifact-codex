@@ -24,9 +24,10 @@ references (for example `.refs/codex/codex-rs/`).
 - **fly-computer** — canonical template whose configuration, secrets, and
   machine metadata expectations are copied into every actor app; it also runs as
   its own app for integration flows.
-- **Agent machines** — Fly Machines launched inside each actor app using the
-  `fly-agent` (`fly-agent-1`) image. They execute Codex agents and expose HTTP
-  endpoints on any published port.
+- **Agent machines** — Fly Machines launched inside each actor app use either
+  the `agent-dev-suite` or `agent-basic` build images. The entrypoint mounts
+  shared storage and hands off to the web server built in to each of them so
+  agents can expose HTTP endpoints on any published port.
 - **Shared storage** — NFS volume mounted at `/mnt/computers`, holding per-actor
   state, agent registries, and machine metadata.
 
@@ -82,10 +83,10 @@ correct component owns each decision.
 
 ### Stage 3 – agent machine
 
-1. The replay reaches the Fly Machine running the `fly-agent` image.
-2. The entrypoint mounts the shared NFS and launches `/agent/fly-agent/main.ts`,
-   which serves the actual Codex agent runtime. This path is the canonical
-   entrypoint.
+1. The replay reaches the Fly Machine running the `agent-*` image.
+2. The entrypoint mounts the shared NFS and launches
+   `/agent/agent-basic/main.ts`, which serves the actual Codex agent runtime.
+   This path is the canonical entrypoint shared between suites.
 3. Agents may open additional listeners within 3000–30000; because every Fly app
    advertises that full range, follow-up `fly-replay` calls succeed for
    non-default ports and paths. Monitoring for stray listeners stays the

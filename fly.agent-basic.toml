@@ -1,0 +1,37 @@
+
+app = 'fly-agent-basic'
+primary_region = 'syd'
+
+[build]
+dockerfile = 'agent-basic/Dockerfile'
+
+[env]
+DEBUG = '@artifact/agent-*'
+DEBUG_COLORS = '1'
+DEBUG_HIDE_DATE = '1'
+FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+FLY_NFS_APP = 'nfs-proto'
+
+[http_service]
+internal_port = 8080
+force_https = true
+auto_stop_machines = 'stop'
+auto_start_machines = true
+min_machines_running = 0
+
+[[services]]
+protocol = 'tcp'
+internal_port = 8080
+auto_stop_machines = 'suspend'
+auto_start_machines = true
+min_machines_running = 0
+
+[[services.ports]]
+start_port = 3000
+end_port = 30000
+handlers = ['tls', 'http']
+
+[[vm]]
+memory = '1gb'
+cpu_kind = 'shared'
+cpus = 1

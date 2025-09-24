@@ -1,0 +1,10 @@
+{
+  "name": "@artifact/agent-dev-suite",
+  "exports": { ".": "./entrypoint.ts" },
+  "tasks": {
+    "test": "deno test -A",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "ok": "deno check entrypoint.ts && deno task test && deno fmt --check && deno lint"
+  }
+}

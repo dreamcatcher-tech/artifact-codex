@@ -1,13 +1,13 @@
-in the face-inspector project, if I start the fly-agent project and then start a
-face-inspector face, it tries to start one of its services on port 10000, but
-this should always be in use by the system face that is running the fly-agent
-itself. face-inspector should use port selection logic and probing checks the
-same as the other projects do.
+in the face-inspector project, if I start the agent-dev-suite project and then
+start a face-inspector face, it tries to start one of its services on port
+10000, but this should always be in use by the system face that is running the
+agent-dev-suite itself. face-inspector should use port selection logic and
+probing checks the same as the other projects do.
 
 update the AGENTS.md file to note how the project is intended to be used, where
-fly-agent runs, and then based on interactions with the user, an LLM calls the
-mcp tools that are supplied as a default, to create further agents and faces,
-and interact with them.
+agent-dev-suite runs, and then based on interactions with the user, an LLM calls
+the mcp tools that are supplied as a default, to create further agents and
+faces, and interact with them.
 
 for each deno project, remove every entry from its imports, and in the workspace
 root, add the import there. Each project in the workspace should have nothing in
@@ -49,3 +49,5 @@ created for the first time.
 what happens if multiple agent apps come in at once ? we need to lock the
 creation, and also recover if we crash using a lock file with a timestamp or
 something.
+
+Benchmark creating a new machine. And a new app.

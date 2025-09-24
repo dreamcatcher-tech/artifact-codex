@@ -2,7 +2,7 @@ import { expect } from '@std/expect'
 import { spawnStdioMcpServer } from '@artifact/shared'
 import { createRemoteFacesHandlers } from './main.ts'
 import type { ListFacesOutput } from './server.ts'
-import { withApp } from '@artifact/fly-agent/fixture'
+import { withApp } from '@artifact/agent-basic/fixture'
 
 Deno.test('MCP initialize handshake', async () => {
   await using srv = await spawnStdioMcpServer()
@@ -35,7 +35,7 @@ Deno.test('tools/list includes face tools', async () => {
   expect(names).toContain('destroy_face')
 })
 
-// Proxy behavior tests: use the in-memory fly-agent app and pass its fetch
+// Proxy behavior tests: use the in-memory agent-basic app and pass its fetch
 // to the faces proxy so remote calls go to /mcp on that app.
 
 Deno.test('proxy list_faces forwards to remote server', async () => {

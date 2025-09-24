@@ -9,8 +9,8 @@ import { proxyHTTP, proxyWS } from './proxy.ts'
 import { baseUrl, createFetch } from './fixture.ts'
 import { isMcpRequest, isWebSocketRequest, portFromHeaders } from './utils.ts'
 import Debug from 'debug'
-import { HOST } from '@artifact/shared'
-const log = Debug('@artifact/fly-agent')
+import { setFlyMachineHeader } from '@artifact/shared'
+const log = Debug('@artifact/agent-basic')
 
 function emit(req: Request, res?: Response) {
   try {
@@ -31,6 +31,15 @@ export function createApp() {
   log('createApp: init')
   const app = new Hono()
   const mcp = mcpHandler()
+
+  app.use('*', async (c, next) => {
+    try {
+      await next()
+    } finally {
+      const res = c.res
+      if (res) setFlyMachineHeader(res.headers)
+    }
+  })
 
   let defaultFacePort: number | undefined
   const getDefaultFacePort = async () => {

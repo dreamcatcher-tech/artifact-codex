@@ -22,6 +22,7 @@ type EnvSnapshot = {
   signIn?: string
   signUp?: string
   baseDomain?: string
+  machineId?: string
 }
 
 function setClerkEnv(): () => void {
@@ -31,6 +32,7 @@ function setClerkEnv(): () => void {
     signIn: Deno.env.get('CLERK_SIGN_IN_URL') ?? undefined,
     signUp: Deno.env.get('CLERK_SIGN_UP_URL') ?? undefined,
     baseDomain: Deno.env.get('FLY_AUTH_BASE_DOMAIN') ?? undefined,
+    machineId: Deno.env.get('FLY_MACHINE_ID') ?? undefined,
   }
   Deno.env.set('CLERK_SECRET_KEY', TEST_SECRET)
   Deno.env.set(
@@ -40,6 +42,7 @@ function setClerkEnv(): () => void {
   Deno.env.set('CLERK_SIGN_IN_URL', TEST_SIGN_IN_URL)
   Deno.env.set('CLERK_SIGN_UP_URL', TEST_SIGN_UP_URL)
   Deno.env.set('FLY_AUTH_BASE_DOMAIN', TEST_BASE_DOMAIN)
+  Deno.env.set('FLY_MACHINE_ID', 'machine-test-id')
 
   return () => {
     restore('CLERK_SECRET_KEY', snapshot.secret)
@@ -47,6 +50,7 @@ function setClerkEnv(): () => void {
     restore('CLERK_SIGN_IN_URL', snapshot.signIn)
     restore('CLERK_SIGN_UP_URL', snapshot.signUp)
     restore('FLY_AUTH_BASE_DOMAIN', snapshot.baseDomain)
+    restore('FLY_MACHINE_ID', snapshot.machineId)
   }
 }
 
@@ -67,6 +71,18 @@ function stubAuth(userId: string) {
   return { middleware, resolve }
 }
 
+function setMachineIdEnv(): () => void {
+  const previous = Deno.env.get('FLY_MACHINE_ID') ?? undefined
+  Deno.env.set('FLY_MACHINE_ID', 'machine-test-id')
+  return () => {
+    restore('FLY_MACHINE_ID', previous)
+  }
+}
+
+function expectMachineHeader(res: Response) {
+  expect(res.headers.get('fly-machine-id')).toBe('machine-test-id')
+}
+
 Deno.test('unauthorized JSON request is rejected', async () => {
   const cleanup = setClerkEnv()
   try {
@@ -75,6 +91,7 @@ Deno.test('unauthorized JSON request is rejected', async () => {
       headers: { accept: 'application/json' },
     })
     expect(res.status).toBe(401)
+    expectMachineHeader(res)
     expect(await res.json()).toEqual({ error: 'unauthenticated' })
   } finally {
     cleanup()
@@ -89,6 +106,7 @@ Deno.test('redirects unauthorized request to Clerk sign-up', async () => {
       headers: { accept: 'text/plain' },
     })
     expect(res.status).toBe(302)
+    expectMachineHeader(res)
     expect(res.headers.get('location')).toBe(
       'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://localhost/',
     )
@@ -105,6 +123,7 @@ Deno.test('redirects to sign-up when requested', async () => {
       headers: { accept: 'text/plain' },
     })
     expect(res.status).toBe(302)
+    expectMachineHeader(res)
     expect(res.headers.get('location')).toBe(
       'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://localhost/?flow=sign-up',
     )
@@ -121,6 +140,7 @@ Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
       headers: { accept: 'text/plain' },
     })
     expect(res.status).toBe(302)
+    expectMachineHeader(res)
     expect(res.headers.get('location')).toBe(
       'https://legible-llama-32.accounts.dev/sign-up?redirect_url=https://scoped--sub-part.example.test/',
     )
@@ -132,39 +152,46 @@ Deno.test('redirect sanitizes agent subdomain in redirect url', async () => {
 Deno.test('replays existing actor app via redirect then fly-replay', async () => {
   let ensureCalls = 0
   let created = false
-  const app = createApp({
-    dependencies: {
-      baseDomain: TEST_BASE_DOMAIN,
-      ensureMount: () => Promise.resolve(),
-      folderExists: () => Promise.resolve(true),
-      createFolder: () => {
-        created = true
-        return Promise.resolve()
+  const cleanupEnv = setMachineIdEnv()
+  try {
+    const app = createApp({
+      dependencies: {
+        baseDomain: TEST_BASE_DOMAIN,
+        ensureMount: () => Promise.resolve(),
+        folderExists: () => Promise.resolve(true),
+        createFolder: () => {
+          created = true
+          return Promise.resolve()
+        },
+        ensureActorApp: () => {
+          ensureCalls += 1
+          return Promise.resolve({
+            appName: 'actor-user-test',
+            existed: true,
+          })
+        },
+        appExists: () => Promise.resolve(true),
+        probeSecrets: () => Promise.resolve({ status: 'present' as const }),
+        auth: stubAuth('User_Test'),
       },
-      ensureActorApp: () => {
-        ensureCalls += 1
-        return Promise.resolve({
-          appName: 'actor-user-test',
-          existed: true,
-        })
-      },
-      appExists: () => Promise.resolve(true),
-      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
-      auth: stubAuth('User_Test'),
-    },
-  })
+    })
 
-  const initial = await app.request('http://localhost/')
-  expect(initial.status).toBe(302)
-  expect(initial.headers.get('location')).toBe(
-    'https://actor-user-test.example.test/',
-  )
+    const initial = await app.request('http://localhost/')
+    expect(initial.status).toBe(302)
+    expectMachineHeader(initial)
+    expect(initial.headers.get('location')).toBe(
+      'https://actor-user-test.example.test/',
+    )
 
-  const follow = await app.request('http://actor-user-test.example.test/')
-  expect(follow.status).toBe(204)
-  expect(follow.headers.get('fly-replay')).toBe('app=actor-user-test')
-  expect(ensureCalls).toBe(0)
-  expect(created).toBe(false)
+    const follow = await app.request('http://actor-user-test.example.test/')
+    expect(follow.status).toBe(204)
+    expectMachineHeader(follow)
+    expect(follow.headers.get('fly-replay')).toBe('app=actor-user-test')
+    expect(ensureCalls).toBe(0)
+    expect(created).toBe(false)
+  } finally {
+    cleanupEnv()
+  }
 })
 
 Deno.test('provisions actor app then redirects to actor host', async () => {
@@ -172,42 +199,49 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
   let created = false
   let folderExistsState = false
   let appExistsState = false
-  const app = createApp({
-    dependencies: {
-      baseDomain: TEST_BASE_DOMAIN,
-      ensureMount: () => Promise.resolve(),
-      folderExists: () => Promise.resolve(folderExistsState),
-      createFolder: () => {
-        created = true
-        folderExistsState = true
-        return Promise.resolve()
+  const cleanupEnv = setMachineIdEnv()
+  try {
+    const app = createApp({
+      dependencies: {
+        baseDomain: TEST_BASE_DOMAIN,
+        ensureMount: () => Promise.resolve(),
+        folderExists: () => Promise.resolve(folderExistsState),
+        createFolder: () => {
+          created = true
+          folderExistsState = true
+          return Promise.resolve()
+        },
+        ensureActorApp: (name) => {
+          ensureCalls += 1
+          expect(name).toBe('actor-new-user')
+          appExistsState = true
+          return Promise.resolve({
+            appName: name,
+            existed: false,
+          })
+        },
+        appExists: () => Promise.resolve(appExistsState),
+        probeSecrets: () => Promise.resolve({ status: 'present' as const }),
+        auth: stubAuth('new.user'),
       },
-      ensureActorApp: (name) => {
-        ensureCalls += 1
-        expect(name).toBe('actor-new-user')
-        appExistsState = true
-        return Promise.resolve({
-          appName: name,
-          existed: false,
-        })
-      },
-      appExists: () => Promise.resolve(appExistsState),
-      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
-      auth: stubAuth('new.user'),
-    },
-  })
+    })
 
-  const initial = await app.request('http://localhost/')
-  expect(initial.status).toBe(302)
-  expect(initial.headers.get('location')).toBe(
-    'https://actor-new-user.example.test/',
-  )
+    const initial = await app.request('http://localhost/')
+    expect(initial.status).toBe(302)
+    expectMachineHeader(initial)
+    expect(initial.headers.get('location')).toBe(
+      'https://actor-new-user.example.test/',
+    )
 
-  const follow = await app.request('http://actor-new-user.example.test/')
-  expect(follow.status).toBe(204)
-  expect(follow.headers.get('fly-replay')).toBe('app=actor-new-user')
-  expect(ensureCalls).toBe(1)
-  expect(created).toBe(true)
+    const follow = await app.request('http://actor-new-user.example.test/')
+    expect(follow.status).toBe(204)
+    expectMachineHeader(follow)
+    expect(follow.headers.get('fly-replay')).toBe('app=actor-new-user')
+    expect(ensureCalls).toBe(1)
+    expect(created).toBe(true)
+  } finally {
+    cleanupEnv()
+  }
 })
 
 Deno.test('recreates folder when fly app is missing', async () => {

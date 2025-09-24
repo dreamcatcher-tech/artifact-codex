@@ -131,7 +131,10 @@ async function listMountDir(
 }
 
 async function smokeTest(mountDir: string): Promise<void> {
-  const tmpFile = join(mountDir, `.fly-agent-check-${crypto.randomUUID()}`)
+  const tmpFile = join(
+    mountDir,
+    `.agent-dev-suite-check-${crypto.randomUUID()}`,
+  )
   await Deno.writeTextFile(tmpFile, '')
   await Deno.remove(tmpFile).catch(() => {})
 }

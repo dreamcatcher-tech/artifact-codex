@@ -1,10 +1,11 @@
-import { type MachineDetail, mapMachineDetail } from '@artifact/shared'
-
 import {
-  type AppConfig,
-  type ConfigOverrides,
-  resolveConfig,
-} from './config.ts'
+  type MachineDetail,
+  mapMachineDetail,
+  setFlyMachineHeader,
+  withFlyMachineHeader,
+} from '@artifact/shared'
+
+import { type ConfigOverrides, resolveConfig } from './config.ts'
 import {
   AGENT_METADATA_KEY,
   createFlyApi,
@@ -16,14 +17,8 @@ import {
   type AgentRecord,
   type AgentRegistry,
   createAgentRegistry,
-  type MachineUpdate,
 } from './registry.ts'
-import {
-  buildAgentHost,
-  type HostResolution,
-  resolveComputerHost,
-  resolveHost,
-} from './routing.ts'
+import { buildAgentHost, resolveComputerHost, resolveHost } from './routing.ts'
 import { flyCliAppStatus, flyCliGetMachine } from '@artifact/tasks'
 import Debug from 'debug'
 
@@ -37,14 +32,12 @@ export type AppHandler = (request: Request) => Promise<Response>
 
 export type CreateAppOptions = {
   config?: ConfigOverrides
-  dependencies?: Partial<Dependencies>
-}
-
-type Dependencies = {
-  now: () => Date
-  fly: FlyApi
-  registry: AgentRegistry
-  loadTemplateMachine: () => Promise<MachineDetail>
+  dependencies?: Partial<{
+    now: () => Date
+    fly: FlyApi
+    registry: AgentRegistry
+    loadTemplateMachine: () => Promise<MachineDetail>
+  }>
 }
 
 export async function createApp(
@@ -52,9 +45,8 @@ export async function createApp(
 ): Promise<AppHandler> {
   const config = resolveConfig(options.config)
   const now = options.dependencies?.now ?? (() => new Date())
-  const registryRoot = config.registryRoot
   const registry = options.dependencies?.registry ??
-    createAgentRegistry(registryRoot, {
+    createAgentRegistry(config.registryRoot, {
       readDir: Deno.readDir,
       readTextFile: Deno.readTextFile,
       writeTextFile: Deno.writeTextFile,
@@ -63,12 +55,98 @@ export async function createApp(
       remove: Deno.remove,
     })
   const fly = options.dependencies?.fly ?? createFlyApi(config)
-  const loadTemplateMachine = options.dependencies?.loadTemplateMachine ??
-    createTemplateMachineLoader(config)
+  const loadTemplate = options.dependencies?.loadTemplateMachine ??
+    (() => loadTemplateMachine(config.agentTemplateApp))
+
+  let templateMachine: Promise<MachineDetail> | null = null
+  const getTemplateMachine = () =>
+    templateMachine ?? (templateMachine = loadTemplate())
 
   await registry.ensureReady()
 
-  const deps: Dependencies = { now, fly, registry, loadTemplateMachine }
+  const ensureAgentMachine = async (
+    agent: AgentRecord,
+  ): Promise<MachineDetail> => {
+    const recorded = await registry.findMachineByAgent(agent.id)
+    if (recorded) {
+      const detail = await safeGetMachine(fly, recorded.id)
+      if (detail) {
+        machineLog(
+          'using recorded machine id=%s agent=%s',
+          recorded.id,
+          agent.id,
+        )
+        await ensureMachineRunning(detail, fly)
+        return detail
+      }
+      machineLog(
+        'recorded machine missing id=%s agent=%s; removing',
+        recorded.id,
+        agent.id,
+      )
+      await registry.removeMachine(recorded.id)
+    }
+
+    const template = await getTemplateMachine()
+    const image = config.agentImage ?? extractMachineImage(template)
+    if (!image) {
+      throw new Error(
+        'Unable to determine agent machine image from template app',
+      )
+    }
+
+    const machineConfig: Record<string, unknown> =
+      isPlainObject(template.config)
+        ? { ...(template.config as Record<string, unknown>) }
+        : {}
+    const metadata: Record<string, unknown> =
+      isPlainObject(machineConfig.metadata)
+        ? { ...(machineConfig.metadata as Record<string, unknown>) }
+        : {}
+    delete metadata.fly_platform_version
+    metadata[AGENT_METADATA_KEY] = agent.id
+    machineConfig.image = image
+    machineConfig.metadata = metadata
+
+    const rawName = `${agent.pathSegment || 'agent'}-${agent.id}`
+    const normalized = rawName.replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-')
+    const trimmed = normalized.replace(/^-+|-+$/g, '') || `agent-${agent.id}`
+    const machineName = trimmed.slice(0, 63)
+
+    machineLog(
+      'creating machine via run name=%s agent=%s image=%s region=%s',
+      machineName,
+      agent.id,
+      image,
+      config.defaultRegion ?? 'default',
+    )
+    const created = await fly.runMachine({
+      name: machineName,
+      config: machineConfig,
+      image,
+      region: config.defaultRegion,
+    })
+
+    const detail = await safeGetMachine(fly, created.id) ?? {
+      ...created,
+      config: machineConfig,
+    }
+    machineLog('created machine id=%s agent=%s', detail.id, agent.id)
+    await ensureMachineRunning(detail, fly)
+    return detail
+  }
+
+  const updateMachineRecord = async (
+    agentId: string,
+    detail: MachineDetail,
+  ) => {
+    await registry.updateMachine(agentId, {
+      id: detail.id,
+      name: detail.name,
+      image: extractMachineImage(detail),
+      updatedAt: now().toISOString(),
+    })
+  }
 
   return async (request: Request): Promise<Response> => {
     const host = resolveHost(request)
@@ -94,19 +172,45 @@ export async function createApp(
       return jsonError(404, 'computer not found')
     }
 
-    const { computer, agentPath } = hostInfo
+    const computer = hostInfo.computer as string
+    const agentPath = hostInfo.agentPath
 
     if (agentPath.length === 0) {
-      return handleLandingRequest({
-        request,
+      agentLog('landing request host=%s computer=%s', host, computer)
+      const agent = await registry.createAgent()
+      agentLog(
+        'created agent id=%s name="%s" segment=%s',
+        agent.id,
+        agent.name,
+        agent.pathSegment,
+      )
+
+      const detail = await ensureAgentMachine(agent)
+      await updateMachineRecord(agent.id, detail)
+
+      const redirectUrl = new URL(request.url)
+      redirectUrl.hostname = buildAgentHost(
+        [agent.pathSegment],
+        computer,
+        config.baseDomain,
+      )
+      redirectUrl.protocol = 'https:'
+      redirectUrl.port = ''
+
+      agentLog(
+        'redirecting host=%s to location=%s',
         host,
-        hostInfo,
-        config,
-        deps,
-      })
+        redirectUrl.toString(),
+      )
+      return withFlyMachineHeader(
+        new Response(null, {
+          status: 302,
+          headers: { location: redirectUrl.toString() },
+        }),
+      )
     }
 
-    const agent = await deps.registry.findByPath(agentPath)
+    const agent = await registry.findByPath(agentPath)
     if (!agent) {
       errorLog('agent not found host=%s path=%o', host, agentPath)
       return jsonError(404, 'agent not found')
@@ -121,180 +225,25 @@ export async function createApp(
       host,
     )
 
-    const detail = await reconcileMachine(agent, config, deps)
-    const machineUpdate: MachineUpdate = {
-      id: detail.id,
-      name: detail.name,
-      image: extractMachineImage(detail),
-      updatedAt: deps.now().toISOString(),
-    }
-    await deps.registry.updateMachine(agent.id, machineUpdate)
+    const detail = await ensureAgentMachine(agent)
+    await updateMachineRecord(agent.id, detail)
 
-    return replayResponse(config.targetApp, detail.id)
+    const headers = new Headers({
+      'fly-replay': `app=${config.targetApp};fly_force_instance=${detail.id}`,
+    })
+    setFlyMachineHeader(headers)
+    return new Response(null, { status: 204, headers })
   }
-}
-
-async function reconcileMachine(
-  agent: AgentRecord,
-  config: AppConfig,
-  deps: Dependencies,
-): Promise<MachineDetail> {
-  const recorded = await deps.registry.findMachineByAgent(agent.id)
-  if (recorded) {
-    const detail = await safeGetMachine(deps.fly, recorded.id)
-    if (detail) {
-      machineLog(
-        'using recorded machine id=%s agent=%s',
-        recorded.id,
-        agent.id,
-      )
-      await ensureMachineRunning(detail, deps.fly)
-      return detail
-    }
-    machineLog(
-      'recorded machine missing id=%s agent=%s; removing',
-      recorded.id,
-      agent.id,
-    )
-    await deps.registry.removeMachine(recorded.id)
-  }
-
-  const template = await deps.loadTemplateMachine()
-  const templateImage = config.agentImage ?? extractMachineImage(template)
-  if (!templateImage) {
-    throw new Error('Unable to determine agent machine image from template app')
-  }
-  const machineName = buildMachineName(agent)
-  const machineConfig = buildMachineConfig(
-    template?.config as Record<string, unknown> | undefined,
-    templateImage,
-    agent.id,
-  )
-
-  machineLog(
-    'creating machine via run name=%s agent=%s image=%s region=%s',
-    machineName,
-    agent.id,
-    templateImage,
-    config.defaultRegion ?? 'default',
-  )
-  const created = await deps.fly.runMachine({
-    name: machineName,
-    config: machineConfig,
-    image: templateImage,
-    region: config.defaultRegion,
-  })
-
-  const detail = await safeGetMachine(deps.fly, created.id) ?? {
-    ...created,
-    config: machineConfig,
-  }
-  machineLog('created machine id=%s agent=%s', detail.id, agent.id)
-  await ensureMachineRunning(detail, deps.fly)
-  return detail
-}
-
-function buildMachineConfig(
-  template: Record<string, unknown> | undefined,
-  image: string,
-  agentId: string,
-): Record<string, unknown> {
-  const base: Record<string, unknown> = template
-    ? structuredClone(template)
-    : {}
-  base.image = image
-  const metadata: Record<string, unknown> = isPlainObject(base.metadata)
-    ? { ...(base.metadata as Record<string, unknown>) }
-    : {}
-  delete metadata.fly_platform_version
-  metadata[AGENT_METADATA_KEY] = agentId
-  base.metadata = metadata
-  return base
-}
-
-function buildMachineName(agent: AgentRecord): string {
-  const segment = agent.pathSegment || 'agent'
-  const base = `${segment}-${agent.id}`
-  const normalized = base.replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-')
-  const trimmed = normalized.replace(/^-+|-+$/g, '') || `agent-${agent.id}`
-  return trimmed.slice(0, 63)
-}
-
-function replayResponse(appName: string, machineId: string): Response {
-  const headers = new Headers({
-    'fly-replay': `app=${appName};fly_force_instance=${machineId}`,
-  })
-  return new Response(null, { status: 204, headers })
 }
 
 function jsonError(status: number, message: string): Response {
   const body = JSON.stringify({ error: message })
   errorLog('responding status=%d message=%s', status, message)
-  return new Response(body, {
+  const response = new Response(body, {
     status,
     headers: { 'content-type': 'application/json' },
   })
-}
-
-type LandingContext = {
-  request: Request
-  host: string
-  hostInfo: HostResolution
-  config: AppConfig
-  deps: Dependencies
-}
-
-async function handleLandingRequest(
-  { request, host, hostInfo, config, deps }: LandingContext,
-): Promise<Response> {
-  agentLog('landing request host=%s computer=%s', host, hostInfo.computer)
-  const agent = await deps.registry.createAgent()
-  agentLog(
-    'created agent id=%s name="%s" segment=%s',
-    agent.id,
-    agent.name,
-    agent.pathSegment,
-  )
-  const detail = await reconcileMachine(agent, config, deps)
-  const machineUpdate: MachineUpdate = {
-    id: detail.id,
-    name: detail.name,
-    image: extractMachineImage(detail),
-    updatedAt: deps.now().toISOString(),
-  }
-  await deps.registry.updateMachine(agent.id, machineUpdate)
-
-  const location = buildAgentRedirectUrl({
-    request,
-    computer: hostInfo.computer!,
-    agentPath: [agent.pathSegment],
-    baseDomain: config.baseDomain,
-  })
-  agentLog('redirecting host=%s to location=%s', host, location)
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location,
-    },
-  })
-}
-
-type RedirectContext = {
-  request: Request
-  computer: string
-  agentPath: string[]
-  baseDomain: string
-}
-
-function buildAgentRedirectUrl(
-  { request, computer, agentPath, baseDomain }: RedirectContext,
-): string {
-  const url = new URL(request.url)
-  const updatedHost = buildAgentHost(agentPath, computer, baseDomain)
-  url.hostname = updatedHost
-  url.protocol = 'https:'
-  url.port = ''
-  return url.toString()
+  return withFlyMachineHeader(response)
 }
 
 function extractMachineImage(detail: MachineDetail): string | undefined {
@@ -308,18 +257,6 @@ function extractMachineImage(detail: MachineDetail): string | undefined {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
-function createTemplateMachineLoader(
-  config: AppConfig,
-): () => Promise<MachineDetail> {
-  let cached: Promise<MachineDetail> | null = null
-  return async () => {
-    if (!cached) {
-      cached = loadTemplateMachine(config.agentTemplateApp)
-    }
-    return await cached
-  }
 }
 
 async function loadTemplateMachine(appName: string): Promise<MachineDetail> {
