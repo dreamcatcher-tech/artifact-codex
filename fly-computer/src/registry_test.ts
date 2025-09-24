@@ -39,6 +39,33 @@ Deno.test('createAgent stores config without slug and resolves path segment', as
   }
 })
 
+Deno.test('createAgent uses agent id derived defaults instead of machine names', async () => {
+  const root = await Deno.makeTempDir({ prefix: 'agent-registry-' })
+  const originalRandomUUID = crypto.randomUUID
+  try {
+    ;(crypto as { randomUUID: () => string }).randomUUID = () =>
+      '99829794-d5aa-1234-5678-90abcdef0000'
+
+    const registry = createAgentRegistry(root, DEFAULT_DEPS)
+    await registry.ensureReady()
+
+    const agent = await registry.createAgent()
+
+    expect(agent.name).toBe('Agent 99829794D5')
+    expect(agent.pathSegment).toBe('agent-99829794d5')
+
+    const configPath = join(root, 'agents', `${agent.id}.json`)
+    const config = JSON.parse(await Deno.readTextFile(configPath)) as Record<
+      string,
+      unknown
+    >
+    expect(config.name).toBe('Agent 99829794D5')
+  } finally {
+    ;(crypto as { randomUUID: () => string }).randomUUID = originalRandomUUID
+    await Deno.remove(root, { recursive: true })
+  }
+})
+
 Deno.test('updateMachine records machine under machines directory', async () => {
   const root = await Deno.makeTempDir({ prefix: 'agent-registry-' })
   try {

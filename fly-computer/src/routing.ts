@@ -1,7 +1,7 @@
 import {
   agentToSubdomain,
-  subdomainToAgent,
   PATH_SEPARATOR,
+  subdomainToAgent,
 } from '@artifact/shared'
 
 export function resolveHost(request: Request): string | undefined {

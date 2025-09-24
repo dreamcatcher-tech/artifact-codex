@@ -29,6 +29,15 @@ export type EnsureActorAppResult = {
   existed: boolean
 }
 
+export type EnsureActorAppOptions = {
+  secretStatus?: ActorSecretProbeResult
+}
+
+export type ActorSecretProbeResult =
+  | { status: 'present' }
+  | { status: 'missing'; missing: string[] }
+  | { status: 'app_missing' }
+
 type TemplateMachineInfo = {
   sourceApp: string
   image: string
@@ -43,8 +52,28 @@ export function deriveActorAppName(clerkId: string): string {
   return `${ACTOR_PREFIX}${normalized}`
 }
 
+export async function probeActorSecrets(
+  appName: string,
+): Promise<ActorSecretProbeResult> {
+  try {
+    const secrets = await flyCliSecretsList({ appName })
+    const hasControllerToken = secrets.some((secret) =>
+      secret.name.trim().toUpperCase() === 'FLY_API_TOKEN'
+    )
+    return hasControllerToken
+      ? { status: 'present' }
+      : { status: 'missing', missing: ['FLY_API_TOKEN'] }
+  } catch (error) {
+    if (isFlyResourceNotFound(error)) {
+      return { status: 'app_missing' }
+    }
+    throw error
+  }
+}
+
 export async function ensureActorApp(
   appName: string,
+  options: EnsureActorAppOptions = {},
 ): Promise<EnsureActorAppResult> {
   const controllerToken = readRequiredAppEnv('FLY_API_TOKEN')
   const templateApp = readAppEnv('FLY_COMPUTER_TEMPLATE_APP') ??
@@ -60,7 +89,9 @@ export async function ensureActorApp(
   const existingStatus = await getAppStatus(appName)
   if (existingStatus) {
     await ensurePrivateIp(appName)
-    const secretExisted = await actorApiTokenSecretExists(appName)
+    const secretProbe = options.secretStatus ??
+      (await probeActorSecrets(appName))
+    const secretExisted = secretProbe.status === 'present'
     await ensureActorAppSecrets({
       appName,
       agentImage: templateMachine.image,
@@ -232,13 +263,6 @@ async function ensureActorAppSecrets(
       FLY_COMPUTER_AGENT_IMAGE: agentImage,
     },
   })
-}
-
-async function actorApiTokenSecretExists(appName: string): Promise<boolean> {
-  const secrets = await flyCliSecretsList({ appName })
-  return secrets.some((secret) =>
-    secret.name.trim().toUpperCase() === 'FLY_API_TOKEN'
-  )
 }
 
 async function deployActorApp(

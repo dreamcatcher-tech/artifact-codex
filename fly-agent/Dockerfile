@@ -67,11 +67,11 @@ RUN flyctl settings autoupdate disable
 RUN flyctl settings analytics disable
 
 RUN npm i -g npm
-RUN npm i -g @openai/codex
 
-# Copy only what's needed to run the MCP web server
 COPY . /agent
 WORKDIR /agent
+
+RUN npm i -g @openai/codex
 
 # Pre-cache Deno deps for faster cold starts
 RUN deno install --quiet

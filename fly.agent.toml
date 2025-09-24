@@ -1,49 +1,46 @@
+# fly.toml app configuration file generated for fly-agent-1 on 2025-09-24T09:11:58Z
+#
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'universal-compute'
+app = 'fly-agent-1'
 primary_region = 'syd'
-# swap stops the suspend feature from working
-# swap_size_mb = 2048
-
-
-[processes]
-'/' = '' # Root agent receives all requests
-# agents process group is made ad hoc
-
-[env]
-FLY_NFS_APP = 'nfs-proto'
-FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
-
-DEBUG = '@artifact/fly-agent*'
-DEBUG_HIDE_DATE = '1'
-DEBUG_COLORS = '1'
 
 [build]
-dockerfile = 'fly-agent/Dockerfile'
+  dockerfile = 'fly-agent/Dockerfile'
+
+[env]
+  DEBUG = '@artifact/fly-agent*'
+  DEBUG_COLORS = '1'
+  DEBUG_HIDE_DATE = '1'
+  FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
+  FLY_NFS_APP = 'nfs-proto'
+
+[processes]
+  '/' = ''
 
 [http_service]
-processes = ['/']
-internal_port = 8080
-force_https = true
-auto_stop_machines = true
-auto_start_machines = true
-min_machines_running = 0
-
-[[vm]]
-memory = '1gb'
-cpu_kind = 'shared'
-cpus = 1
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['/']
 
 [[services]]
-processes = ['/']
-internal_port = 8080
-protocol = 'tcp'
-auto_stop_machines = 'suspend'
-auto_start_machines = true
-min_machines_running = 0
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['/']
 
-[[services.ports]]
-handlers = ["tls", "http"]
-start_port = 3000
-end_port = 30000
+  [[services.ports]]
+    start_port = 3000
+    end_port = 30000
+    handlers = ['tls', 'http']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

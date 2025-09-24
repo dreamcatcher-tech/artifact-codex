@@ -24,7 +24,7 @@ const REQUIRED_FLY_ENV: Record<string, string> = {
   FLY_PROCESS_GROUP: 'app',
   FLY_VM_MEMORY_MB: '256',
   PRIMARY_REGION: 'syd',
-  FLY_AGENT_TEMPLATE_APP: 'universal-compute',
+  FLY_AGENT_TEMPLATE_APP: 'fly-agent-1',
   FLY_NFS_APP: 'nfs-proto',
 }
 
@@ -75,10 +75,15 @@ function hostForAgentPath(path: string[]): string {
 }
 
 function deriveSegment(name: string, id: string): string {
-  const idFragment = id.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10) ||
-    'agent'
-  const base = slugify(name).slice(0, 16).replace(/^-+|-+$/g, '')
-  const combined = base ? `${base}-${idFragment}` : idFragment
+  const normalizedId = id.replace(/[^a-z0-9]/gi, '').toLowerCase()
+  const idFragment = normalizedId.slice(0, 10) || 'agent'
+  const baseSlug = slugify(name)
+  const limitedBase = baseSlug.slice(0, 16)
+  const trimmedBase = limitedBase.replace(/^-+|-+$/g, '')
+  const alreadySuffixed = trimmedBase.endsWith(idFragment)
+  const combined = trimmedBase
+    ? alreadySuffixed ? trimmedBase : `${trimmedBase}-${idFragment}`
+    : idFragment
   const normalized = slugify(combined)
   return normalized || idFragment
 }
@@ -144,8 +149,8 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
     const fly = createFlyStub()
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -201,7 +206,7 @@ Deno.test('uses template image when agentImage override is not provided', async 
     const templateImage = 'registry.fly.io/fly-agent:stable'
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
+        targetApp: 'fly-agent-1',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -249,8 +254,8 @@ Deno.test('replays to configured machine without restarting when already running
 
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -269,7 +274,7 @@ Deno.test('replays to configured machine without restarting when already running
     )
     expect(res.status).toBe(204)
     expect(res.headers.get('fly-replay')).toBe(
-      'app=universal-compute;fly_force_instance=m-1',
+      'app=fly-agent-1;fly_force_instance=m-1',
     )
     expect(fly.startCalls).toEqual([])
 
@@ -309,8 +314,8 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
 
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -352,8 +357,8 @@ Deno.test('removes stale machine record when remote machine is missing', async (
 
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -391,7 +396,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
           id: machineId,
           name: 'foo-1',
           state: 'stopped',
-          config: { image: 'registry.fly.io/universal-compute:latest' },
+          config: { image: 'registry.fly.io/fly-agent-1:latest' },
         })
       },
       createMachine(input) {
@@ -402,8 +407,8 @@ Deno.test('creates new machine when none exist and updates registry', async () =
 
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },
@@ -468,8 +473,8 @@ Deno.test('resolves nested agent path using parent links', async () => {
 
     const handler = await createApp({
       config: {
-        targetApp: 'universal-compute',
-        agentImage: 'registry.fly.io/universal-compute:latest',
+        targetApp: 'fly-agent-1',
+        agentImage: 'registry.fly.io/fly-agent-1:latest',
         registryRoot,
         baseDomain: BASE_DOMAIN,
       },

@@ -25,7 +25,7 @@ references (for example `.refs/codex/codex-rs/`).
   machine metadata expectations are copied into every actor app; it also runs as
   its own app for integration flows.
 - **Agent machines** — Fly Machines launched inside each actor app using the
-  `fly-agent` (`universal-compute`) image. They execute Codex agents and expose
+  `fly-agent` (`fly-agent-1`) image. They execute Codex agents and expose
   HTTP endpoints on any published port.
 - **Shared storage** — NFS volume mounted at `/mnt/computers`, holding per-actor
   state, agent registries, and machine metadata.

@@ -1,4 +1,3 @@
-import { generateFlyMachineName } from '@artifact/shared'
 import { join } from '@std/path'
 
 import { z } from 'zod'
@@ -282,7 +281,7 @@ export function createAgentRegistry(
     await ensureReady()
 
     const agentId = crypto.randomUUID()
-    const name = resolveAgentName(options.name)
+    const name = resolveAgentName(agentId, options.name)
     const parentId = options.parentId
     const configData: Record<string, unknown> = {
       id: agentId,
@@ -424,14 +423,10 @@ function matchesPath(a: string[], b: string[]): boolean {
   return a.every((segment, index) => segment === b[index])
 }
 
-function defaultAgentName(): string {
-  return generateFlyMachineName()
-}
-
-function resolveAgentName(requestedName?: string): string {
+function resolveAgentName(agentId: string, requestedName?: string): string {
   const trimmed = requestedName?.trim()
   if (trimmed) return trimmed
-  return defaultAgentName()
+  return defaultAgentName(agentId)
 }
 
 function resolveAgentSegment(
@@ -447,13 +442,26 @@ function resolveAgentSegment(
 }
 
 function deriveAgentSegment(name: string, agentId: string): string {
-  const idFragment =
-    agentId.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10) || 'agent'
-  const base = slugify(name).slice(0, 16)
-  const trimmedBase = base.replace(/^-+|-+$/g, '')
-  const combined = trimmedBase ? `${trimmedBase}-${idFragment}` : idFragment
+  const idFragment = agentIdFragment(agentId)
+  const baseSlug = slugify(name)
+  const limitedBase = baseSlug.slice(0, 16)
+  const trimmedBase = limitedBase.replace(/^-+|-+$/g, '')
+  const alreadySuffixed = trimmedBase.endsWith(idFragment)
+  const combined = trimmedBase
+    ? alreadySuffixed ? trimmedBase : `${trimmedBase}-${idFragment}`
+    : idFragment
   const normalized = slugify(combined)
   return normalized || idFragment
+}
+
+function agentIdFragment(agentId: string): string {
+  const normalized = agentId.replace(/[^a-z0-9]/gi, '').toLowerCase()
+  return normalized.slice(0, 10) || 'agent'
+}
+
+function defaultAgentName(agentId: string): string {
+  const fragment = agentIdFragment(agentId)
+  return `Agent ${fragment.toUpperCase()}`
 }
 
 function stripJsonExtension(filename: string): string {

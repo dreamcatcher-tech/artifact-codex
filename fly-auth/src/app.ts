@@ -8,10 +8,13 @@ import Debug from 'debug'
 
 import {
   actorAppExists,
+  type ActorSecretProbeResult,
   deriveActorAppName,
   destroyActorApp,
   ensureActorApp,
+  type EnsureActorAppOptions,
   type EnsureActorAppResult,
+  probeActorSecrets,
 } from './actors.ts'
 import {
   ClerkRedirects,
@@ -43,10 +46,14 @@ type AppDependencies = {
   ensureMount: () => Promise<void>
   folderExists: (appName: string) => Promise<boolean>
   createFolder: (appName: string) => Promise<void>
-  ensureActorApp: (appName: string) => Promise<EnsureActorAppResult>
+  ensureActorApp: (
+    appName: string,
+    options?: EnsureActorAppOptions,
+  ) => Promise<EnsureActorAppResult>
   destroyActorApp: (appName: string) => Promise<void>
   removeFolder: (appName: string) => Promise<void>
   appExists: (appName: string) => Promise<boolean>
+  probeSecrets: (appName: string) => Promise<ActorSecretProbeResult>
   auth: AuthDependencies
   baseDomain: string
 }
@@ -96,13 +103,29 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
     const desiredHost = `${actorApp}.${deps.baseDomain}`
     const onActorHost = hostsMatch(requestUrl.hostname, desiredHost)
 
-    try {
-      await deps.ensureMount()
-      storageLog('ensureMount success for %s', actorApp)
-    } catch (error) {
-      errorLog('failed to mount computers share for %s: %O', actorApp, error)
+    const settle = <T>(promise: Promise<T>) =>
+      promise
+        .then((value) => ({ ok: true as const, value }))
+        .catch((error: unknown) => ({ ok: false as const, error }))
+
+    const ensureMountResultPromise = settle(deps.ensureMount())
+    const appExistsResultPromise = settle(deps.appExists(actorApp))
+    const secretProbeResultPromise = settle(deps.probeSecrets(actorApp))
+
+    const mountResult = await ensureMountResultPromise
+    if (!mountResult.ok) {
+      errorLog(
+        'failed to mount computers share for %s: %O',
+        actorApp,
+        mountResult.error,
+      )
+      await Promise.allSettled([
+        appExistsResultPromise,
+        secretProbeResultPromise,
+      ])
       return c.json({ error: 'storage_unavailable' }, 503)
     }
+    storageLog('ensureMount success for %s', actorApp)
 
     let folderExists = false
     try {
@@ -114,17 +137,39 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
         actorApp,
         error,
       )
+      await Promise.allSettled([
+        appExistsResultPromise,
+        secretProbeResultPromise,
+      ])
       return c.json({ error: 'filesystem_error' }, 500)
     }
 
     let appExists = false
     try {
-      appExists = await deps.appExists(actorApp)
+      const appExistsResult = await appExistsResultPromise
+      if (!appExistsResult.ok) throw appExistsResult.error
+      appExists = appExistsResult.value
       actorLog('appExists(%s) -> %s', actorApp, appExists)
     } catch (error) {
       errorLog('failed to inspect fly app for %s: %O', actorApp, error)
+      await Promise.allSettled([secretProbeResultPromise])
       return c.json({ error: 'provision_failed' }, 500)
     }
+
+    let secretStatus: ActorSecretProbeResult = { status: 'app_missing' }
+    try {
+      const secretProbeResult = await secretProbeResultPromise
+      if (!secretProbeResult.ok) throw secretProbeResult.error
+      secretStatus = secretProbeResult.value
+      if (secretStatus.status === 'missing') {
+        actorLog('controller token secret missing for %s', actorApp)
+      }
+    } catch (error) {
+      errorLog('failed to validate secrets for %s: %O', actorApp, error)
+      return c.json({ error: 'provision_failed' }, 500)
+    }
+
+    const secretsReady = secretStatus.status === 'present'
 
     if (folderExists && !appExists) {
       storageLog('removing folder for %s (missing fly app)', actorApp)
@@ -138,7 +183,9 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
       }
     }
 
-    if (folderExists && appExists) {
+    const environmentReady = folderExists && appExists && secretsReady
+
+    if (environmentReady) {
       actorLog('folder and app ready for %s', actorApp)
       if (!onActorHost) {
         actorLog('redirecting to actor host %s', desiredHost)
@@ -150,7 +197,7 @@ export function createApp({ dependencies }: CreateAppOptions = {}) {
 
     try {
       actorLog('ensuring actor app %s', actorApp)
-      await deps.ensureActorApp(actorApp)
+      await deps.ensureActorApp(actorApp, { secretStatus })
       actorLog('actor app ready %s', actorApp)
     } catch (error) {
       errorLog('failed to ensure actor app %s: %O', actorApp, error)
@@ -256,6 +303,7 @@ function createDependencies(
     destroyActorApp: overrides.destroyActorApp ?? destroyActorApp,
     removeFolder: overrides.removeFolder ?? removeComputerFolder,
     appExists: overrides.appExists ?? actorAppExists,
+    probeSecrets: overrides.probeSecrets ?? probeActorSecrets,
     auth: {
       middleware: authOverride.middleware ?? clerkMiddleware(),
       resolve: authOverride.resolve ?? getAuth,

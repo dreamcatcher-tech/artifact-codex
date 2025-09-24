@@ -41,7 +41,7 @@ remain in sync.
 | `FLY_COMPUTER_TARGET_APP`  | Per-user Computer app slug that `fly-computer` should replay traffic to.         | —                   | `fly-computer`, `fly-auth` |
 | `FLY_COMPUTER_AGENT_IMAGE` | Container image reference used when launching the actor’s first agent machine.   | —                   | `fly-computer`, `fly-auth` |
 | `FLY_COMPUTER_REGION`      | Optional region override applied when `fly-computer` provisions actor machines.  | —                   | `fly-computer`             |
-| `FLY_AGENT_TEMPLATE_APP`   | Fly app whose machine config seeds new agent machines inside per-user computers. | `universal-compute` | `fly-computer`, `fly-auth` |
+| `FLY_AGENT_TEMPLATE_APP`   | Fly app whose machine config seeds new agent machines inside per-user computers. | `fly-agent-1` | `fly-computer`, `fly-auth` |
 
 ## Clerk Authentication
 

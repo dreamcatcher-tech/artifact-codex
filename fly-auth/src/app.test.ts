@@ -149,6 +149,7 @@ Deno.test('replays existing actor app via redirect then fly-replay', async () =>
         })
       },
       appExists: () => Promise.resolve(true),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('User_Test'),
     },
   })
@@ -191,6 +192,7 @@ Deno.test('provisions actor app then redirects to actor host', async () => {
         })
       },
       appExists: () => Promise.resolve(appExistsState),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('new.user'),
     },
   })
@@ -236,6 +238,7 @@ Deno.test('recreates folder when fly app is missing', async () => {
         })
       },
       appExists: () => Promise.resolve(appExistsState),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('Orphan_User'),
     },
   })
@@ -266,6 +269,7 @@ Deno.test('creates missing folder for existing app then redirects', async () => 
       ensureActorApp: (name) =>
         Promise.resolve({ appName: name, existed: true }),
       appExists: () => Promise.resolve(true),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('Existing_User'),
     },
   })
@@ -280,6 +284,54 @@ Deno.test('creates missing folder for existing app then redirects', async () => 
   expect(follow.status).toBe(204)
   expect(follow.headers.get('fly-replay')).toBe('app=actor-existing-user')
   expect(created).toBe(true)
+})
+
+Deno.test('repairs missing controller secret before replay', async () => {
+  let ensureCalls = 0
+  let probeCalls = 0
+  const app = createApp({
+    dependencies: {
+      baseDomain: TEST_BASE_DOMAIN,
+      ensureMount: () => Promise.resolve(),
+      folderExists: () => Promise.resolve(true),
+      createFolder: () => Promise.resolve(),
+      ensureActorApp: (_name, options) => {
+        ensureCalls += 1
+        expect(options?.secretStatus?.status).toBe('missing')
+        return Promise.resolve({
+          appName: 'actor-secretless-user',
+          existed: true,
+        })
+      },
+      appExists: () => Promise.resolve(true),
+      probeSecrets: () => {
+        probeCalls += 1
+        if (probeCalls === 1) {
+          return Promise.resolve({
+            status: 'missing' as const,
+            missing: ['FLY_API_TOKEN'],
+          })
+        }
+        return Promise.resolve({ status: 'present' as const })
+      },
+      auth: stubAuth('Secretless_User'),
+    },
+  })
+
+  const initial = await app.request('http://localhost/')
+  expect(initial.status).toBe(302)
+  expect(initial.headers.get('location')).toBe(
+    'https://actor-secretless-user.example.test/',
+  )
+  expect(ensureCalls).toBe(1)
+
+  const follow = await app.request(
+    'http://actor-secretless-user.example.test/',
+  )
+  expect(follow.status).toBe(204)
+  expect(follow.headers.get('fly-replay')).toBe('app=actor-secretless-user')
+  expect(ensureCalls).toBe(1)
+  expect(probeCalls).toBe(2)
 })
 
 Deno.test('bypasses Clerk auth when test header is present', async () => {
@@ -310,6 +362,7 @@ Deno.test('bypasses Clerk auth when test header is present', async () => {
         })
       },
       appExists: () => Promise.resolve(appExistsState),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: {
         middleware: (async (_c, next) => {
           await next()
@@ -354,6 +407,8 @@ Deno.test('returns 503 when NFS mount fails', async () => {
       createFolder: () => Promise.resolve(),
       ensureActorApp: (name) =>
         Promise.resolve({ appName: name, existed: false }),
+      appExists: () => Promise.resolve(false),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('Mount_Failure'),
     },
   })
@@ -377,6 +432,7 @@ Deno.test('removes folder after provisioning failure', async () => {
         return Promise.resolve()
       },
       createFolder: () => Promise.resolve(),
+      probeSecrets: () => Promise.resolve({ status: 'present' as const }),
       auth: stubAuth('Cleanup_User'),
     },
   })
