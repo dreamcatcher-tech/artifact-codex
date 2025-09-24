@@ -11,7 +11,7 @@ type FaceId = string
 
 export const mcpHandler = () => {
   let closed = false
-  const log = Debug('@artifact/web-server:mcp')
+  const log = Debug('@artifact/fly-agent:mcp')
   const facesStore = new Map<FaceId, Face>()
   const faces = createFaces(facesStore)
   const interactions = createInteractions(facesStore)
@@ -22,7 +22,7 @@ export const mcpHandler = () => {
       throw new Error('MCP handler closed')
     }
     log('MCP handler start %s %s', c.req.method, c.req.path)
-    const server = new McpServer({ name: 'web-server', version: '0.0.1' })
+    const server = new McpServer({ name: 'fly-agent', version: '0.0.1' })
     createFacesServer(server, faces)
     createInteractionsServer(server, interactions)
     servers.add(server)

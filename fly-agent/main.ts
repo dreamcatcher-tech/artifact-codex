@@ -10,7 +10,7 @@ import { baseUrl, createFetch } from './fixture.ts'
 import { isMcpRequest, isWebSocketRequest, portFromHeaders } from './utils.ts'
 import Debug from 'debug'
 import { HOST } from '@artifact/shared'
-const log = Debug('@artifact/web-server')
+const log = Debug('@artifact/fly-agent')
 
 function emit(req: Request, res?: Response) {
   try {

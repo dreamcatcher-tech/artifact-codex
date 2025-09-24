@@ -21,7 +21,7 @@ function allocateInteractionId(): InteractionId {
 export const createInteractions = (
   faces: Map<FaceId, Face>,
 ): InteractionsHandlers => {
-  const log = Debug('@artifact/web-server:interactions')
+  const log = Debug('@artifact/fly-agent:interactions')
   const interactions = new Map<InteractionId, InteractionRecord>()
 
   return {

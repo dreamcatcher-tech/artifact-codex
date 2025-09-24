@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-// Output schemas aligned with @artifact/web-server faces.ts
+// Output schemas aligned with @artifact/fly-agent faces.ts
 const faceViewSchema = z.object({
   name: z.string(),
   port: z.number(),

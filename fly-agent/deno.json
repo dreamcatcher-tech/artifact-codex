@@ -1,6 +1,6 @@
 {
   "name": "@artifact/fly-agent",
-  "exports": "./main.ts",
+  "exports": { ".": "./main.ts", "./fixture": "./fixture.ts" },
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",
     "test": "deno test -A",

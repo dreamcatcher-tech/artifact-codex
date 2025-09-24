@@ -60,7 +60,7 @@ const faceKinds: Record<string, FaceKind> = {
 }
 
 export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
-  const log = Debug('@artifact/web-server:faces')
+  const log = Debug('@artifact/fly-agent:faces')
 
   const faceIdToKind = new Map<FaceId, string>()
 
