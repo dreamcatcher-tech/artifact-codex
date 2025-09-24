@@ -116,6 +116,7 @@ export type FlyCliAppInfo = {
 export type FlyCliAppStatus = {
   appId?: string
   appName?: string
+  networkName?: string
   machines: FlyCliMachineSummary[]
 }
 
@@ -317,6 +318,18 @@ export async function flyCliAppStatus(
   )
   const data = parseFlyJson<Record<string, unknown>>(result.stdout)
   const app = readRecord(data, ['App', 'app']) ?? data
+  const networkRecord = readRecord(app, ['network', 'Network']) ??
+    readRecord(data, ['network', 'Network'])
+  let networkName = readString(networkRecord, ['name', 'Name'])
+  if (!networkName) {
+    const topLevelNetwork = (app as Record<string, unknown>)?.['network'] ??
+      (app as Record<string, unknown>)?.['Network'] ??
+      (data as Record<string, unknown>)?.['network'] ??
+      (data as Record<string, unknown>)?.['Network']
+    if (typeof topLevelNetwork === 'string') {
+      networkName = topLevelNetwork
+    }
+  }
   const machinesRaw = readArray(data, ['Machines', 'machines']) ??
     readArray(app, ['Machines', 'machines']) ??
     readArray(readRecord(data, ['Deployment', 'deployment']), [
@@ -332,18 +345,22 @@ export async function flyCliAppStatus(
       'name',
       'Name',
     ]),
+    networkName: networkName?.trim() || undefined,
     machines,
   }
 }
 
 export async function flyCliAppsCreate(
-  options: { appName: string; orgSlug: string } & FlyCliOptions,
+  options:
+    & { appName: string; orgSlug: string; network?: string }
+    & FlyCliOptions,
 ): Promise<FlyCliAppInfo> {
-  const { appName, orgSlug, ...rest } = options
-  const result = await runFlyCommand(
-    ['apps', 'create', '--name', appName, '--org', orgSlug, '--json', '--yes'],
-    rest,
-  )
+  const { appName, orgSlug, network, ...rest } = options
+  const args = ['apps', 'create', '--name', appName, '--org', orgSlug]
+  if (network) {
+    args.push('--network', network)
+  }
+  const result = await runFlyCommand([...args, '--json', '--yes'], rest)
   const data = parseFlyJson<Record<string, unknown>>(result.stdout)
   return mapAppInfo(data)
 }
@@ -397,13 +414,14 @@ export async function flyCliIpsList(
 }
 
 export async function flyCliAllocatePrivateIp(
-  options: { appName: string } & FlyCliOptions,
+  options: { appName: string; network?: string } & FlyCliOptions,
 ): Promise<void> {
-  const { appName, ...rest } = options
-  await runFlyCommand(
-    ['ips', 'allocate-v6', '--private', '--app', appName],
-    rest,
-  )
+  const { appName, network, ...rest } = options
+  const args = ['ips', 'allocate-v6', '--private', '--app', appName]
+  if (network) {
+    args.push('--network', network)
+  }
+  await runFlyCommand(args, rest)
 }
 
 export async function flyCliReleaseIp(

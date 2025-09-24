@@ -17,7 +17,7 @@ import {
   parseFlyJson,
   runFlyCommand,
 } from '@artifact/tasks'
-import type { FlyCliAppStatus } from '@artifact/tasks'
+import type { FlyCliAppStatus, FlyCliIpInfo } from '@artifact/tasks'
 import { stringify as stringifyToml } from '@std/toml'
 
 const MAX_FLY_APP_NAME = 63
@@ -81,6 +81,7 @@ export async function ensureActorApp(
   const createdApp = await flyCliAppsCreate({
     appName,
     orgSlug: resolveOrgSlug(),
+    network: appName,
   })
   const createdName = createdApp.name ?? appName
   if (!createdName || createdName.trim().length === 0) {

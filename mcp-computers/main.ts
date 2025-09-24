@@ -121,6 +121,7 @@ function createServer(): McpServer {
         const createdApp = await flyCliAppsCreate({
           appName: newAppName,
           orgSlug,
+          network: newAppName,
         })
 
         let machineConfig: Record<string, unknown> = { image }
