@@ -38,14 +38,22 @@ export function mapMachineDetail(detail: FlyCliMachineDetail): MachineDetail {
   }
 }
 
+const FLY_NOT_FOUND_HINTS = [
+  'not found',
+  'could not find',
+  'does not exist',
+  'no such app',
+  '404',
+]
+
 export function isFlyResourceNotFound(error: unknown): boolean {
   if (error instanceof FlyCommandError) {
     const body = `${error.result.stderr} ${error.result.stdout}`.toLowerCase()
-    return body.includes('not found') || body.includes('404')
+    return FLY_NOT_FOUND_HINTS.some((hint) => body.includes(hint))
   }
   if (error instanceof Error) {
     const message = error.message.toLowerCase()
-    return message.includes('not found') || message.includes('404')
+    return FLY_NOT_FOUND_HINTS.some((hint) => message.includes(hint))
   }
   return false
 }

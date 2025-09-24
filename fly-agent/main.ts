@@ -106,31 +106,78 @@ const createDefaultFacePort = async (app: Hono) => {
   })
   const opts = { fetch: createFetch(app) }
   const transport = new StreamableHTTPClientTransport(new URL(baseUrl), opts)
-  await client.connect(transport)
 
-  const workspace = Deno.cwd()
-
-  const { structuredContent } = await client.callTool({
-    name: 'create_face',
-    arguments: {
-      agentId: '@self',
-      faceKindId: 'codex',
-      workspace,
-      hostname: HOST,
-    },
-  }) as { structuredContent?: { faceId?: string } }
-
-  const faceId = structuredContent?.faceId
-  if (!faceId) {
-    throw new Error('No faceId returned')
+  const parseToolError = (
+    result: { isError?: boolean; content?: { type: string; text?: string }[] },
+  ): string | undefined => {
+    if (!result.isError) return undefined
+    const texts =
+      result.content?.flatMap((block) =>
+        block.type === 'text' && block.text ? [block.text.trim()] : []
+      ) ?? []
+    return texts.filter((text) => text.length > 0).join('\n') || undefined
   }
 
-  const face = await client.callTool({
-    name: 'read_face',
-    arguments: { agentId: '@self', faceId },
-  })
-  const { views } = readFaceOutput.parse(face.structuredContent)
-  return views[0].port
+  try {
+    await client.connect(transport)
+
+    const workspace = Deno.cwd()
+
+    const createResult = await client.callTool({
+      name: 'create_face',
+      arguments: {
+        agentId: '@self',
+        faceKindId: 'codex',
+        workspace,
+        hostname: HOST,
+      },
+    }) as {
+      structuredContent?: { faceId?: string }
+      isError?: boolean
+      content?: { type: string; text?: string }[]
+    }
+
+    const createError = parseToolError(createResult)
+    if (createError) {
+      throw new Error(`Failed to create default face: ${createError}`)
+    }
+
+    const faceId = createResult.structuredContent?.faceId
+    if (!faceId) {
+      throw new Error('No faceId returned')
+    }
+
+    const readResult = await client.callTool({
+      name: 'read_face',
+      arguments: { agentId: '@self', faceId },
+    }) as {
+      structuredContent?: unknown
+      isError?: boolean
+      content?: { type: string; text?: string }[]
+    }
+
+    const readError = parseToolError(readResult)
+    if (readError) {
+      throw new Error(`Failed to read default face ${faceId}: ${readError}`)
+    }
+
+    const structured = readResult.structuredContent
+    if (!structured) {
+      throw new Error(`Face ${faceId} did not return structured content`)
+    }
+
+    const { views } = readFaceOutput.parse(structured)
+    if (!views[0]) {
+      throw new Error(`Face ${faceId} did not expose any views`)
+    }
+    return views[0].port
+  } finally {
+    try {
+      await client.close()
+    } catch {
+      // ignore
+    }
+  }
 }
 
 if (import.meta.main) {

@@ -225,6 +225,7 @@ function buildTtydArgs(options: {
 }): string[] {
   const args = ['-p', String(options.ttydPort)]
   if (options.writeable) args.push('-W')
+  args.push('-t', 'disableLeaveAlert=true')
   args.push(
     'tmux',
     '-u',
