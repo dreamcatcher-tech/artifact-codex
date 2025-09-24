@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   }
 
   log('launching default fly-agent entrypoint')
-  await launchProcess('./main.ts', [])
+  await launchProcess('/agent/fly-agent/main.ts', [])
 }
 
 if (import.meta.main) {
