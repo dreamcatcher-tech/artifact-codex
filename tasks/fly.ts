@@ -408,7 +408,7 @@ export async function flyCliReleaseIp(
   options: { appName: string; ip: string } & FlyCliOptions,
 ): Promise<void> {
   const { appName, ip, ...rest } = options
-  await runFlyCommand(['ips', 'release', '--app', appName, ip, '--yes'], rest)
+  await runFlyCommand(['ips', 'release', '--app', appName, ip], rest)
 }
 
 function parseMachineStatusOutput(output: string): Record<string, unknown> {

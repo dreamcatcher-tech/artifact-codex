@@ -10,6 +10,7 @@ import {
   flyCliGetMachine,
   flyCliListMachines,
   flyCliMachineRun,
+  flyCliReleaseIp,
   flyCliSecretsList,
   flyCliStartMachine,
   flyCliUpdateMachine,
@@ -366,6 +367,28 @@ Deno.test('flyCliAllocatePrivateIp allocates private address', async () => {
     '--private',
     '--app',
     'actor-app',
+  ])
+})
+
+Deno.test('flyCliReleaseIp releases address', async () => {
+  const { executor, calls } = createRecordingExecutor({
+    'fly ips release --app actor-app fdaa:12:34': makeResult(true),
+  })
+
+  await flyCliReleaseIp({
+    appName: 'actor-app',
+    ip: 'fdaa:12:34',
+    commandExecutor: executor,
+    env: { FLY_API_TOKEN: 'token' },
+  })
+
+  expect(calls[0]).toEqual([
+    'fly',
+    'ips',
+    'release',
+    '--app',
+    'actor-app',
+    'fdaa:12:34',
   ])
 })
 
