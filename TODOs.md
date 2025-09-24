@@ -45,3 +45,7 @@ rather than '/' since all the machines are the same process group.
 check if we can remove the port definitions from fly.computer.toml and still
 have the any port forward to agent thing working, even if the agent is being
 created for the first time.
+
+what happens if multiple agent apps come in at once ? we need to lock the
+creation, and also recover if we crash using a lock file with a timestamp or
+something.

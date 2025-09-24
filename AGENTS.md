@@ -1,182 +1,238 @@
-The primary reference for working with Fly is the `flyctl` command-line
-documentation: https://fly.io/docs/flyctl/ which is easily accessible at any
-time by running `fly --help` on the command line and learning about the commands
-and syntax directly.
+# Agents Platform Guide
 
-The spec for the modelcontextprotocol is:
-https://modelcontextprotocol.io/specification/2025-06-18
+## Purpose and References
 
-Repo for the npm package @modelcontextprotocol/sdk contains many examples and
-can be found at: https://github.com/modelcontextprotocol/typescript-sdk
+- Primary flyctl CLI reference: https://fly.io/docs/flyctl/ (also available via
+  `fly --help`)
+- Model Context Protocol specification (2025-06-18):
+  https://modelcontextprotocol.io/specification/2025-06-18
+- @modelcontextprotocol/sdk examples:
+  https://github.com/modelcontextprotocol/typescript-sdk
 
-## .refs folder
+## .refs Folder
 
-The .refs folder contains code for reference only NEVER MODIFY ANYTHING INSIDE
-THIS FOLDER. If you ever want to know about the inner workings of codex, then
-you can read thru the code inside `.refs/codex/codex-rs/`.
+Do not modify files under `.refs/`. They exist only as read-only implementation
+references (for example `.refs/codex/codex-rs/`).
 
-## Fly CLI usage
+## Architecture Overview
 
-- All Fly automation IN CODE must go through the helpers exposed in
-  `@artifact/tasks`; never call the Machines API directly from application code.
-- If you need to run fly commands to test your code, and to deploy to fly.io
-  infrastructure, then you have liberal access to run the `fly` cli tool
-  directly.
-- Prefer the CLI's structured output flags (`--json`, `--machine-config`, etc.)
-  so we can map results deterministically without scraping human text.
-- Make sure any runtime images (Docker, CI, devcontainers) install the `fly`
-  binary via the official installer
-  (`curl -fsSL https://fly.io/install.sh | sh`) and place it on `PATH`.
-- Do not add fallback env vars or heuristics when calling Fly helpers—fail
-  immediately if the expected inputs are missing or malformed.
-- Flycast is Fly's private HTTP ingress. Allocate a private IPv6
-  (`fly ips
-  allocate-v6 --private --app <name>`) for every actor app so
-  `fly-replay` headers can target it; without that address, replay-to-Flycast
-  inflight routing will fail.
-- `fly-replay` only works with HTTP listeners. Keep service definitions exactly
-  as sourced from the template app and let provisioning add the image override
-  only; avoid any auto-generated service defaults.
-- When baking `flyctl` into a container, prefer the installer’s `FLYCTL_INSTALL`
-  output over copying binaries by hand so the CLI stays upgradable. A minimal
-  Alpine example:
+- **fly-auth** — public edge app handling Clerk authentication, per-user actor
+  app provisioning, and the first `fly-replay`.
+- **Actor apps** — one Fly app per authenticated user (named `actor-<slug>`).
+  Each is cloned from the `fly-computer` template, inherits the full 3000–30000
+  port range, and stores its registry on the shared NFS mount.
+- **fly-computer** — canonical template whose configuration, secrets, and
+  machine metadata expectations are copied into every actor app; it also runs as
+  its own app for integration flows.
+- **Agent machines** — Fly Machines launched inside each actor app using the
+  `fly-agent` (`universal-compute`) image. They execute Codex agents and expose
+  HTTP endpoints on any published port.
+- **Shared storage** — NFS volume mounted at `/mnt/computers`, holding per-actor
+  state, agent registries, and machine metadata.
 
-  ```Dockerfile
-  ENV FLYCTL_INSTALL=/usr/local
-  ENV PATH="${FLYCTL_INSTALL}/bin:${PATH}"
+## Request Lifecycle
 
-  RUN curl -fsSL https://fly.io/install.sh | sh
+The platform intentionally performs two consecutive `fly-replay` hops so the
+correct component owns each decision.
 
-  RUN flyctl settings autoupdate disable
-  RUN flyctl settings analytics disable
-  ```
-- When adding new Fly-related features, check whether an existing wrapper in
-  `tasks/fly.ts` can be reused; otherwise extend that module so the entire
-  workspace benefits from a single implementation.
-  Always provision apps on Fly's default network; do not pass `--network` or
-  rely on custom tenant networks. Isolation is handled at the application layer
-  and by Flycast private ingress.
+### Stage 1 – fly-auth front door
 
-## Deployment to fly.io
+1. Incoming HTTPS request terminates at `fly-auth`.
+2. Clerk middleware authenticates the session unless the `x-artifact-test-user`
+   override header (for integration tests) is present.
+3. The user ID is normalized into an actor app slug (`actor-…`) and the service
+   ensures:
+   - the NFS mount is online (`ensureComputersMounted`);
+   - the per-user folder exists (missing folders are rebuilt, folders without a
+     corresponding Fly app are treated as stale and removed);
+   - a matching Fly app exists by cloning the `fly-computer` template, copying
+     the image, and ensuring at least one private IPv6 (Flycast needs a private
+     address for replay; extra allocations are acceptable);
+   - controller secrets (`FLY_API_TOKEN`, `FLY_COMPUTER_TARGET_APP`,
+     `FLY_COMPUTER_AGENT_IMAGE`) are present.
+4. If the request arrived on the wrong host, the service issues a 302 redirect
+   to `https://actor-<user>.<FLY_AUTH_BASE_DOMAIN>` while preserving the path,
+   query, and choosing the scheme from `fly-forwarded-proto` when available.
+5. When the request is on the actor host, `fly-auth` returns `204 No Content`
+   with `fly-replay: app=<actor-app>`. **Never append `fly_force_instance` or
+   other replay directives at this stage; the actor app owns machine
+   selection.**
 
-This project contains multiple fly apps, and the config files for them are all
-in the root under fly.*.toml. To deploy these apps, use:
+### Stage 2 – actor app (fly-computer runtime)
 
-`fly deploy --config fly.<config name>.toml`
+1. The replayed request now hits the per-user actor app (which runs the
+   `fly-computer` codebase).
+2. The app decodes the host into a `computer` slug and optional nested agent
+   path segments (subdomains joined with `--`).
+3. Landing hosts (no agent path) create a fresh agent record, reconcile
+   machines, and redirect to the agent-specific host
+   (`302 Location: https://<agent-path>--<computer>.<base>`). Idle machines are
+   either destroyed or returned to a warm pool so future agents can reuse them
+   without a cold boot.
+4. Hosts targeting an existing agent load or bootstrap a Fly Machine:
+   - template configuration from `FLY_AGENT_TEMPLATE_APP` seeds memory, volumes,
+     and networking. This template diverges from
+     `FLY_COMPUTER_TARGET_APP`: the latter runs the baseline process management
+     stack, while the former bakes in the tool-heavy agent image used at runtime;
+   - machines are started on demand.
+5. The actor app finally emits
+   `fly-replay: app=<actor-app>;fly_force_instance=<machine-id>`, pinning the
+   request to the ready machine. Fly preserves the method, path, query, headers,
+   body, and original external port across this replay.
 
-You have liberal access to the `fly` cli command. Use `fly --help` to learn more
-about how it works.
+### Stage 3 – agent machine
 
-If you have done something that might affect how the fly apps work, be sure to
-deploy or build using the fly.io infrastructure, until you are satisfied things
-work correctly. You are in charge of the fly installation, so use this liberally
-to test and to do experiments with.
+1. The replay reaches the Fly Machine running the `fly-agent` image.
+2. The entrypoint mounts the shared NFS and launches
+   `/agent/web-server/main.ts`, which serves the actual Codex agent runtime.
+   This path is the canonical entrypoint; when we migrate the web-server project
+   fully into the `fly-agent` repo, keep the same single-entry contract.
+3. Agents may open additional listeners within 3000–30000; because every Fly app
+   advertises that full range, follow-up `fly-replay` calls succeed for
+   non-default ports and paths. Monitoring for stray listeners stays the
+   responsibility of each agent runtime.
 
-you can use the command `fly logs -c fly.<config name>.toml` to check the logs
-of the app. Always wrap `fly logs` in a timeout (for example
-`timeout 30s fly logs ...`) so the command cannot hang the shell.
+## Replay and Redirect Rules
 
-you can ssh in or send commands in using
-`fly ssh console -c fly.<config name>.toml` which enables you to execute remote
-commands.
+- Do not bypass the staged flow: front doors (`fly-auth`, future edge services)
+  must only set `fly-replay: app=<actor-app>`.
+- Only the actor app may add `fly_force_instance=<machine-id>` after it has
+  proven the target machine is healthy.
+- `fly-replay` works solely for HTTP/TLS listeners. Ensure every service
+  definition carries `handlers = ["tls", "http"]` across the full 3000–30000
+  range.
+- Preserve the original request semantics. Never mutate method, path, query,
+  headers, or body during redirects or replay hand-offs.
+- For redirects, always drop the port (Fly injects the correct published
+  listener) and prefer `fly-forwarded-proto`/`x-forwarded-proto` to maintain
+  HTTPS.
 
-## Fly deployment tips
+## Hostnames, Ports, and Paths
 
-- Keep the single `.dockerignore` at the repo root; Fly only reads the root
-  file, so move any per-app rules there and make sure heavy directories like
-  `node_modules/` stay excluded.
-- If the builder is still uploading massive contexts, run `du -sh * | sort -h`
-  to surface directories that should be ignored before redeploying.
-- `fly deploy --config fly.<name>.toml` may run longer than two minutes when
-  pushing larger layers—rerun without artificial timeouts and watch the Fly
-  dashboard for status.
-- if you configre the line `auto_stop_machines = 'suspend'` be sure to use
-  'suspend' and not stop, as this is a new feature and is preferred.
+- `FLY_AUTH_BASE_DOMAIN` is the canonical suffix (for example
+  `agentic.dreamcatcher.land`). Every actor host is
+  `<agent-subdomain>.<base-domain>`.
+- Subdomains encode agent paths with `--` separators
+  (`agent--child--computer.base`). Use `agentToSubdomain`/`subdomainToAgent`
+  helpers instead of manual string munging.
+- All Fly apps in this stack declare `[[services.ports]]` with
+  `start_port = 3000` and `end_port = 30000`. This catches WebSocket upgrades,
+  dev tunnels, and future sidecars without config drift.
+- Redirect helpers strip any explicit port so that Fly’s edge selects the
+  published listener automatically. Path and query segments are always retained.
+- When mirroring configuration into new actor apps, never tighten the port
+  range, drop HTTP handlers, or add custom load balancers—doing so breaks replay
+  for agents that bind outside the default web port.
 
-## Code rules
+## Storage and Provisioning
 
-never git add anything unless explicitly told to.
+- Shared state lives on the Fly NFS export (`NFS_EXPORT_BASE`) mounted at
+  `/mnt/computers`. Each actor app owns a folder named after its Fly app.
+- `ensureActorApp` removes the folder if the Fly app vanished, keeping storage
+  in sync with infrastructure.
+- Private IPv6 allocation (`fly ips allocate-v6 --private`) is mandatory. Actor
+  apps must have at least one private IPv6 so Flycast routing succeeds; public
+  IPs are revoked automatically, and any surplus private allocations are
+  harmless.
+- Per-actor provisioning copies the template app’s machine config, swaps in the
+  template image, and deploys with `fly deploy`. Failed deploys trigger cleanup
+  via `fly apps destroy --force`.
+- Registry data under `/mnt/computers/<actor-app>/agents` tracks machine IDs and
+  metadata used by `fly-computer` to resume agents after restarts.
+- Registry data under `/mnt/computers/<actor-app>/machines` tracks the machines
+  that are running and if they are running an agent, which agent they are
+  running by the agent id. Each registry entry is written as a single file, and
+  we currently rely on that write completing cleanly instead of layering extra
+  torn-write protections.
 
-Always value terseness and brevity over preserving legacy options in code - this
-is a greenfields project so you never need to worry about legacy.
+## Authentication and Test Hooks
 
-To verify the code works, run `deno task ok`.
+- Clerk is the authoritative auth layer. Unauthenticated interactive requests
+  are redirected to `CLERK_SIGN_IN_URL`/`CLERK_SIGN_UP_URL`; JSON callers
+  receive `401` with `{ "error": "unauthenticated" }`.
+- The integration bypass accepts
+  `x-artifact-test-user: <INTEGRATION_TEST_USER_ID>` (default
+  `integration-suite`). Only that value is honored; all other headers fall back
+  to Clerk.
+- `DELETE /integration/actor` tears down the integration actor app and its
+  storage. Use it only when no tests are running; coordination is informal and
+  currently limited to our internal team.
 
-Every deno project in the workspace must expose an `ok` task in its `deno.json`,
-and that task must run `deno check`, `deno task test`, `deno fmt --check`, and
-`deno lint` in that order.
+## Operational Guidelines
 
-Do not add environment fallbacks when resolving runtime configuration. Read the
-authoritative value (for example, Fly template machine configuration) at the
-point of use and fail immediately if it is missing or invalid.
+### Fly CLI Usage
 
-Document every new environment variable by adding it to `shared/app_env.ts` and
-`design/docs/app-env.md` before landing the change, and if removing or modifying
-env vars, be sure to update the documentation
+- Automate Fly interactions via `@artifact/tasks`; never call the Fly Machines
+  API directly from application code.
+- Extend `tasks/fly.ts` when new helpers are required so the whole workspace
+  reuses a single implementation.
+- Always provision apps on Fly’s default network; do not pass `--network` or
+  rely on tenant-specific networks. Isolation comes from the application layer
+  and Flycast.
+- You may run the `fly` CLI locally for experiments, deploys, and diagnostics.
+- Prefer structured outputs (`--json`, `--machine-config`) to avoid parsing
+  human text.
+- Install `flyctl` through the official installer, set `FLYCTL_INSTALL` (for
+  example `/usr/local`), and add `${FLYCTL_INSTALL}/bin` to `PATH`.
+- In local development we keep Fly's defaults so engineers can use the CLI for
+  provisioning and diagnostics; in container builds we explicitly disable
+  autoupdate/analytics to prevent background processes.
+- Do not introduce environment fallbacks—missing or malformed inputs should fail
+  fast.
+- Flycast is Fly’s private HTTP ingress; ensure every actor app keeps the single
+  private IPv6 allocated for it to avoid replay failures.
+- When replaying actor traffic from `fly-auth`, emit only
+  `fly-replay: app=<actor-app>`; allow the actor app to select the machine.
+- Keep HTTP service definitions identical to the template; avoid auto-generated
+  defaults when provisioning.
 
-To fix formatting errors quickly, run `deno fmt`.
+### Deployment to Fly.io
 
-To check types quickly, run `deno check`.
+- Each Fly app has a root-level `fly.<name>.toml`. Deploy with
+  `fly deploy --config fly.<name>.toml`.
+- After changes that impact Fly behavior, redeploy or run builds through Fly’s
+  infrastructure to validate.
+- Inspect logs with `timeout 30s fly logs -c fly.<name>.toml` to avoid hanging
+  processes.
+- Remote debugging is available via `fly ssh console -c fly.<name>.toml`.
 
-To fix lint errors quickly, run `deno lint --fix`
+### Fly Deployment Tips
 
-Whenever you change code, never leave comments saying what you changed - we
-don't need that, we keep track of that in git commit messages, not in the code.
+- Maintain a single root `.dockerignore`; ensure heavyweight directories (e.g.
+  `node_modules/`) stay excluded.
+- If deploys upload large contexts, run `du -sh * | sort -h` to spot directories
+  to ignore.
+- Long pushes are normal; rerun `fly deploy` without artificial timeouts and
+  monitor the Fly dashboard.
+- Use `auto_stop_machines = 'suspend'` (not `stop`) when configuring services so
+  machines hibernate correctly.
 
-this pattern is perfectly acceptable, but note that you must use the //ignore
-comment or some kind of comment to avoid lint issues:
+### Code Rules
 
-```ts
-try {
-  a = riskyOperation()
-} catch {
-  // ignore
-}
-```
+- Never run `git add` unless explicitly instructed.
+- Favor concise implementations; no need to preserve legacy switches.
+- Every project must expose an `ok` task in its `deno.json` that runs
+  `deno check`, `deno task test`, `deno fmt --check`, then `deno lint` in that
+  order.
+- Validate your changes with `deno task ok`.
+- Compliance is manual for now: reviewers watch for repos that miss the `ok`
+  task and request fixes when they spot gaps.
+- Resolve configuration directly from the authoritative source (for example Fly
+  machine config); abort on missing data instead of adding fallbacks.
+- Document any new or changed environment variables in `shared/app_env.ts` and
+  `design/docs/app-env.md`.
+- Use `deno fmt`, `deno check`, and `deno lint --fix` to resolve formatting,
+  type, and lint issues quickly.
+- Avoid leaving “what changed” comments in code; rely on version control.
+- When intentionally swallowing errors, add a lint hint such as `// ignore`.
+- Be cautious with long-running tasks like `deno task dev`; wrap them with a
+  timeout when necessary.
 
-Whenever you see a task like `deno task dev` be very careful running it since it
-is designed to never exit, as it runs a web server. If you must run this command
-you will need to use a timeout or something to exit it.
+### Deno Configuration
 
-when installing packages on deno, always use the deno install tool, like
-`deno install jsr:@std/expect` or `deno install npm:debug`.
-
-for tests, use expect from `jsr:@std/expect` which can be imported like this:
-`import { expect } from '@std/expect'`
-
-## Deno configuration
-
-- Keep all `imports` entries in the root `deno.json` only; project-level
-  `deno.json` files should never define their own import map.
-- When you need a new dependency, run `deno install <spec>` (for example
-  `deno install jsr:@std/expect`) from the repo root so the root import map and
-  `deno.lock` stay in sync.
-- Any projects within the workspace do not need to be mentioned in the import
-  map, as this is something that deno workspaces handle for us
-
-## Avoid Async IIFEs
-
-Do not use anonymous Immediately Invoked Function Expressions (IIFEs), including
-async versions like `;(async () => { ... })()` for side‑effects. Instead, define
-a clearly named function and call it by name.
-
-Bad:
-
-```ts
-;(async () => {
-  // work
-})()
-```
-
-Good:
-
-```ts
-async function sendKeysViaTmux(/* args */) {
-  // work
-}
-
-await sendKeysViaTmux() /* args */
-```
-
-Benefits: clearer stack traces, easier testing and reuse, and no hidden
-top‑level side effects.
+- Keep import map entries in the root `deno.json`; project-level files must not
+  define their own maps.
+- Install new dependencies via `deno install <spec>` from the repo root so
+  `deno.lock` stays accurate.
+- Tests should use `expect` from `jsr:@std/expect`.
+- Avoid async IIFEs; prefer named async functions and call them explicitly.

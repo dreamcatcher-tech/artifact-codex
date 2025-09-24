@@ -1,7 +1,7 @@
 import { expect } from '@std/expect'
 import { join } from '@std/path'
 
-import type { MachineDetail, MachineSummary } from '@artifact/shared'
+import type { MachineDetail } from '@artifact/shared'
 
 import { createApp } from './app.ts'
 import type { FlyApi } from './fly.ts'
@@ -49,18 +49,38 @@ async function writeAgentConfig(
   id: string,
   config: Record<string, unknown>,
 ) {
-  const dir = join(root, id)
+  const dir = join(root, 'agents')
   await Deno.mkdir(dir, { recursive: true })
   const body = JSON.stringify({ id, ...config }, null, 2) + '\n'
-  await Deno.writeTextFile(join(dir, 'config.json'), body)
+  await Deno.writeTextFile(join(dir, `${id}.json`), body)
 }
 
-function hostForAgentSlug(slug: string): string {
-  return buildAgentHost([slug], COMPUTER_NAME, BASE_DOMAIN)
+async function writeMachineRecord(
+  root: string,
+  machineId: string,
+  record: Record<string, unknown>,
+) {
+  const dir = join(root, 'machines')
+  await Deno.mkdir(dir, { recursive: true })
+  const body = JSON.stringify({ id: machineId, ...record }, null, 2) + '\n'
+  await Deno.writeTextFile(join(dir, `${machineId}.json`), body)
+}
+
+function hostForAgentSegment(segment: string): string {
+  return buildAgentHost([segment], COMPUTER_NAME, BASE_DOMAIN)
 }
 
 function hostForAgentPath(path: string[]): string {
   return buildAgentHost(path, COMPUTER_NAME, BASE_DOMAIN)
+}
+
+function deriveSegment(name: string, id: string): string {
+  const idFragment = id.replace(/[^a-z0-9]/gi, '').toLowerCase().slice(0, 10) ||
+    'agent'
+  const base = slugify(name).slice(0, 16).replace(/^-+|-+$/g, '')
+  const combined = base ? `${base}-${idFragment}` : idFragment
+  const normalized = slugify(combined)
+  return normalized || idFragment
 }
 
 type FlyStub = FlyApi & {
@@ -144,18 +164,28 @@ Deno.test('creates a new agent and redirects when no subdomain is present', asyn
     expect(location).not.toBeNull()
     const locationHost = location ? new URL(location).hostname : ''
 
-    const createdDirs: string[] = []
-    for await (const entry of Deno.readDir(registryRoot)) {
-      if (entry.isDirectory) createdDirs.push(entry.name)
+    const agentsDir = join(registryRoot, 'agents')
+    const agentFiles: string[] = []
+    for await (const entry of Deno.readDir(agentsDir)) {
+      if (entry.isFile) agentFiles.push(entry.name)
     }
-    expect(createdDirs.length).toBe(1)
-    const agentDir = join(registryRoot, createdDirs[0]!)
+    expect(agentFiles.length).toBe(1)
     const agentConfig = JSON.parse(
-      await Deno.readTextFile(join(agentDir, 'config.json')),
+      await Deno.readTextFile(join(agentsDir, agentFiles[0]!)),
     ) as { name: string; id: string }
-    const expectedSlug = slugify(agentConfig.name)
-    const expectedHost = hostForAgentSlug(expectedSlug)
+    const expectedSegment = deriveSegment(
+      agentConfig.name,
+      String(agentConfig.id),
+    )
+    const expectedHost = hostForAgentSegment(expectedSegment)
     expect(locationHost).toBe(expectedHost)
+
+    const machinesDir = join(registryRoot, 'machines')
+    const machineFiles: string[] = []
+    for await (const entry of Deno.readDir(machinesDir)) {
+      if (entry.isFile) machineFiles.push(entry.name)
+    }
+    expect(machineFiles.length).toBe(1)
     expect(fly.created.length).toBe(1)
   } finally {
     await Deno.remove(tmp, { recursive: true })
@@ -199,9 +229,11 @@ Deno.test('replays to configured machine without restarting when already running
   try {
     const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
-    await writeAgentConfig(registryRoot, '1', {
-      name: 'foo',
-      machine: { id: 'm-1' },
+    await writeAgentConfig(registryRoot, '1', { name: 'foo' })
+    await writeMachineRecord(registryRoot, 'm-1', {
+      agentId: '1',
+      name: 'agent-1',
+      updatedAt: new Date('2024-12-31T00:00:00Z').toISOString(),
     })
 
     const fly = createFlyStub({
@@ -229,7 +261,7 @@ Deno.test('replays to configured machine without restarting when already running
       },
     })
 
-    const agentHost = hostForAgentSlug('foo')
+    const agentHost = hostForAgentSegment(deriveSegment('foo', '1'))
     const res = await handler(
       new Request(`http://${agentHost}/`, {
         headers: { host: agentHost },
@@ -242,12 +274,15 @@ Deno.test('replays to configured machine without restarting when already running
     expect(fly.startCalls).toEqual([])
 
     const saved = JSON.parse(
-      await Deno.readTextFile(join(registryRoot, '1', 'config.json')),
+      await Deno.readTextFile(join(registryRoot, 'agents', '1.json')),
     ) as Record<string, unknown>
-    expect(saved.machine).toMatchObject({ id: 'm-1', name: 'agent-1' })
-    expect(typeof (saved.machine as { updatedAt?: unknown }).updatedAt).toBe(
-      'string',
-    )
+    expect(saved.machine).toBeUndefined()
+    const machineRecord = JSON.parse(
+      await Deno.readTextFile(join(registryRoot, 'machines', 'm-1.json')),
+    ) as Record<string, unknown>
+    expect(machineRecord.agentId).toBe('1')
+    expect(machineRecord.name).toBe('agent-1')
+    expect(typeof machineRecord.updatedAt).toBe('string')
   } finally {
     await Deno.remove(tmp, { recursive: true })
   }
@@ -258,10 +293,8 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
   try {
     const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
-    await writeAgentConfig(registryRoot, '1', {
-      name: 'foo',
-      machine: { id: 'm-2' },
-    })
+    await writeAgentConfig(registryRoot, '1', { name: 'foo' })
+    await writeMachineRecord(registryRoot, 'm-2', { agentId: '1' })
 
     const fly = createFlyStub({
       getMachine(machineId): Promise<MachineDetail> {
@@ -288,7 +321,7 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
       },
     })
 
-    const agentHost = hostForAgentSlug('foo')
+    const agentHost = hostForAgentSegment(deriveSegment('foo', '1'))
     const res = await handler(
       new Request(`http://${agentHost}/`, {
         headers: { host: agentHost },
@@ -301,28 +334,19 @@ Deno.test('restarts machine when configuration points to stopped instance', asyn
   }
 })
 
-Deno.test('reuses machine discovered by agent metadata when config missing machine id', async () => {
+Deno.test('removes stale machine record when remote machine is missing', async () => {
   const tmp = await Deno.makeTempDir()
   try {
     const registryRoot = join(tmp, 'registry')
     await Deno.mkdir(registryRoot, { recursive: true })
     await writeAgentConfig(registryRoot, '1', { name: 'foo' })
+    await writeMachineRecord(registryRoot, 'm-meta', { agentId: '1' })
 
     const fly = createFlyStub({
-      listMachines(): Promise<MachineSummary[]> {
-        return Promise.resolve([{
-          id: 'm-meta',
-          name: 'agent-1',
-          metadata: { artifact_agent_id: '1' },
-        }])
-      },
       getMachine(machineId): Promise<MachineDetail> {
-        return Promise.resolve({
-          id: machineId,
-          name: 'agent-1',
-          state: 'started',
-          config: { image: 'img:latest', metadata: { artifact_agent_id: '1' } },
-        })
+        return Promise.reject(
+          new Error(`Machine ${machineId} not found`),
+        ) as Promise<MachineDetail>
       },
     })
 
@@ -340,17 +364,15 @@ Deno.test('reuses machine discovered by agent metadata when config missing machi
       },
     })
 
-    const agentHost = hostForAgentSlug('foo')
+    const agentHost = hostForAgentSegment(deriveSegment('foo', '1'))
     const res = await handler(
       new Request(`http://${agentHost}/`, {
         headers: { host: agentHost },
       }),
     )
     expect(res.status).toBe(204)
-    const saved = JSON.parse(
-      await Deno.readTextFile(join(registryRoot, '1', 'config.json')),
-    ) as Record<string, unknown>
-    expect((saved.machine as { id?: string }).id).toBe('m-meta')
+    expect(fly.created.length).toBe(1)
+    await expectPathMissing(join(registryRoot, 'machines', 'm-meta.json'))
   } finally {
     await Deno.remove(tmp, { recursive: true })
   }
@@ -392,7 +414,7 @@ Deno.test('creates new machine when none exist and updates registry', async () =
       },
     })
 
-    const agentHost = hostForAgentSlug('foo')
+    const agentHost = hostForAgentSegment(deriveSegment('foo', '1'))
     const res = await handler(
       new Request(`http://${agentHost}/`, {
         headers: { host: agentHost },
@@ -406,9 +428,16 @@ Deno.test('creates new machine when none exist and updates registry', async () =
     expect(createdConfig?.metadata?.artifact_agent_id).toBe('1')
 
     const saved = JSON.parse(
-      await Deno.readTextFile(join(registryRoot, '1', 'config.json')),
+      await Deno.readTextFile(join(registryRoot, 'agents', '1.json')),
     ) as Record<string, unknown>
-    expect(saved.machine).toMatchObject({ id: 'new-machine' })
+    expect(saved.machine).toBeUndefined()
+    const machine = JSON.parse(
+      await Deno.readTextFile(
+        join(registryRoot, 'machines', 'new-machine.json'),
+      ),
+    ) as Record<string, unknown>
+    expect(machine.id).toBe('new-machine')
+    expect(machine.agentId).toBe('1')
   } finally {
     await Deno.remove(tmp, { recursive: true })
   }
@@ -423,8 +452,8 @@ Deno.test('resolves nested agent path using parent links', async () => {
     await writeAgentConfig(registryRoot, '2', {
       name: 'beta child',
       parentId: '1',
-      machine: { id: 'm-beta' },
     })
+    await writeMachineRecord(registryRoot, 'm-beta', { agentId: '2' })
 
     const fly = createFlyStub({
       getMachine(machineId): Promise<MachineDetail> {
@@ -451,7 +480,10 @@ Deno.test('resolves nested agent path using parent links', async () => {
       },
     })
 
-    const nestedHost = hostForAgentPath(['alpha', 'beta-child'])
+    const nestedHost = hostForAgentPath([
+      deriveSegment('alpha', '1'),
+      deriveSegment('beta child', '2'),
+    ])
     const res = await handler(
       new Request(`http://${nestedHost}/`, {
         headers: { host: nestedHost },
@@ -462,3 +494,13 @@ Deno.test('resolves nested agent path using parent links', async () => {
     await Deno.remove(tmp, { recursive: true })
   }
 })
+
+async function expectPathMissing(path: string): Promise<void> {
+  try {
+    await Deno.stat(path)
+    throw new Error(`Expected path to be missing: ${path}`)
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return
+    throw err
+  }
+}

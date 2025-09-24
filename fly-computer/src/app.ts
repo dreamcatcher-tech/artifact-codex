@@ -60,6 +60,7 @@ export async function createApp(
       writeTextFile: Deno.writeTextFile,
       stat: Deno.stat,
       mkdir: Deno.mkdir,
+      remove: Deno.remove,
     })
   const fly = options.dependencies?.fly ?? createFlyApi(config)
   const loadTemplateMachine = options.dependencies?.loadTemplateMachine ??
@@ -112,10 +113,10 @@ export async function createApp(
     }
 
     agentLog(
-      'resolving agent id=%s name="%s" slug=%s computer=%s host=%s',
+      'resolving agent id=%s name="%s" segment=%s computer=%s host=%s',
       agent.id,
       agent.name,
-      agent.slug,
+      agent.pathSegment,
       computer,
       host,
     )
@@ -138,50 +139,24 @@ async function reconcileMachine(
   config: AppConfig,
   deps: Dependencies,
 ): Promise<MachineDetail> {
-  const machineFromConfig = agent.config.machine?.id
-  const configuredId =
-    machineFromConfig === undefined || machineFromConfig === null
-      ? undefined
-      : String(machineFromConfig)
-  if (configuredId) {
-    const detail = await safeGetMachine(deps.fly, configuredId)
+  const recorded = await deps.registry.findMachineByAgent(agent.id)
+  if (recorded) {
+    const detail = await safeGetMachine(deps.fly, recorded.id)
     if (detail) {
       machineLog(
-        'using configured machine id=%s agent=%s',
-        configuredId,
+        'using recorded machine id=%s agent=%s',
+        recorded.id,
         agent.id,
       )
       await ensureMachineRunning(detail, deps.fly)
       return detail
     }
     machineLog(
-      'configured machine missing id=%s agent=%s',
-      configuredId,
+      'recorded machine missing id=%s agent=%s; removing',
+      recorded.id,
       agent.id,
     )
-  }
-
-  const machines = await deps.fly.listMachines()
-
-  const metadataMatch = machines.find((machine) => {
-    const metadata = machine.metadata as Record<string, unknown> | undefined
-    const value = typeof metadata?.[AGENT_METADATA_KEY] === 'string'
-      ? String(metadata?.[AGENT_METADATA_KEY])
-      : undefined
-    return value === agent.id
-  })
-
-  if (metadataMatch) {
-    const detail = await safeGetMachine(deps.fly, metadataMatch.id)
-    if (detail) {
-      machineLog(
-        'found metadata machine id=%s agent=%s',
-        metadataMatch.id,
-        agent.id,
-      )
-      await ensureMachineRunning(detail, deps.fly)
-      return detail
-    }
+    await deps.registry.removeMachine(recorded.id)
   }
 
   const template = await deps.loadTemplateMachine()
@@ -238,7 +213,8 @@ function buildMachineConfig(
 }
 
 function buildMachineName(agent: AgentRecord): string {
-  const base = `${agent.slug || 'agent'}-${agent.id}`
+  const segment = agent.pathSegment || 'agent'
+  const base = `${segment}-${agent.id}`
   const normalized = base.replace(/[^a-z0-9-]+/g, '-').replace(/-+/g, '-')
   const trimmed = normalized.replace(/^-+|-+$/g, '') || `agent-${agent.id}`
   return trimmed.slice(0, 63)
@@ -274,10 +250,10 @@ async function handleLandingRequest(
   agentLog('landing request host=%s computer=%s', host, hostInfo.computer)
   const agent = await deps.registry.createAgent()
   agentLog(
-    'created agent id=%s name="%s" slug=%s',
+    'created agent id=%s name="%s" segment=%s',
     agent.id,
     agent.name,
-    agent.slug,
+    agent.pathSegment,
   )
   const detail = await reconcileMachine(agent, config, deps)
   const machineUpdate: MachineUpdate = {
@@ -291,7 +267,7 @@ async function handleLandingRequest(
   const location = buildAgentRedirectUrl({
     request,
     computer: hostInfo.computer!,
-    agentPath: [agent.slug],
+    agentPath: [agent.pathSegment],
     baseDomain: config.baseDomain,
   })
   agentLog('redirecting host=%s to location=%s', host, location)
