@@ -64,7 +64,8 @@ work correctly. You are in charge of the fly installation, so use this liberally
 to test and to do experiments with.
 
 you can use the command `fly logs -c fly.<config name>.toml` to check the logs
-of the app.
+of the app. Always wrap `fly logs` in a timeout (for example
+`timeout 30s fly logs ...`) so the command cannot hang the shell.
 
 you can ssh in or send commands in using
 `fly ssh console -c fly.<config name>.toml` which enables you to execute remote
