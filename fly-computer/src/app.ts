@@ -316,6 +316,7 @@ function buildAgentRedirectUrl(
   const url = new URL(request.url)
   const updatedHost = buildAgentHost(agentPath, computer, baseDomain)
   url.hostname = updatedHost
+  url.protocol = 'https:'
   url.port = ''
   return url.toString()
 }
