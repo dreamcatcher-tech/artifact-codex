@@ -1,10 +1,14 @@
 #!/usr/bin/env -S deno run -A
 
+import { fromFileUrl } from '@std/path'
+
 const TRUTHY = new Set(['1', 'true', 'on', 'yes'])
 const ENTER_DELAY_MS = 150
 
 export const SHARED_TMUX_SOCKET = Deno.env.get('ARTIFACT_TMUX_SOCKET') ??
   'artifact-tmux'
+
+const TMUX_CONFIG_PATH = fromFileUrl(new URL('./tmux.conf', import.meta.url))
 
 export interface LaunchTmuxTerminalOptions {
   command: string[]
@@ -139,7 +143,7 @@ async function ensureTmuxSession(
       '-L',
       SHARED_TMUX_SOCKET,
       '-f',
-      '/dev/null',
+      TMUX_CONFIG_PATH,
       'new-session',
       '-Ad',
       '-s',

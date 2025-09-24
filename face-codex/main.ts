@@ -296,6 +296,14 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
       TTYD_HOST: host,
       WRITEABLE: 'on',
     }
+    ensureEnv(env, 'COLORTERM', 'truecolor')
+    ensureEnv(env, 'FORCE_COLOR', '1')
+    ensureEnv(env, 'CLICOLOR_FORCE', '1')
+    ensureEnv(env, 'TERM_PROGRAM', 'artifact-codex')
+    ensureEnv(env, 'TERM_PROGRAM_VERSION', '1')
+    ensureEnv(env, 'LANG', 'C.UTF-8')
+    ensureEnv(env, 'LC_ALL', env.LANG)
+    ensureEnv(env, 'LC_CTYPE', env.LANG)
     const cmdArgs = cfg.test
       ? [
         'deno',
@@ -350,6 +358,13 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
 
 function createTmuxSession(): string {
   return `face-codex-${crypto.randomUUID().slice(0, 8)}`
+}
+
+function ensureEnv(env: Record<string, string>, key: string, value: string) {
+  const current = env[key]
+  if (!current || current.trim().length === 0) {
+    env[key] = value
+  }
 }
 
 async function removeHomeDirectory(path: string) {

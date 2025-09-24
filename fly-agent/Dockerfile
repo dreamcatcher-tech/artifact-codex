@@ -6,6 +6,10 @@ FROM ubuntu:24.04
 
 ENV FLYCTL_INSTALL=/usr/local
 ENV PATH="${FLYCTL_INSTALL}/bin:${PATH}"
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV COLORTERM=truecolor
+ENV TERM_PROGRAM=artifact-codex
 
 # Enable universe and install core tooling (includes ttyd from Ubuntu repos)
 RUN apt-get update && \
@@ -15,6 +19,7 @@ RUN apt-get update && \
   apt-get install -y --no-install-recommends \
   ca-certificates \
   fontconfig \
+  ncurses-term \
   # build-essential \
   # clang \
   curl \
