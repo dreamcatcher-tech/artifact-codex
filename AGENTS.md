@@ -25,8 +25,8 @@ references (for example `.refs/codex/codex-rs/`).
   machine metadata expectations are copied into every actor app; it also runs as
   its own app for integration flows.
 - **Agent machines** — Fly Machines launched inside each actor app using the
-  `fly-agent` (`fly-agent-1`) image. They execute Codex agents and expose
-  HTTP endpoints on any published port.
+  `fly-agent` (`fly-agent-1`) image. They execute Codex agents and expose HTTP
+  endpoints on any published port.
 - **Shared storage** — NFS volume mounted at `/mnt/computers`, holding per-actor
   state, agent registries, and machine metadata.
 
@@ -71,9 +71,9 @@ correct component owns each decision.
    without a cold boot.
 4. Hosts targeting an existing agent load or bootstrap a Fly Machine:
    - template configuration from `FLY_AGENT_TEMPLATE_APP` seeds memory, volumes,
-     and networking. This template diverges from
-     `FLY_COMPUTER_TARGET_APP`: the latter runs the baseline process management
-     stack, while the former bakes in the tool-heavy agent image used at runtime;
+     and networking. This template diverges from `FLY_COMPUTER_TARGET_APP`: the
+     latter runs the baseline process management stack, while the former bakes
+     in the tool-heavy agent image used at runtime;
    - machines are started on demand.
 5. The actor app finally emits
    `fly-replay: app=<actor-app>;fly_force_instance=<machine-id>`, pinning the
@@ -83,10 +83,9 @@ correct component owns each decision.
 ### Stage 3 – agent machine
 
 1. The replay reaches the Fly Machine running the `fly-agent` image.
-2. The entrypoint mounts the shared NFS and launches
-   `/agent/web-server/main.ts`, which serves the actual Codex agent runtime.
-   This path is the canonical entrypoint; when we migrate the web-server project
-   fully into the `fly-agent` repo, keep the same single-entry contract.
+2. The entrypoint mounts the shared NFS and launches `/agent/fly-agent/main.ts`,
+   which serves the actual Codex agent runtime. This path is the canonical
+   entrypoint.
 3. Agents may open additional listeners within 3000–30000; because every Fly app
    advertises that full range, follow-up `fly-replay` calls succeed for
    non-default ports and paths. Monitoring for stray listeners stays the

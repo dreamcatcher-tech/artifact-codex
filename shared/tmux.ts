@@ -227,6 +227,7 @@ function buildTtydArgs(options: {
   if (options.writeable) args.push('-W')
   args.push(
     'tmux',
+    '-u',
     '-L',
     SHARED_TMUX_SOCKET,
     'new-session',

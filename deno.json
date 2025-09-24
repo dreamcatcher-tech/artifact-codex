@@ -8,10 +8,10 @@
     "face-codex",
     "face-inspector",
     "face-test",
-    "web-server",
     "procman",
     "tasks",
     "shared",
+    "fly-agent",
     "fly-auth",
     "fly-computer"
   ],

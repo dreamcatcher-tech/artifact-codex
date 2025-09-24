@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   }
 
   log('launching default web-server entrypoint')
-  await launchProcess('deno', ['run', '-A', '/agent/web-server/main.ts'])
+  await launchProcess('deno', ['run', '-A', '/agent/fly-agent/main.ts'])
 }
 
 if (import.meta.main) {

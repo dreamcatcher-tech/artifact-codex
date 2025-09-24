@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/web-server",
+  "name": "@artifact/fly-agent",
   "exports": "./main.ts",
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",
