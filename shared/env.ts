@@ -73,7 +73,7 @@ export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
   }
 }
 
-export function readAppEnv(name: string): string {
+function readAppEnv(name: string): string {
   const value = Deno.env.get(name) ?? ''
   if (value.length === 0) {
     throw new Error(`Missing ${name} in environment`)

@@ -1,7 +1,6 @@
-#!/usr/bin/env -S deno run -A
 import Debug from 'debug'
 import { createAgentWebServer } from '@artifact/web-server'
-import { mountNfs } from './startup.ts'
+import { mount } from '@artifact/shared'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'
@@ -17,10 +16,10 @@ export function createApp() {
 
 async function main(): Promise<void> {
   Debug.enable('@artifact/*')
-  const log = Debug('@artifact/agent-basic:serve')
-  log('starting entrypoint: args=%o', Deno.args)
+  const log = Debug('@artifact/agent-basic:app')
+  log('starting app: args=%o', Deno.args)
 
-  await mountNfs()
+  await mount()
 
   const port = Number(Deno.env.get('PORT') ?? 8080)
   const hostname = '0.0.0.0'
@@ -65,5 +64,6 @@ function createAgentBasicOptions(): CreateAgentWebServerOptions {
 }
 
 if (import.meta.main) {
+  Debug.enable('@artifact/*')
   main()
 }

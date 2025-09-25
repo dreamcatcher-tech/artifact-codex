@@ -9,9 +9,9 @@ WORKDIR /app
 
 COPY . .
 
+RUN deno install --quiet
+
 WORKDIR /app/agent-basic
 
-RUN deno cache main.ts --config ../deno.json
-
-ENTRYPOINT ["deno", "run", "-A", "--config", "../deno.json"]
+ENTRYPOINT ["deno", "run", "-A"]
 CMD [ "app.ts" ]

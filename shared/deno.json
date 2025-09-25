@@ -5,5 +5,7 @@
     "lint": "deno lint --fix",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
   },
-  "exports": "./mod.ts"
+  "exports": {
+    ".": "./mod.ts"
+  }
 }

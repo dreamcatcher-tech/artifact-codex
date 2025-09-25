@@ -38,4 +38,4 @@ cpu_kind = 'shared'
 cpus = 1
 
 [deploy]
-release_command = '/app/agent-basic/machine-check.ts'
+release_command = '/app/shared/nfs-write-image-record.ts'

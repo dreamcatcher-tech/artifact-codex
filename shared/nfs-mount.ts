@@ -1,12 +1,11 @@
 import Debug from 'debug'
-import { envs, NFS_MOUNT_DIR, NFS_SHARE_PATH } from '@artifact/shared'
+import { envs, NFS_MOUNT_DIR, NFS_SHARE_PATH } from './mod.ts'
 
-const log = Debug('@artifact/agent-basic:startup')
+const log = Debug('@artifact/shared:nfs-mount')
 
-export async function mountNfs(): Promise<void> {
+export async function mount(): Promise<void> {
   const source = envs.DC_NFS()
   const target = `${source}:${NFS_SHARE_PATH}`
-  console.log('target', target)
   log('mounting NFS share target=%s mountDir=%s', target, NFS_MOUNT_DIR)
 
   await Deno.mkdir(NFS_MOUNT_DIR, { recursive: true })

@@ -3,11 +3,11 @@ import {
   COMPUTER_AGENT_CONTAINERS,
   NFS_MOUNT_DIR,
   readFlyMachineRuntimeEnv,
-} from '@artifact/shared'
+} from './mod.ts'
 import { basename, fromFileUrl, join } from '@std/path'
-import { mountNfs } from './startup.ts'
+import { mount } from './nfs-mount.ts'
 
-const log = Debug('@artifact/agent-basic')
+const log = Debug('@artifact/shared:nfs-write-image-record')
 
 const agentFolderName = () => {
   const dirPath = fromFileUrl(new URL('.', import.meta.url))
@@ -31,7 +31,7 @@ async function writeImageRecord(): Promise<void> {
 
 async function main(): Promise<void> {
   Debug.enable('@artifact/*')
-  await mountNfs()
+  await mount()
   await writeImageRecord()
   log('machine check complete')
 }
