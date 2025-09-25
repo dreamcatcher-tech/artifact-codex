@@ -32,14 +32,10 @@ start_port = 3000
 end_port = 30000
 handlers = ['tls', 'http']
 
-
-[[services.machine_checks]]
-entrypoint = ['deno', 'run', '-A', '--config', '/app/deno.json']
-command = ['/app/agent-basic/machine-check.ts']
-kill_signal = "SIGKILL"
-kill_timeout = "5s"
-
 [[vm]]
 memory = '1gb'
 cpu_kind = 'shared'
 cpus = 1
+
+[deploy]
+release_command = '/app/agent-basic/machine-check.ts'
