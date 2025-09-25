@@ -11,6 +11,7 @@
     "procman",
     "tasks",
     "shared",
+    "web-server",
     "agent-basic",
     "agent-dev-suite",
     "fly-auth",

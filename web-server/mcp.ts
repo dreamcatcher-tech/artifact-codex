@@ -3,18 +3,53 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
-import { createInteractions } from './interactions.ts'
-import { createFaces } from './faces.ts'
 import type { Face } from '@artifact/shared'
 import Debug from 'debug'
+
+import {
+  createFaces,
+  type CreateFacesOptions,
+  type FaceKindConfig,
+} from './faces.ts'
+import {
+  createInteractions,
+  type CreateInteractionsOptions,
+} from './interactions.ts'
+
 type FaceId = string
 
-export const mcpHandler = () => {
+export interface CreateMcpHandlerOptions {
+  serverName: string
+  serverVersion: string
+  faceKinds: readonly FaceKindConfig[]
+  debugNamespace?: string
+  facesOptions?: Omit<CreateFacesOptions, 'faceKinds'>
+  interactionsOptions?: CreateInteractionsOptions
+}
+
+export const createMcpHandler = (
+  {
+    serverName,
+    serverVersion,
+    faceKinds,
+    debugNamespace,
+    facesOptions,
+    interactionsOptions,
+  }: CreateMcpHandlerOptions,
+) => {
   let closed = false
-  const log = Debug('@artifact/agent-basic:mcp')
+  const ns = debugNamespace ?? '@artifact/web-server:mcp'
+  const log = Debug(ns)
   const facesStore = new Map<FaceId, Face>()
-  const faces = createFaces(facesStore)
-  const interactions = createInteractions(facesStore)
+  const faces = createFaces(facesStore, {
+    faceKinds,
+    debugNamespace: facesOptions?.debugNamespace ?? `${ns}:faces`,
+    ...facesOptions,
+  })
+  const interactions = createInteractions(facesStore, {
+    debugNamespace: interactionsOptions?.debugNamespace ?? `${ns}:interactions`,
+    ...interactionsOptions,
+  })
 
   const servers = new Set<McpServer>()
   const handler = async (c: Context) => {
@@ -22,7 +57,7 @@ export const mcpHandler = () => {
       throw new Error('MCP handler closed')
     }
     log('MCP handler start %s %s', c.req.method, c.req.path)
-    const server = new McpServer({ name: 'agent-basic', version: '0.0.1' })
+    const server = new McpServer({ name: serverName, version: serverVersion })
     createFacesServer(server, faces)
     createInteractionsServer(server, interactions)
     servers.add(server)

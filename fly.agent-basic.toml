@@ -11,6 +11,7 @@ DEBUG_COLORS = '1'
 DEBUG_HIDE_DATE = '1'
 FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
 FLY_NFS_APP = 'nfs-proto'
+DC_FACES = 'test'
 
 [http_service]
 internal_port = 8080

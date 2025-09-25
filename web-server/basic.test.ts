@@ -1,0 +1,53 @@
+import { expect } from '@std/expect'
+
+import { createAgentWebServer, type FaceKindConfig } from './mod.ts'
+import type { Face } from '@artifact/shared'
+
+function createStubFace(): Face {
+  let destroyed = false
+  return {
+    interaction: () => {
+      if (destroyed) throw new Error('face destroyed')
+    },
+    awaitInteraction: (interactionId: string) => {
+      if (destroyed) throw new Error('face destroyed')
+      return Promise.resolve(`result:${interactionId}`)
+    },
+    cancel: () => {
+      if (destroyed) throw new Error('face destroyed')
+    },
+    destroy: () => {
+      destroyed = true
+    },
+    status: () =>
+      Promise.resolve({
+        startedAt: new Date().toISOString(),
+        closed: destroyed,
+        interactions: 0,
+        lastInteractionId: undefined,
+        pid: Deno.pid,
+        views: [],
+        home: undefined,
+        workspace: Deno.cwd(),
+      }),
+  }
+}
+
+function stubFaceKinds(): FaceKindConfig[] {
+  return [{
+    id: 'test',
+    title: 'Test',
+    description: 'Stub face for web-server tests',
+    create: () => createStubFace(),
+  }]
+}
+
+Deno.test('createAgentWebServer returns app and close', async () => {
+  const { app, close } = createAgentWebServer({
+    serverName: 'web-server-test',
+    faceKinds: stubFaceKinds(),
+    debugNamespace: '@artifact/web-server:test',
+  })
+  expect(typeof app.fetch).toBe('function')
+  await close()
+})

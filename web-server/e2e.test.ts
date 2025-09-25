@@ -1,6 +1,7 @@
 import { expect } from '@std/expect'
 import { findAvailablePort, HOST } from '@artifact/shared'
-import { createApp } from './main.ts'
+import { createAgentWebServer } from './mod.ts'
+import { createTestServerOptions } from './test-helpers.ts'
 import NodeWS from 'ws'
 
 function safe<T>(fn: () => T) {
@@ -35,7 +36,7 @@ function serveOn(
 }
 
 function startApp(listen: number) {
-  const { app, close } = createApp()
+  const { app, close } = createAgentWebServer(createTestServerOptions())
   return serveOn(listen, app.fetch, close)
 }
 

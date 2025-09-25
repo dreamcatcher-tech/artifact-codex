@@ -10,19 +10,23 @@ type InteractionRecord = {
   input: string
 }
 
-let interactionIdSequence = 0
-
-function allocateInteractionId(): InteractionId {
-  const id = String(interactionIdSequence)
-  interactionIdSequence += 1
-  return id
+export interface CreateInteractionsOptions {
+  debugNamespace?: string
 }
 
 export const createInteractions = (
   faces: Map<FaceId, Face>,
+  { debugNamespace }: CreateInteractionsOptions = {},
 ): InteractionsHandlers => {
-  const log = Debug('@artifact/agent-basic:interactions')
+  const log = Debug(debugNamespace ?? '@artifact/web-server:interactions')
   const interactions = new Map<InteractionId, InteractionRecord>()
+  let interactionIdSequence = 0
+
+  const allocateInteractionId = (): InteractionId => {
+    const id = String(interactionIdSequence)
+    interactionIdSequence += 1
+    return id
+  }
 
   return {
     list_interactions: ({ faceId }): Promise<CallToolResult> => {

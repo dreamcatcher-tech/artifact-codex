@@ -1,120 +1,113 @@
 import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { Face, FaceKindId, FaceOptions } from '@artifact/shared'
-import {
-  HOST,
-  readConfiguredFaceKindSpecs,
-  toStructured,
-} from '@artifact/shared'
+import { HOST, toStructured } from '@artifact/shared'
 import { join } from '@std/path'
-import { startFaceTest } from '@artifact/face-test'
-import { startFaceInspector } from '@artifact/face-inspector'
-import { startFaceCodex } from '@artifact/face-codex'
-import { startFaceCmd } from '@artifact/face-cmd'
-import { createVirtualFace } from './face-self.ts'
-
 import Debug from 'debug'
 
-type FaceKind = {
-  title: string
-  description: string
-  creator: (opts: FaceOptions) => Face
-}
+import { createVirtualFace } from './face-self.ts'
+
 type FaceId = string
-
-let faceIdSequence = 0
-
-function allocateFaceId(): FaceId {
-  const id = `face-${faceIdSequence}`
-  faceIdSequence += 1
-  return id
-}
 
 const SELF_KIND_ID = '@self system'
 
-const FACE_KIND_CREATORS: Record<FaceKindId, FaceKind['creator']> = {
-  test: startFaceTest,
-  inspector: startFaceInspector,
-  codex: startFaceCodex,
-  cmd: startFaceCmd,
+export type FaceKindConfig = {
+  id: FaceKindId
+  title: string
+  description: string
+  create: (opts: FaceOptions) => Face
 }
 
-const configuredFaceKindSpecs = readConfiguredFaceKindSpecs()
+type FaceKindEntry = {
+  title: string
+  description: string
+  create?: (opts: FaceOptions) => Face
+}
 
-const faceKinds: Record<string, FaceKind> = {
-  [SELF_KIND_ID]: {
+export interface CreateFacesOptions {
+  faceKinds: readonly FaceKindConfig[]
+  debugNamespace?: string
+}
+
+export const createFaces = (
+  faces: Map<FaceId, Face>,
+  { faceKinds, debugNamespace }: CreateFacesOptions,
+): FacesHandlers => {
+  const log = Debug(debugNamespace ?? '@artifact/web-server:faces')
+  const faceIdToKind = new Map<FaceId, string>()
+  let faceIdSequence = 0
+
+  const allocateFaceId = (): FaceId => {
+    const id = `face-${faceIdSequence}`
+    faceIdSequence += 1
+    return id
+  }
+
+  const knownKinds = new Map<string, FaceKindEntry>()
+  knownKinds.set(SELF_KIND_ID, {
     title: '@self system',
     description:
       'the read only face that shows the process that the face management server runs on.  THIS CANNOT BE INSTANTIATED, DESTROYED, OR INTERACTED WITH',
-    creator: () => {
-      throw new Error('@self system face cannot be instantiated')
-    },
-  },
-}
+  })
 
-for (const spec of configuredFaceKindSpecs) {
-  const creator = FACE_KIND_CREATORS[spec.id]
-  if (!creator) {
-    throw new Error(`Configured face kind has no creator: ${spec.id}`)
+  for (const spec of faceKinds) {
+    if (knownKinds.has(spec.id)) {
+      throw new Error(`Duplicate face kind: ${spec.id}`)
+    }
+    knownKinds.set(spec.id, {
+      title: spec.title,
+      description: spec.description,
+      create: spec.create,
+    })
   }
-  faceKinds[spec.id] = {
-    title: spec.title,
-    description: spec.description,
-    creator,
-  }
-}
-
-export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
-  const log = Debug('@artifact/agent-basic:faces')
-
-  const faceIdToKind = new Map<FaceId, string>()
 
   const virtualFace = createVirtualFace()
   const virtualFaceId = allocateFaceId()
   faces.set(virtualFaceId, virtualFace)
   faceIdToKind.set(virtualFaceId, SELF_KIND_ID)
 
+  const listFaceKinds = () =>
+    Array.from(knownKinds.entries()).map(([faceKindId, info]) => ({
+      faceKindId,
+      title: info.title,
+      description: info.description,
+    }))
+
+  const listLiveFaces = async () => {
+    return await Promise.all(
+      Array.from(faces.keys()).map(async (faceId) => {
+        const faceKindId = faceIdToKind.get(faceId)
+        if (!faceKindId) {
+          throw new Error(
+            `Internal error: missing faceKindId for face ${faceId}`,
+          )
+        }
+        const info = knownKinds.get(faceKindId)
+        if (!info) {
+          throw new Error(`Internal error: ${faceId} unknown: ${faceKindId}`)
+        }
+        const status = await faces.get(faceId)!.status()
+        const views = (status.views ?? []).map((v) => ({
+          ...v,
+          url: v.url ?? `http://${HOST}:${v.port}`,
+        }))
+        log('list_faces: live %s (%s)', faceId, faceKindId)
+        return {
+          faceId,
+          faceKindId,
+          title: info.title,
+          description: info.description,
+          views,
+        }
+      }),
+    )
+  }
+
   return {
     list_faces: async (): Promise<CallToolResult> => {
-      log(
-        'list_faces: kinds=%d live=%d',
-        Object.keys(faceKinds).length,
-        faces.size,
-      )
-      const face_kinds = Object.entries(faceKinds).map((
-        [faceKindId, info],
-      ) => ({
-        faceKindId,
-        title: info.title,
-        description: info.description,
-      }))
-      const live_faces = await Promise.all(
-        Array.from(faces.keys()).map(async (faceId) => {
-          const faceKindId = faceIdToKind.get(faceId)
-          if (!faceKindId) {
-            throw new Error(
-              `Internal error: missing faceKindId for face ${faceId}`,
-            )
-          }
-          const info = faceKinds[faceKindId]
-          if (!info) {
-            throw new Error(`Internal error: ${faceId} unknown: ${faceKindId}`)
-          }
-          const status = await faces.get(faceId)!.status()
-          const views = (status.views ?? []).map((v) => ({
-            ...v,
-            url: v.url ?? `http://${HOST}:${v.port}`,
-          }))
-          log('list_faces: live %s (%s)', faceId, faceKindId)
-          return {
-            faceId,
-            faceKindId,
-            title: info.title,
-            description: info.description,
-            views,
-          }
-        }),
-      )
+      log('list_faces: kinds=%d live=%d', knownKinds.size, faces.size)
+      const face_kinds = listFaceKinds()
+      const live_faces = await listLiveFaces()
       return toStructured({ face_kinds, live_faces })
     },
     create_face: (
@@ -123,15 +116,16 @@ export const createFaces = (faces: Map<FaceId, Face>): FacesHandlers => {
       if (faceKindId === SELF_KIND_ID) {
         throw new Error('@self system face cannot be instantiated')
       }
-      if (!faceKinds[faceKindId]) {
-        const kinds = Object.keys(faceKinds).join(', ')
+      const info = knownKinds.get(faceKindId)
+      if (!info || !info.create) {
+        const kinds = Array.from(faceKinds).map((k) => k.id).join(', ')
         throw new Error(`Unknown kind: ${faceKindId} - use one of ${kinds}`)
       }
       const id = allocateFaceId()
       const finalWorkspace = workspace ?? Deno.cwd()
       const finalHome = resolveFaceHome(home, faceKindId)
       const finalConfig = config ?? {}
-      const face = faceKinds[faceKindId].creator({
+      const face = info.create({
         home: finalHome,
         workspace: finalWorkspace,
         hostname,

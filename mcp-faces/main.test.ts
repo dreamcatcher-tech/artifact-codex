@@ -2,7 +2,8 @@ import { expect } from '@std/expect'
 import { spawnStdioMcpServer } from '@artifact/shared'
 import { createRemoteFacesHandlers } from './main.ts'
 import type { ListFacesOutput } from './server.ts'
-import { withApp } from '@artifact/agent-basic/fixture'
+import { withApp } from '@artifact/web-server/fixture'
+import { createTestServerOptions } from '@artifact/web-server/test-helpers'
 
 Deno.test('MCP initialize handshake', async () => {
   await using srv = await spawnStdioMcpServer()
@@ -39,7 +40,7 @@ Deno.test('tools/list includes face tools', async () => {
 // to the faces proxy so remote calls go to /mcp on that app.
 
 Deno.test('proxy list_faces forwards to remote server', async () => {
-  await using fixtures = await withApp()
+  await using fixtures = await withApp(createTestServerOptions())
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const result = await handlers.list_faces({ agentId: 'in-memory' }) as {
     structuredContent?: ListFacesOutput
@@ -53,7 +54,7 @@ Deno.test('proxy list_faces forwards to remote server', async () => {
 })
 
 Deno.test('proxy create_face returns faceId via remote', async () => {
-  await using fixtures = await withApp()
+  await using fixtures = await withApp(createTestServerOptions())
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const created = await handlers.create_face({
     agentId: 'in-memory',
@@ -65,7 +66,7 @@ Deno.test('proxy create_face returns faceId via remote', async () => {
 })
 
 Deno.test('proxy read/destroy on unknown id return errors', async () => {
-  await using fixtures = await withApp()
+  await using fixtures = await withApp(createTestServerOptions())
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
   const read = await handlers.read_face({
     agentId: 'in-memory',

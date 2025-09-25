@@ -6,6 +6,10 @@ import {
 } from '@artifact/shared'
 import Debug from 'debug'
 
+import { createAgentWebServer } from '@artifact/web-server'
+
+import { createAgentDevSuiteOptions } from './server-options.ts'
+
 const log = Debug('@artifact/agent-dev-suite:entrypoint')
 
 export function parsePositiveInt(
@@ -74,8 +78,13 @@ async function main(): Promise<void> {
     return await launchProcess(Deno.args[0]!, Deno.args.slice(1))
   }
 
-  log('launching default agent-basic web server')
-  await launchProcess('/agent/agent-basic/main.ts', [])
+  log('launching default agent-dev-suite web server')
+  const options = createAgentDevSuiteOptions()
+  const { app } = createAgentWebServer(options)
+  const port = Number(Deno.env.get('PORT') ?? 8080)
+  const hostname = '0.0.0.0'
+  log('serving on %s:%d', hostname, port)
+  Deno.serve({ port, hostname, reusePort: false }, app.fetch)
 }
 
 if (import.meta.main) {
