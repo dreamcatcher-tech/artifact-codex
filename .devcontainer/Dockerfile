@@ -39,7 +39,10 @@ RUN apt-get install -y --no-install-recommends \
     ripgrep \
     zsh \
     openssh-client \
-    docker.io
+    docker.io \
+    python3 \
+    python3-pip \
+    python3-venv
 
 RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     apt-get update && \

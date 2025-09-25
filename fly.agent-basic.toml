@@ -9,8 +9,8 @@ dockerfile = 'agent-basic/Dockerfile'
 DEBUG = '@artifact/agent-*'
 DEBUG_COLORS = '1'
 DEBUG_HIDE_DATE = '1'
-FLY_AUTH_BASE_DOMAIN = 'agentic.dreamcatcher.land'
-FLY_NFS_APP = 'nfs-proto'
+DC_DOMAIN = 'agentic.dreamcatcher.land'
+DC_NFS = 'nfs-proto.flycast'
 DC_FACES = 'test'
 
 [http_service]
@@ -31,6 +31,13 @@ min_machines_running = 0
 start_port = 3000
 end_port = 30000
 handlers = ['tls', 'http']
+
+
+[[services.machine_checks]]
+entrypoint = ['deno', 'run', '-A', '--config', '/app/deno.json']
+command = ['/app/agent-basic/machine-check.ts']
+kill_signal = "SIGKILL"
+kill_timeout = "5s"
 
 [[vm]]
 memory = '1gb'

@@ -13,4 +13,5 @@ WORKDIR /app/agent-basic
 
 RUN deno cache main.ts --config ../deno.json
 
-ENTRYPOINT ["deno", "run", "-A", "--config", "../deno.json", "main.ts"]
+ENTRYPOINT ["deno", "run", "-A", "--config", "../deno.json"]
+CMD [ "app.ts" ]

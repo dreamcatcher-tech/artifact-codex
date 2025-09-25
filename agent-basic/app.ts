@@ -1,3 +1,7 @@
+#!/usr/bin/env -S deno run -A
+import Debug from 'debug'
+import { createAgentWebServer } from '@artifact/web-server'
+import { mountNfs } from './startup.ts'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'
@@ -5,6 +9,25 @@ import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
 import { startFaceCodex } from '@artifact/face-codex'
 import { startFaceCmd } from '@artifact/face-cmd'
+
+export function createApp() {
+  const options = createAgentBasicOptions()
+  return createAgentWebServer(options)
+}
+
+async function main(): Promise<void> {
+  Debug.enable('@artifact/*')
+  const log = Debug('@artifact/agent-basic:serve')
+  log('starting entrypoint: args=%o', Deno.args)
+
+  await mountNfs()
+
+  const port = Number(Deno.env.get('PORT') ?? 8080)
+  const hostname = '0.0.0.0'
+  const { app } = createApp()
+  log('serve: starting on %s:%d', hostname, port)
+  Deno.serve({ port, hostname, reusePort: false }, app.fetch)
+}
 
 const FACE_KIND_CREATORS: Record<FaceKindId, FaceKindConfig['create']> = {
   test: startFaceTest,
@@ -29,7 +52,7 @@ export function resolveFaceKinds(): FaceKindConfig[] {
   })
 }
 
-export function createAgentBasicOptions(): CreateAgentWebServerOptions {
+function createAgentBasicOptions(): CreateAgentWebServerOptions {
   const faceKinds = resolveFaceKinds()
   const hasCodex = faceKinds.some((kind) => kind.id === 'codex')
   return {
@@ -39,4 +62,8 @@ export function createAgentBasicOptions(): CreateAgentWebServerOptions {
     defaultFaceKindId: hasCodex ? 'codex' : undefined,
     debugNamespace: '@artifact/agent-basic',
   }
+}
+
+if (import.meta.main) {
+  main()
 }

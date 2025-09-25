@@ -10,6 +10,5 @@ export const HOST: string = (() => {
   }
 })()
 
-export const FLY_NFS_MOUNT_DIR = '/mnt/computers'
-export const NFS_EXPORT_BASE = '/data'
-export const FLY_NFS_SUBPATH = 'computers'
+export const NFS_MOUNT_DIR = '/mnt/computers'
+export const COMPUTER_AGENT_CONTAINERS = 'agent-containers'

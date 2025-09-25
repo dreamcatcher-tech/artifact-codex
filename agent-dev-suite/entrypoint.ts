@@ -1,8 +1,8 @@
 import { ensureNfsMount } from '@artifact/tasks'
 import {
-  FLY_NFS_MOUNT_DIR,
   FLY_NFS_SUBPATH,
   NFS_EXPORT_BASE,
+  NFS_MOUNT_DIR,
 } from '@artifact/shared'
 import Debug from 'debug'
 
@@ -51,13 +51,13 @@ async function main(): Promise<void> {
     log(
       'mounting NFS share host=%s mountDir=%s subpath=%s',
       nfsSource,
-      FLY_NFS_MOUNT_DIR,
+      NFS_MOUNT_DIR,
       FLY_NFS_SUBPATH,
     )
     await ensureNfsMount({
       retries,
       delayMs: delaySeconds * 1_000,
-      mountDir: FLY_NFS_MOUNT_DIR,
+      mountDir: NFS_MOUNT_DIR,
       exportBase: NFS_EXPORT_BASE,
       subpath: FLY_NFS_SUBPATH,
       source: nfsSource,

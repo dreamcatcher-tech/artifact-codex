@@ -72,3 +72,16 @@ export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
     PRIMARY_REGION: get('PRIMARY_REGION'),
   }
 }
+
+export function readAppEnv(name: string): string {
+  const value = Deno.env.get(name) ?? ''
+  if (value.length === 0) {
+    throw new Error(`Missing ${name} in environment`)
+  }
+  return value
+}
+
+export const envs = {
+  DC_NFS: () => readAppEnv('DC_NFS'),
+  DC_DOMAIN: () => readAppEnv('DC_DOMAIN'),
+}

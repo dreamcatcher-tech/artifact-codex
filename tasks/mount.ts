@@ -1,11 +1,11 @@
 import { runCommand } from '@artifact/procman'
 import { resolveNfsSource } from '../shared/app_env.ts'
-import { FLY_NFS_MOUNT_DIR, NFS_EXPORT_BASE } from '../shared/consts.ts'
+import { NFS_EXPORT_BASE, NFS_MOUNT_DIR } from '../shared/consts.ts'
 import type { CommandExecutor, EnsureMountOptions } from './types.ts'
 
 const DEFAULT_RETRIES = 5
 const DEFAULT_DELAY_MS = 3_000
-const DEFAULT_MOUNT_DIR = FLY_NFS_MOUNT_DIR
+const DEFAULT_MOUNT_DIR = NFS_MOUNT_DIR
 const DEFAULT_EXPORT_BASE = NFS_EXPORT_BASE
 const DEFAULT_MOUNT_OPTS = 'nfsvers=4.1'
 
