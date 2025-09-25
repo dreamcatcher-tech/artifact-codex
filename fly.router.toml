@@ -1,0 +1,42 @@
+# fly.toml app configuration file generated for org1-fly-router on 2025-09-25T02:31:01Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'org1-fly-router'
+primary_region = 'syd'
+
+[build]
+  dockerfile = 'fly-router/Dockerfile'
+
+[env]
+  CLERK_PUBLISHABLE_KEY = 'pk_live_Y2xlcmsuYWdlbnRpYy5kcmVhbWNhdGNoZXIubGFuZCQ'
+  CLERK_SIGN_IN_URL = 'https://accounts.agentic.dreamcatcher.land/sign-in'
+  CLERK_SIGN_UP_URL = 'https://accounts.agentic.dreamcatcher.land/sign-up'
+  DC_DOMAIN = 'agentic.dreamcatcher.land'
+  DC_NFS = 'nfs-proto.flycast'
+  DEBUG = '@artifact/fly-router*'
+  DEBUG_COLORS = '1'
+  DEBUG_HIDE_DATE = '1'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    start_port = 3000
+    end_port = 30000
+    handlers = ['tls', 'http']
+
+[[vm]]
+  size = 'shared-cpu-1x'
