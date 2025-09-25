@@ -51,14 +51,20 @@ export function resolveFaceKinds(): FaceKindConfig[] {
   })
 }
 
+export function selectDefaultFaceKindId(
+  faceKinds: readonly FaceKindConfig[],
+): FaceKindConfig['id'] | undefined {
+  return faceKinds.find((kind) => kind.id === 'codex')?.id ?? faceKinds[0]?.id
+}
+
 function createAgentBasicOptions(): CreateAgentWebServerOptions {
   const faceKinds = resolveFaceKinds()
-  const hasCodex = faceKinds.some((kind) => kind.id === 'codex')
+  const defaultFaceKindId = selectDefaultFaceKindId(faceKinds)
   return {
     serverName: 'agent-basic',
     serverVersion: '0.0.1',
     faceKinds,
-    defaultFaceKindId: hasCodex ? 'codex' : undefined,
+    defaultFaceKindId,
     debugNamespace: '@artifact/agent-basic',
   }
 }

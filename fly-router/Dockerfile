@@ -13,8 +13,8 @@ WORKDIR /app
 
 COPY . .
 
-WORKDIR /app/fly-router
+RUN deno install --quiet
 
-RUN deno cache main.ts --config ../deno.json
+WORKDIR /app/fly-router
 
 ENTRYPOINT ["deno", "run", "-A", "main.ts"]

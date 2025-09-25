@@ -1,0 +1,23 @@
+app = 'org1-fly-exec'
+primary_region = 'syd'
+
+[build]
+dockerfile = 'fly-exec/Dockerfile'
+
+[env]
+DC_DOMAIN = 'agentic.dreamcatcher.land'
+DC_NFS = 'nfs-proto.flycast'
+DC_FLY_API_TOKEN = 'secrets'
+
+DEBUG = '@artifact/fly-exec*'
+DEBUG_HIDE_DATE = '1'
+DEBUG_COLORS = '1'
+
+[http_service]
+internal_port = 8080
+auto_stop_machines = 'suspend'
+auto_start_machines = true
+min_machines_running = 0
+
+[[vm]]
+size = 'shared-cpu-1x'

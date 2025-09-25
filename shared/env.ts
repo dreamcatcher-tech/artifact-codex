@@ -84,4 +84,6 @@ function readAppEnv(name: string): string {
 export const envs = {
   DC_NFS: () => readAppEnv('DC_NFS'),
   DC_DOMAIN: () => readAppEnv('DC_DOMAIN'),
+  DC_EXEC: () => readAppEnv('DC_EXEC'),
+  DC_FLY_API_TOKEN: () => readAppEnv('DC_FLY_API_TOKEN'),
 }

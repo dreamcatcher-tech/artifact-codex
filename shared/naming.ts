@@ -2,7 +2,7 @@ import {
   adjectives,
   animals,
   uniqueNamesGenerator,
-} from 'npm:unique-names-generator@4.7.1'
+} from 'unique-names-generator'
 
 export function deriveBaseName(input: string): string {
   return input.replace(/-(\d+)$/, '')
