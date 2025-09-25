@@ -2,7 +2,9 @@ FROM denoland/deno:latest
 
 USER root
 
-RUN apk add --no-cache nfs-utils 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends nfs-common \
+  && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /mnt/computers
 
 USER deno
