@@ -13,11 +13,10 @@ export async function mount(): Promise<void> {
   const command = new Deno.Command('mount', {
     args: ['-t', 'nfs4', '-o', 'nfsvers=4.1', target, NFS_MOUNT_DIR],
   })
-  const { code, stderr } = await command.output()
+  const { code, stderr, stdout } = await command.output()
   if (code !== 0) {
     const msg = new TextDecoder().decode(stderr)
     throw new Error('Failed to mount NFS share: ' + msg)
   }
-
-  log('NFS mount ready')
+  log('NFS mount ready: %s', new TextDecoder().decode(stdout))
 }
