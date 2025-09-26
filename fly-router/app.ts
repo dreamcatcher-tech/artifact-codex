@@ -1,4 +1,4 @@
-import { Context, Hono, type HonoRequest } from '@hono/hono'
+import { Context, Hono } from '@hono/hono'
 import { envs } from '@artifact/shared'
 import {
   type ClerkAuthVariables,
@@ -13,11 +13,12 @@ const TEST_COMPUTER_ID = 'test-computer'
 type CreateAppOptions = {
   baseDomain?: string
   computerDir?: string
+  execApp?: string
 }
 
 export const createApp = (options: CreateAppOptions = {}) => {
   const app = new Hono<{ Variables: ClerkAuthVariables }>()
-  const { baseDomain = envs.DC_DOMAIN() } = options
+  const { baseDomain = envs.DC_DOMAIN(), execApp = envs.DC_EXEC() } = options
   const computerManager = createComputerManager(options)
 
   app.use('*', clerkMiddleware())
@@ -46,13 +47,11 @@ export const createApp = (options: CreateAppOptions = {}) => {
       return next()
     }
     const computerId = getComputerId(c.req.url, baseDomain)
-    if (!computerManager.computerExists(computerId)) {
+    if (!await computerManager.computerExists(computerId)) {
       return c.text('Computer not found', 404)
     }
 
-    // find the landing agent or create one if configured to do so
-
-    // post to the exec service to notify it that the computer has changed and await a response
+    const agentId = await computerManager.upsertLandingAgent(computerId)
 
     return redirectToAgent(c, baseDomain, computerId, agentId)
   })
@@ -62,19 +61,16 @@ export const createApp = (options: CreateAppOptions = {}) => {
       return next()
     }
     const computerId = getComputerId(c.req.url, baseDomain)
-    if (!computerManager.computerExists(computerId)) {
-      return c.text('Computer not found', 404)
-    }
     const agentId = getAgentId(c.req.url, baseDomain)
-    if (!computerManager.agentExists(computerId, agentId)) {
+    if (!await computerManager.agentExists(computerId, agentId)) {
       return c.text('Agent not found', 404)
     }
 
-    await computerManager.upsertExecInstance(computerId, agentId)
+    await computerManager.upsertExec(computerId, agentId)
 
     const machineId = await computerManager.execRunning(computerId, agentId)
 
-    return replayToExecApp(c, baseDomain, computerId, machineId)
+    return replayToExecApp(c, execApp, machineId)
   })
 
   app.delete('/integration/computer', async (c) => {
@@ -84,7 +80,6 @@ export const createApp = (options: CreateAppOptions = {}) => {
     }
 
     const existed = await computerManager.computerExists(computerId)
-    await computerManager.shutdownComputer(computerId)
     await computerManager.deleteComputer(computerId)
 
     return c.json({ success: true, existed })
@@ -115,7 +110,27 @@ function getSubdomain(urlString: string, baseDomain: string): string {
   if (subdomain.includes('.')) {
     throw new Error('subdomain contains a dot')
   }
+  const split = subdomain.split('--')
+  if (split.length > 2) {
+    throw new Error('subdomain does not contain exactly one --')
+  }
   return subdomain
+}
+
+function getComputerId(urlString: string, baseDomain: string): string {
+  const subdomain = getSubdomain(urlString, baseDomain)
+  if (!subdomain.includes('--')) {
+    return subdomain
+  }
+  return subdomain.split('--')[1]
+}
+
+function getAgentId(urlString: string, baseDomain: string): string {
+  const subdomain = getSubdomain(urlString, baseDomain)
+  if (!subdomain.includes('--')) {
+    throw new Error('subdomain does not contain agent id')
+  }
+  return subdomain.split('--')[0]
 }
 
 function isComputerDomain(urlString: string, baseDomain: string): boolean {
