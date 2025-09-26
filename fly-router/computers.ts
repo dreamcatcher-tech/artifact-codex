@@ -7,6 +7,7 @@ import {
   COMPUTER_EXEC,
   COMPUTER_REPOS,
   NFS_MOUNT_DIR,
+  REPO_CONTAINER_IMAGES,
 } from '@artifact/shared'
 import { join } from '@std/path'
 import {
@@ -99,12 +100,16 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const readLatestImage = async () => {
-    const containersDir = join(computerDir, COMPUTER_AGENT_CONTAINERS)
-    const recordPath = join(containersDir, `${name}.json`)
+    const containersDir = join(
+      computerDir,
+      COMPUTER_AGENT_CONTAINERS,
+      COMPUTER_REPOS,
+      REPO_CONTAINER_IMAGES,
+    )
+    const recordPath = join(containersDir, 'agent-basic.json')
     const text = await Deno.readTextFile(recordPath)
     const json = JSON.parse(text)
     return json.image
-    return 'registry/image:latest'
   }
 
   return {

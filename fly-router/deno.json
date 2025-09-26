@@ -1,0 +1,12 @@
+{
+  "name": "@artifact/fly-router",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "tasks": {
+    "test": "deno test -A",
+    "fmt": "deno fmt",
+    "lint": "deno lint --fix",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+  }
+}

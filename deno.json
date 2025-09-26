@@ -17,7 +17,8 @@
     "fly-auth",
     "fly-computer",
     "fly-exec",
-    "fly-nfs"
+    "fly-nfs",
+    "fly-router"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",

@@ -21,3 +21,5 @@ export const COMPUTER_EXEC = 'exec'
 export const AGENT_TOML = 'agent.toml'
 export const AGENT_HOME = 'home'
 export const AGENT_WORKSPACE = 'workspace'
+
+export const REPO_CONTAINER_IMAGES = 'container-images'

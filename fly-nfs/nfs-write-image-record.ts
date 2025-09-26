@@ -1,16 +1,21 @@
+#!/usr/bin/env -S deno run -A
+
 import Debug from 'debug'
+import { createComputerManager } from '@artifact/fly-router'
 import {
   COMPUTER_AGENT_CONTAINERS,
+  COMPUTER_REPOS,
   NFS_MOUNT_DIR,
   readFlyMachineRuntimeEnv,
+  REPO_CONTAINER_IMAGES,
 } from '@artifact/shared'
 import { basename, fromFileUrl, join } from '@std/path'
 import { mount } from './nfs-mount.ts'
 
 const log = Debug('@artifact/fly-nfs:nfs-write-image-record')
 
-const agentProjectName = () => {
-  const dirPath = fromFileUrl(new URL('.', import.meta.url))
+const agentProjectName = (moduleUrl: string) => {
+  const dirPath = fromFileUrl(new URL('.', moduleUrl))
   const name = basename(dirPath)
   if (!name) {
     throw new Error('Unable to determine agent folder name')
@@ -18,26 +23,23 @@ const agentProjectName = () => {
   return name
 }
 
-export async function writeImageRecord(): Promise<void> {
-  const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
-  const containersDir = join(NFS_MOUNT_DIR, COMPUTER_AGENT_CONTAINERS)
-  // needs to make a full computer with all the fixings
+export async function writeImageRecord(importMetaUrl: string): Promise<void> {
+  Debug.enable('@artifact/*')
+  await mount()
+  const computerManager = createComputerManager({ computerDir: NFS_MOUNT_DIR })
+  await computerManager.upsertComputer(COMPUTER_AGENT_CONTAINERS)
 
-  await Deno.mkdir(containersDir, { recursive: true })
-  const name = agentProjectName()
+  const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
+  const containersDir = join(
+    NFS_MOUNT_DIR,
+    COMPUTER_AGENT_CONTAINERS,
+    COMPUTER_REPOS,
+    REPO_CONTAINER_IMAGES,
+  )
+
+  const name = agentProjectName(importMetaUrl)
   const recordPath = join(containersDir, `${name}.json`)
   const payload = JSON.stringify({ image: FLY_IMAGE_REF }, null, 2)
   await Deno.writeTextFile(recordPath, payload)
   log('wrote image record path=%s', recordPath)
-}
-
-async function main(): Promise<void> {
-  Debug.enable('@artifact/*')
-  await mount()
-  await writeImageRecord()
-  log('machine check complete')
-}
-
-if (import.meta.main) {
-  main()
 }
