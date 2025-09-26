@@ -1,5 +1,8 @@
 {
   "name": "@artifact/fly-exec",
+  "exports": {
+    ".": "./app.ts"
+  },
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",
     "test": "deno test -A",

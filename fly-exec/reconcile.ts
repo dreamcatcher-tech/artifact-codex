@@ -122,6 +122,10 @@ const baseStopInstance = async (instance: ExecInstance) => {
   if (!machine_id) {
     throw new Error('machineId is required to stop an instance')
   }
-  const result = await fly.Machine.stopMachine({ app_name, machine_id })
+  const result = await fly.Machine.deleteMachine({
+    app_name,
+    machine_id,
+    force: true,
+  })
   console.log('machine stopped', result)
 }

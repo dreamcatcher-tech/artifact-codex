@@ -7,8 +7,8 @@ function createViews(opts: FaceOptions): FaceView[] {
   return [{
     name: 'test-face',
     protocol: 'http',
-    port: 0,
-    url: `http://${hostname}`,
+    port: 10000,
+    url: `http://${hostname}:10000`,
   }]
 }
 
@@ -20,6 +20,12 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
   const guardId = idCheck('interaction id')
   const pending = new Map<string, { value?: string; error?: Error }>()
   const views = createViews(opts)
+  const view = views[0]
+  const result = Deno.serve({ port: view.port }, (req) => {
+    console.log('req', req)
+    return new Response('ok')
+  })
+
   const startedAt = new Date().toISOString()
   let lastId: string | undefined
   let count = 0
@@ -58,6 +64,7 @@ export function startFaceTest(opts: FaceOptions = {}): Face {
   async function destroy() {
     closed = true
     pending.clear()
+    await result.shutdown()
   }
 
   async function status() {

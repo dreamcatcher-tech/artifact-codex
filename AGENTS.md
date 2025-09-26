@@ -69,6 +69,8 @@ references (for example `.refs/codex/codex-rs/`).
   type, and lint issues quickly.
 - Avoid leaving “what changed” comments in code; rely on version control.
 - When intentionally swallowing errors, add a lint hint such as `// ignore`.
+- tests are to be named <filename>.test.<ext> and live right next to the file
+  they exercise, which would be named <filename>.<ext>
 
 ### Deno Configuration
 
