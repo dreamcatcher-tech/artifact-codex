@@ -36,5 +36,8 @@ memory = '1gb'
 cpu_kind = 'shared'
 cpus = 1
 
+[deploy]
+release_command = '/app/fly-nfs/nfs-write-image-record.ts'
+
 [experimental]
 lazy_load_images = true

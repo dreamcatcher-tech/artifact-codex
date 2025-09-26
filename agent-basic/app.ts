@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { createAgentWebServer } from '@artifact/web-server'
-import { mount } from '@artifact/shared'
+import { mount } from '@artifact/fly-nfs'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'

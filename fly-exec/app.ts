@@ -4,7 +4,7 @@ import { envs } from '@artifact/shared'
 
 export const createApp = () => {
   const app = new Hono()
-  const reconcile = createReconciler()
+  const { reconcile } = createReconciler()
 
   app.all('*', async (c, next) => {
     const replayedFrom = c.req.header('fly-replay-src')

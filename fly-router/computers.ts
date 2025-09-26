@@ -2,18 +2,19 @@ import {
   AGENT_HOME,
   AGENT_TOML,
   AGENT_WORKSPACE,
+  COMPUTER_AGENT_CONTAINERS,
   COMPUTER_AGENTS,
   COMPUTER_EXEC,
   COMPUTER_REPOS,
   NFS_MOUNT_DIR,
 } from '@artifact/shared'
 import { join } from '@std/path'
-import { exists } from '@std/fs' 
 import {
   adjectives,
   animals,
   uniqueNamesGenerator,
 } from 'unique-names-generator'
+import { createReconciler } from '@artifact/fly-exec'
 
 type ComputerManagerOptions = {
   computerDir?: string
@@ -69,18 +70,15 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const upsertExec = async (computerId: string, agentId: string) => {
-
     const filename = agentId + '.json'
     const path = join(computerDir, computerId, COMPUTER_EXEC, filename)
-    if (await exists(path)) {
-      // read it, and make sure it is valid
-      
-      return
+    const { readInstance, writeInstance } = createReconciler({ computerDir })
+    try {
+      await readInstance(path)
+    } catch {
+      const image = await readLatestImage()
+      writeInstance(path, { software: 'running', hardware: 'queued', image })
     }
-    const file 
-    // we have the agent name
-    // check if there is an instance already running
-    // else create a new one
   }
 
   const execRunning = async (computerId: string, agentId: string) => {
@@ -98,6 +96,15 @@ export function createComputerManager(options: ComputerManagerOptions) {
     // check there are no instances running
     // delete the computer folder
     await Deno.remove(join(computerDir, computerId), { recursive: true })
+  }
+
+  const readLatestImage = async () => {
+    const containersDir = join(computerDir, COMPUTER_AGENT_CONTAINERS)
+    const recordPath = join(containersDir, `${name}.json`)
+    const text = await Deno.readTextFile(recordPath)
+    const json = JSON.parse(text)
+    return json.image
+    return 'registry/image:latest'
   }
 
   return {

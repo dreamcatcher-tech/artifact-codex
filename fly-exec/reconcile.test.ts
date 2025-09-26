@@ -9,6 +9,7 @@ class ReconcileTestSetup implements AsyncDisposable {
   readonly execDir: string
   readonly agentsDir: string
   readonly instancePath: string
+  readonly agentEntryPath: string
 
   constructor(
     readonly root: string,
@@ -19,6 +20,7 @@ class ReconcileTestSetup implements AsyncDisposable {
     this.execDir = join(this.computerDir, COMPUTER_EXEC)
     this.agentsDir = join(this.computerDir, COMPUTER_AGENTS)
     this.instancePath = join(this.execDir, instanceName)
+    this.agentEntryPath = join(this.agentsDir, this.instanceName)
   }
 
   async init() {
@@ -26,24 +28,12 @@ class ReconcileTestSetup implements AsyncDisposable {
     await Deno.mkdir(this.agentsDir, { recursive: true })
   }
 
-  async writeInstance(instance: ExecInstance) {
-    const body = JSON.stringify(instance, null, 2) + '\n'
-    await Deno.writeTextFile(this.instancePath, body)
-  }
-
-  async readInstance(): Promise<ExecInstance> {
-    const contents = await Deno.readTextFile(this.instancePath)
-    return JSON.parse(contents)
-  }
-
   async ensureAgentDirectory() {
-    await Deno.mkdir(join(this.agentsDir, this.instanceName), {
-      recursive: true,
-    })
+    await Deno.mkdir(this.agentEntryPath, { recursive: true })
   }
 
   async ensureAgentFile() {
-    await Deno.writeTextFile(join(this.agentsDir, this.instanceName), '')
+    await Deno.writeTextFile(this.agentEntryPath, '')
   }
 
   async instanceExists() {
@@ -75,14 +65,13 @@ const createTestSetup = async (
 Deno.test('reconcile starts queued instance', async () => {
   await using setup = await createTestSetup({ computerId: 'computer-start' })
   await setup.ensureAgentDirectory()
-  await setup.writeInstance({
-    software: 'running',
-    hardware: 'queued',
-    image: 'registry/image:latest',
-  })
 
   const startCalls: ExecInstance[] = []
-  const {reconcile} = createReconciler({
+  const {
+    reconcile,
+    writeInstance,
+    readInstance,
+  } = createReconciler({
     computerDir: setup.root,
     startInstance: (instance) => {
       startCalls.push(structuredClone(instance))
@@ -91,11 +80,17 @@ Deno.test('reconcile starts queued instance', async () => {
     },
   })
 
+  await writeInstance(setup.instancePath, {
+    software: 'running',
+    hardware: 'queued',
+    image: 'registry/image:latest',
+  })
+
   const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(1)
   expect(startCalls.length).toBe(1)
 
-  const updated = await setup.readInstance()
+  const updated = await readInstance(setup.instancePath)
   expect(updated.hardware).toBe('starting')
   expect(updated.machineId).toBe('machine-123')
 })
@@ -103,15 +98,9 @@ Deno.test('reconcile starts queued instance', async () => {
 Deno.test('reconcile stops running instance', async () => {
   await using setup = await createTestSetup({ computerId: 'computer-stop' })
   await setup.ensureAgentDirectory()
-  await setup.writeInstance({
-    software: 'stopped',
-    hardware: 'running',
-    image: 'registry/image:latest',
-    machineId: 'machine-existing',
-  })
 
   const stopCalls: ExecInstance[] = []
-  const reconciler = createReconciler({
+  const { reconcile, writeInstance } = createReconciler({
     computerDir: setup.root,
     stopInstance: (instance) => {
       stopCalls.push(structuredClone(instance))
@@ -120,7 +109,14 @@ Deno.test('reconcile stops running instance', async () => {
     },
   })
 
-  const changeCount = await reconciler(setup.computerId)
+  await writeInstance(setup.instancePath, {
+    software: 'stopped',
+    hardware: 'running',
+    image: 'registry/image:latest',
+    machineId: 'machine-existing',
+  })
+
+  const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(1)
   expect(stopCalls.length).toBe(1)
   expect(await setup.instanceExists()).toBe(false)
@@ -136,12 +132,16 @@ Deno.test('reconcile ignores instances without agent directories', async () => {
     hardware: 'queued',
     image: 'registry/image:latest',
   }
-  await setup.writeInstance(initial)
 
-  const reconciler = createReconciler({ computerDir: setup.root })
-  const changeCount = await reconciler(setup.computerId)
+  const { reconcile, writeInstance, readInstance } = createReconciler({
+    computerDir: setup.root,
+  })
+
+  await writeInstance(setup.instancePath, initial)
+
+  const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(0)
 
-  const final = await setup.readInstance()
+  const final = await readInstance(setup.instancePath)
   expect(final).toEqual(initial)
 })

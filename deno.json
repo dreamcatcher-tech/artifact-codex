@@ -16,7 +16,8 @@
     "agent-dev-suite",
     "fly-auth",
     "fly-computer",
-    "fly-exec"
+    "fly-exec",
+    "fly-nfs"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",

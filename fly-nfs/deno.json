@@ -1,13 +1,12 @@
 {
-  "name": "@artifact/fly-exec",
+  "name": "@artifact/fly-nfs",
   "exports": {
-    ".": "./reconcile.ts"
+    ".": "./mod.ts"
   },
   "tasks": {
-    "watch": "deno test -A --trace-leaks --watch",
     "test": "deno test -A",
-    "lint": "deno lint --fix",
     "fmt": "deno fmt",
+    "lint": "deno lint --fix",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
   }
 }

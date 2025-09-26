@@ -1,7 +1,7 @@
 import Debug from 'debug'
-import { envs, NFS_MOUNT_DIR, NFS_SHARE_PATH } from './mod.ts'
+import { envs, NFS_MOUNT_DIR, NFS_SHARE_PATH } from '@artifact/shared'
 
-const log = Debug('@artifact/shared:nfs-mount')
+const log = Debug('@artifact/fly-nfs:nfs-mount')
 
 export async function mount(): Promise<void> {
   const source = envs.DC_NFS()
