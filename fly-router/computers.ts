@@ -86,6 +86,8 @@ export function createComputerManager(options: ComputerManagerOptions) {
     const path = join(computerDir, computerId, COMPUTER_EXEC, `${agentId}.json`)
     const { readInstance } = createReconciler({ computerDir })
 
+    await kickExecApp(computerId)
+
     let instance
     const start = Date.now()
     do {
