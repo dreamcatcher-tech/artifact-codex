@@ -16,7 +16,8 @@ const COMPUTER_URL = `https://${COMPUTER_ID}.${BASE_DOMAIN}`
 const AGENT_ID = 'agent-1'
 const AGENT_URL = `https://${AGENT_ID}--${COMPUTER_ID}.${BASE_DOMAIN}`
 
-Deno.test('assertHostname allows hostnames ending with the base domain', () => {
+Deno.test('assertHostname allows the base domain and matching subdomains', () => {
+  expect(() => assertHostname(BASE_DOMAIN, BASE_DOMAIN)).not.toThrow()
   expect(() => assertHostname(`${COMPUTER_ID}.${BASE_DOMAIN}`, BASE_DOMAIN))
     .not.toThrow()
 })
@@ -24,6 +25,13 @@ Deno.test('assertHostname allows hostnames ending with the base domain', () => {
 Deno.test('assertHostname rejects hostnames that do not match the base domain', () => {
   expect(() => assertHostname('example.com', BASE_DOMAIN)).toThrow(
     'hostname mismatch: example.com !endsWith agentic.dreamcatcher.land',
+  )
+})
+
+Deno.test('assertHostname rejects hostnames that only suffix-match within a label', () => {
+  const attacker = `evil${BASE_DOMAIN}`
+  expect(() => assertHostname(attacker, BASE_DOMAIN)).toThrow(
+    `hostname mismatch: ${attacker} !endsWith agentic.dreamcatcher.land`,
   )
 })
 

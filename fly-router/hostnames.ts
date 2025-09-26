@@ -1,5 +1,8 @@
 export function assertHostname(hostname: string, baseDomain: string): void {
-  if (!hostname.endsWith(baseDomain)) {
+  if (hostname === baseDomain) {
+    return
+  }
+  if (!hostname.endsWith(`.${baseDomain}`)) {
     throw new Error(`hostname mismatch: ${hostname} !endsWith ${baseDomain}`)
   }
 }
