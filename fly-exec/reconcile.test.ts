@@ -82,7 +82,7 @@ Deno.test('reconcile starts queued instance', async () => {
   })
 
   const startCalls: ExecInstance[] = []
-  const reconciler = createReconciler({
+  const {reconcile} = createReconciler({
     computerDir: setup.root,
     startInstance: (instance) => {
       startCalls.push(structuredClone(instance))
@@ -91,7 +91,7 @@ Deno.test('reconcile starts queued instance', async () => {
     },
   })
 
-  const changeCount = await reconciler(setup.computerId)
+  const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(1)
   expect(startCalls.length).toBe(1)
 

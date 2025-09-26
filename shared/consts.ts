@@ -17,3 +17,7 @@ export const COMPUTER_AGENT_CONTAINERS = 'org-agent-containers'
 export const COMPUTER_AGENTS = 'agents'
 export const COMPUTER_REPOS = 'repos'
 export const COMPUTER_EXEC = 'exec'
+
+export const AGENT_TOML = 'agent.toml'
+export const AGENT_HOME = 'home'
+export const AGENT_WORKSPACE = 'workspace'

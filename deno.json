@@ -30,6 +30,7 @@
     "@openjs/port-free": "jsr:@openjs/port-free@^1.0.0",
     "@std/dotenv": "jsr:@std/dotenv@^0.225.5",
     "@std/expect": "jsr:@std/expect@^1.0.17",
+    "@std/fs": "jsr:@std/fs@^1.0.19",
     "@std/path": "jsr:@std/path@^1.1.2",
     "@std/toml": "jsr:@std/toml@^1.0.10",
     "@std/ulid": "jsr:@std/ulid@^1.0.0",

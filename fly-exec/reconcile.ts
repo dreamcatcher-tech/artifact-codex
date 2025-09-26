@@ -94,7 +94,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     await Deno.remove(path)
   }
 
-  return reconcile
+  return {reconcile, readInstance, writeInstance, deleteInstance}
 }
 
 const baseStartInstance = async (instance: ExecInstance) => {

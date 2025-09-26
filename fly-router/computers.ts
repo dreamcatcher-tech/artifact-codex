@@ -1,10 +1,19 @@
 import {
+  AGENT_HOME,
+  AGENT_TOML,
+  AGENT_WORKSPACE,
   COMPUTER_AGENTS,
   COMPUTER_EXEC,
   COMPUTER_REPOS,
   NFS_MOUNT_DIR,
 } from '@artifact/shared'
 import { join } from '@std/path'
+import { exists } from '@std/fs' 
+import {
+  adjectives,
+  animals,
+  uniqueNamesGenerator,
+} from 'unique-names-generator'
 
 type ComputerManagerOptions = {
   computerDir?: string
@@ -31,7 +40,9 @@ export function createComputerManager(options: ComputerManagerOptions) {
     const path = join(computerDir, computer)
     const agents = join(path, 'agents')
 
-    return 'asdf'
+    const name = await makeAgentFolder(agents)
+    await populateAgent(join(agents, name))
+    return name
   }
 
   const computerExists = async (computer: string) => {
@@ -58,6 +69,15 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const upsertExec = async (computerId: string, agentId: string) => {
+
+    const filename = agentId + '.json'
+    const path = join(computerDir, computerId, COMPUTER_EXEC, filename)
+    if (await exists(path)) {
+      // read it, and make sure it is valid
+      
+      return
+    }
+    const file 
     // we have the agent name
     // check if there is an instance already running
     // else create a new one
@@ -90,4 +110,29 @@ export function createComputerManager(options: ComputerManagerOptions) {
     shutdownComputer,
     deleteComputer,
   }
+}
+
+async function makeAgentFolder(path: string) {
+  while (true) {
+    const name = uniqueNamesGenerator({
+      dictionaries: [adjectives, animals],
+      length: 2,
+      separator: '-',
+      style: 'lowerCase',
+    })
+    try {
+      await Deno.mkdir(join(path, name), { recursive: true })
+      return name
+    } catch {
+      continue
+    }
+  }
+}
+
+async function populateAgent(name: string) {
+  return await Promise.all([
+    Deno.mkdir(join(name, AGENT_HOME), { recursive: true }),
+    Deno.mkdir(join(name, AGENT_WORKSPACE), { recursive: true }),
+    Deno.writeTextFile(join(name, AGENT_TOML), ''),
+  ])
 }
