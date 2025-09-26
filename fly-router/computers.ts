@@ -6,10 +6,12 @@ import {
   COMPUTER_AGENTS,
   COMPUTER_EXEC,
   COMPUTER_REPOS,
+  envs,
   NFS_MOUNT_DIR,
   REPO_CONTAINER_IMAGES,
 } from '@artifact/shared'
 import { join } from '@std/path'
+import { ensureDir } from '@std/fs'
 import {
   adjectives,
   animals,
@@ -19,11 +21,11 @@ import { createReconciler } from '@artifact/fly-exec'
 
 type ComputerManagerOptions = {
   computerDir?: string
-  execApp?: string
+  kickExecApp?: (computerId: string) => Promise<void>
 }
 
 export function createComputerManager(options: ComputerManagerOptions) {
-  const { computerDir = NFS_MOUNT_DIR } = options
+  const { computerDir = NFS_MOUNT_DIR, kickExecApp = baseKickExecApp } = options
 
   const upsertComputer = async (computer: string) => {
     const path = join(computerDir, computer)
@@ -31,11 +33,9 @@ export function createComputerManager(options: ComputerManagerOptions) {
     const agents = join(path, COMPUTER_AGENTS)
     const exec = join(path, COMPUTER_EXEC)
     const repos = join(path, COMPUTER_REPOS)
-    await Promise.all([
-      Deno.mkdir(agents, { recursive: true }),
-      Deno.mkdir(exec, { recursive: true }),
-      Deno.mkdir(repos, { recursive: true }),
-    ])
+    await ensureDir(agents)
+    await ensureDir(exec)
+    await ensureDir(repos)
   }
 
   const upsertLandingAgent = async (computer: string) => {
@@ -82,20 +82,38 @@ export function createComputerManager(options: ComputerManagerOptions) {
     }
   }
 
-  const execRunning = async (computerId: string, agentId: string) => {
-    return 'asdf'
+  const waitForRunning = async (computerId: string, agentId: string) => {
+    const path = join(computerDir, computerId, COMPUTER_EXEC, `${agentId}.json`)
+    const { readInstance } = createReconciler({ computerDir })
+
+    let instance
+    const start = Date.now()
+    do {
+      instance = await readInstance(path)
+      if (instance.hardware === 'running') {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    } while (Date.now() - start < 60_000)
+    throw new Error('Instance did not start within 60 seconds')
   }
 
   const shutdownComputer = async (computerId: string) => {
-    // mark all instances as stopped
-    // await the response to the exec app
-    return 'asdf'
+    const { readInstance, writeInstance, getInstancePaths } = createReconciler({
+      computerDir,
+    })
+    for (const path of await getInstancePaths(computerId)) {
+      const instance = await readInstance(path)
+      if (instance.software !== 'stopped') {
+        instance.software = 'stopped'
+        await writeInstance(path, instance)
+      }
+    }
+    await kickExecApp(computerId)
   }
 
   const deleteComputer = async (computerId: string) => {
     await shutdownComputer(computerId)
-    // check there are no instances running
-    // delete the computer folder
     await Deno.remove(join(computerDir, computerId), { recursive: true })
   }
 
@@ -109,6 +127,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
     const recordPath = join(containersDir, 'agent-basic.json')
     const text = await Deno.readTextFile(recordPath)
     const json = JSON.parse(text)
+    console.log('container image', json.image)
     return json.image
   }
 
@@ -118,9 +137,19 @@ export function createComputerManager(options: ComputerManagerOptions) {
     computerExists,
     agentExists,
     upsertExec,
-    execRunning,
+    execRunning: waitForRunning,
     shutdownComputer,
     deleteComputer,
+  }
+}
+
+async function baseKickExecApp(computerId: string) {
+  const execApp = envs.DC_EXEC()
+  const result = await fetch(execApp + '/changed/' + computerId, {
+    method: 'POST',
+  })
+  if (!result.ok) {
+    throw new Error('Failed to kick exec app')
   }
 }
 

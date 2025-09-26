@@ -1,5 +1,6 @@
 #!/usr/bin/env -S deno run -A
 
+import { ensureDir } from '@std/fs'
 import Debug from 'debug'
 import { createComputerManager } from '@artifact/fly-router'
 import {
@@ -29,16 +30,18 @@ export async function writeImageRecord(importMetaUrl: string): Promise<void> {
   const computerManager = createComputerManager({ computerDir: NFS_MOUNT_DIR })
   await computerManager.upsertComputer(COMPUTER_AGENT_CONTAINERS)
 
-  const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
   const containersDir = join(
     NFS_MOUNT_DIR,
     COMPUTER_AGENT_CONTAINERS,
     COMPUTER_REPOS,
     REPO_CONTAINER_IMAGES,
   )
+  await ensureDir(containersDir)
 
   const name = agentProjectName(importMetaUrl)
   const recordPath = join(containersDir, `${name}.json`)
+
+  const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
   const payload = JSON.stringify({ image: FLY_IMAGE_REF }, null, 2)
   await Deno.writeTextFile(recordPath, payload)
   log('wrote image record path=%s', recordPath)
