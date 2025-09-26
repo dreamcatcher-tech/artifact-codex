@@ -3,7 +3,7 @@ FROM denoland/deno:alpine-2.5.0
 USER root
 
 RUN apk add --no-cache nfs-utils util-linux coreutils curl \
-  && mkdir -p /mnt/computers 
+  && mkdir -p /mnt/computers
 
 WORKDIR /app
 

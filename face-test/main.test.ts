@@ -12,6 +12,9 @@ Deno.test('start returns Face with basic methods', async () => {
     expect(s.closed).toBe(false)
     expect(s.interactions).toBe(0)
     expect(typeof s.startedAt).toBe('string')
+    expect(Array.isArray(s.views)).toBe(true)
+    expect(s.views?.length ?? 0).toBeGreaterThan(0)
+    expect(typeof s.views?.[0]?.url).toBe('string')
   } finally {
     await face.destroy()
   }

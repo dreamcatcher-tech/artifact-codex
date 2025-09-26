@@ -9,6 +9,12 @@ logs can be targetted to a specific machine too:
 any time you need to specify a config, you can also specify the app name: ``fly
 logs --app <app-name> --no-tail`
 
+Any time you are contemplating some way of interacting with the fly.io
+infrastructure, or attempting something new in deno, use the net to search for
+the latest information, since both the deno project and the fly.io platform
+change frequently - you need the latest information to use these things
+effectively.
+
 ## Purpose and References
 
 - Primary flyctl CLI reference: https://fly.io/docs/flyctl/ (also available via

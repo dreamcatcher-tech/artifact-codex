@@ -5,9 +5,6 @@ import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
-import { startFaceInspector } from '@artifact/face-inspector'
-import { startFaceCodex } from '@artifact/face-codex'
-import { startFaceCmd } from '@artifact/face-cmd'
 
 export function createApp() {
   const options = createAgentBasicOptions()
@@ -28,11 +25,10 @@ async function main(): Promise<void> {
   Deno.serve({ port, hostname, reusePort: false }, app.fetch)
 }
 
-const FACE_KIND_CREATORS: Record<FaceKindId, FaceKindConfig['create']> = {
+const FACE_KIND_CREATORS: Partial<
+  Record<FaceKindId, FaceKindConfig['create']>
+> = {
   test: startFaceTest,
-  inspector: startFaceInspector,
-  codex: startFaceCodex,
-  cmd: startFaceCmd,
 }
 
 export function resolveFaceKinds(): FaceKindConfig[] {
@@ -54,7 +50,7 @@ export function resolveFaceKinds(): FaceKindConfig[] {
 export function selectDefaultFaceKindId(
   faceKinds: readonly FaceKindConfig[],
 ): FaceKindConfig['id'] | undefined {
-  return faceKinds.find((kind) => kind.id === 'codex')?.id ?? faceKinds[0]?.id
+  return faceKinds[0]?.id
 }
 
 function createAgentBasicOptions(): CreateAgentWebServerOptions {

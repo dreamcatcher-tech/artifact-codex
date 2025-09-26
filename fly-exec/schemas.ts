@@ -1,8 +1,6 @@
 import { z } from 'zod'
 
 export const execInstanceSchema = z.object({
-  /** the agent path segment to the agent folder on disk */
-  agent: z.string(),
   /** state requested by the computer */
   software: z.enum(['running', 'stopped']),
   /** the status of the instance from the hardware perspective */

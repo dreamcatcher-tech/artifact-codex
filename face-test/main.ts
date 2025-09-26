@@ -1,81 +1,75 @@
 #!/usr/bin/env -S deno run
-import type { Face, FaceOptions } from '@artifact/shared'
-import { idCheck } from '@artifact/shared'
+import type { Face, FaceOptions, FaceView } from '@artifact/shared'
+import { HOST, idCheck } from '@artifact/shared'
+
+function createViews(opts: FaceOptions): FaceView[] {
+  const hostname = opts.hostname ?? HOST
+  return [{
+    name: 'test-face',
+    protocol: 'http',
+    port: 0,
+    url: `http://${hostname}`,
+  }]
+}
 
 /**
- * A minimal Face that echoes inputs. Used for exercising error paths.
- * - Returns the same string on interaction.
- * - Special input: "error" throws to test error handling.
+ * Minimal Face used for exercising error paths.
+ * Echoes input strings and throws when the input is "error".
  */
 export function startFaceTest(opts: FaceOptions = {}): Face {
-  const startedAt = new Date()
-  let closed = false
-  let count = 0
+  const guardId = idCheck('interaction id')
+  const pending = new Map<string, { value?: string; error?: Error }>()
+  const views = createViews(opts)
+  const startedAt = new Date().toISOString()
   let lastId: string | undefined
+  let count = 0
+  let closed = false
 
-  function assertOpen() {
+  function ensureOpen() {
     if (closed) throw new Error('face is closed')
   }
 
-  const active = new Map<string, { promise: Promise<string>; error?: Error }>()
-  const guardUniqueInteractionId = idCheck('interaction id')
-
   function interaction(id: string, input: string) {
-    assertOpen()
-    guardUniqueInteractionId(id)
-    const promise: Promise<string> = Promise
-      .resolve()
-      .then(() => {
-        if (input.toLowerCase() === 'error') {
-          throw new Error('intentional test error')
-        }
-        return input
-      })
-
-    promise.catch((err) => {
-      record.error = err
-    })
-    const record = { promise, error: undefined }
-    active.set(id, record)
+    ensureOpen()
+    guardId(id)
+    const entry = input.toLowerCase() === 'error'
+      ? { error: new Error('intentional test error') }
+      : { value: input }
+    pending.set(id, entry)
     lastId = id
     count += 1
   }
 
+  async function awaitInteraction(id: string) {
+    await Promise.resolve()
+    const entry = pending.get(id)
+    if (!entry) throw new Error(`unknown interaction id: ${id}`)
+    pending.delete(id)
+    if (entry.error) throw entry.error
+    return entry.value ?? ''
+  }
+
   function cancel(id: string) {
-    const rec = active.get(id)
-    if (!rec) throw new Error(`unknown interaction id: ${id}`)
-    active.delete(id)
-    return Promise.resolve()
+    if (!pending.delete(id)) {
+      throw new Error(`unknown interaction id: ${id}`)
+    }
   }
 
   async function destroy() {
     closed = true
-    await Promise.resolve()
+    pending.clear()
   }
 
   async function status() {
     await Promise.resolve()
     return {
-      startedAt: startedAt.toISOString(),
+      startedAt,
       closed,
       interactions: count,
       lastInteractionId: lastId,
       home: opts.home,
       workspace: opts.workspace,
-    }
-  }
-
-  async function awaitInteraction(id: string) {
-    const rec = active.get(id)
-    if (!rec) throw new Error(`unknown interaction id: ${id}`)
-    try {
-      const result = await rec.promise
-      if (rec.error) {
-        throw rec.error
-      }
-      return result
-    } finally {
-      active.delete(id)
+      views,
     }
   }
 

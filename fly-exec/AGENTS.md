@@ -24,3 +24,8 @@ Once it has started we move the state to running.
 
 There is no 'stopped' state, since once the machine is stopped, the json file is
 deleted
+
+## Notes
+
+the name of the instance file on disk is equal to the agent id in the agents/
+folder.
