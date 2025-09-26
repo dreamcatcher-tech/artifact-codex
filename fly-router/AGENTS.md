@@ -32,3 +32,7 @@ the router is here to:
 - names are of the form `<agent-name>--<actor-computer>.<base-domain>
 - the right segment is the computer name
 - the left segment is the agent name
+
+## relationship to the exec app
+
+The exec app which is at ../fly-exec is the cooperating partner of this app

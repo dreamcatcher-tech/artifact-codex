@@ -1,0 +1,10 @@
+{
+  "name": "@artifact/fly-exec",
+  "tasks": {
+    "watch": "deno test -A --trace-leaks --watch",
+    "test": "deno test -A",
+    "lint": "deno lint --fix",
+    "fmt": "deno fmt",
+    "ok": "deno check && deno task test && deno fmt --check && deno lint"
+  }
+}

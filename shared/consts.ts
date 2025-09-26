@@ -13,3 +13,5 @@ export const HOST: string = (() => {
 export const NFS_MOUNT_DIR = '/mnt/computers'
 export const NFS_SHARE_PATH = '/data/computers'
 export const COMPUTER_AGENT_CONTAINERS = 'org-agent-containers'
+export const COMPUTER_EXEC = 'exec'
+export const COMPUTER_AGENTS = 'agents'
