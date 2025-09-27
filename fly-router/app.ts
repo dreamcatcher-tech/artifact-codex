@@ -65,7 +65,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
     return redirectToAgent(c, baseDomain, computerId, agentId)
   })
 
-  app.get('*', async (c, next) => {
+  app.all('*', async (c, next) => {
     if (!isAgentDomain(c.req.url, baseDomain)) {
       return next()
     }
@@ -126,7 +126,7 @@ function redirectToComputer(
 }
 
 function replayToExecApp(c: Context, app: string, machineId: string): Response {
-  const res = c.body(null)
+  const res = c.body(null, 204)
   if (!app.endsWith('.flycast')) {
     throw new Error('app does not end with .flycast')
   }
