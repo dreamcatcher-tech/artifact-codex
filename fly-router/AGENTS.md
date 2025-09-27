@@ -22,10 +22,8 @@ the router is here to:
    - post to the exec servive to notify it that the computer has changed
    - poll the instance that it created until a change is detected
    - read inside the config what the machine-id which the exec service added
-   - fly replay over to the exec app with a prefer-instance header using the
-     machine-id
-   - if the default exec agent receives it, it will always replay back to the
-     router to try again
+   - fly replay over to the exec app with a specific instance header using the
+     machine-id the exec service added
 
 ## The subdomain naming convention:
 

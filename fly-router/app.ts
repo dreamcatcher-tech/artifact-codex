@@ -8,6 +8,7 @@ import {
   getAuth,
 } from '@hono/clerk-auth'
 import { createComputerManager } from './computers.ts'
+import { FLY_REPLAY_CONTENT_TYPE, type FlyReplayPayload } from './fly-replay.ts'
 import {
   getAgentId,
   getComputerId,
@@ -33,7 +34,8 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.use('*', clerkMiddleware())
   app.use('*', logger())
   app.all('*', async (c, next) => {
-    // const auth = getAuth(c)
+    const auth = getAuth(c)
+    console.log('auth:', auth)
     // if (!auth?.userId) {
     //   return c.text('Unauthorized', 401)
     // }
@@ -126,15 +128,18 @@ function redirectToComputer(
 }
 
 function replayToExecApp(c: Context, app: string, machineId: string): Response {
-  const res = c.body(null, 204)
   if (!app.endsWith('.flycast')) {
     throw new Error('app does not end with .flycast')
   }
   const appName = app.slice(0, -'.flycast'.length)
-  res.headers.set(
-    'fly-replay',
-    `app=${appName};instance=${machineId}`,
-  )
-  console.log('replay to exec app:', res.headers.get('fly-replay'))
+  const payload: FlyReplayPayload = {
+    app: appName,
+    instance: machineId,
+  }
+
+  const res = c.json(payload, 202)
+  res.headers.set('content-type', FLY_REPLAY_CONTENT_TYPE)
+
+  console.log('replay to exec app payload:', payload)
   return res
 }

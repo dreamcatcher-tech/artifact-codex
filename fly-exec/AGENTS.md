@@ -18,12 +18,12 @@ the job of this app is to:
 
 This process needs to ensure that the on disk state of the computers exec folder
 matches the fly.io machines. If a file exists and it is in hardware state
-'queued' then that means we have to go and make it be a real machine. We move
-the state to 'starting' and proceed to create or commandeer a waiting machine.
-Once it has started we move the state to running.
+'queued' then that means we have to make a real machine. We move the state to
+'starting' and proceed to create or commandeer a waiting machine. Once it has
+started we move the state to running.
 
-There is no 'stopped' state, since once the machine is stopped, the json file is
-deleted
+There is technically no 'stopped' state, since once the machine is stopped, the
+json file is deleted
 
 ## Notes
 

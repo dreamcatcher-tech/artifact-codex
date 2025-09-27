@@ -24,6 +24,22 @@ effectively.
 - @modelcontextprotocol/sdk examples:
   https://github.com/modelcontextprotocol/typescript-sdk
 
+## App-Specific Responsibilities
+
+This document captures shared guidance. The canonical runbooks for individual
+Fly apps live alongside each app and must take precedence:
+
+- `fly-router/AGENTS.md` defines how the router handles base-domain, computer
+  domain, and agent domain requests, provisions actor computers and landing
+  agents, and coordinates updates with the exec service.
+- `fly-exec/AGENTS.md` defines how the exec service reconciles filesystem state
+  with Fly Machines, manages hardware faults, and replays requests that failed
+  mid-flight.
+
+If any guidance here appears to diverge from those files, defer to the
+canonical app documents and update this file to stay in alignment rather than
+altering the app-level references.
+
 ## .refs Folder
 
 Do not modify files under `.refs/`. They exist only as read-only implementation
