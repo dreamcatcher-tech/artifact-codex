@@ -1,13 +1,15 @@
 import { ExecInstance, execInstanceSchema } from './schemas.ts'
-import { basename, join } from '@std/path'
+import { join } from '@std/path'
 import {
-  COMPUTER_AGENTS,
   COMPUTER_EXEC,
   envs,
   NFS_MOUNT_DIR,
   readFlyMachineRuntimeEnv,
 } from '@artifact/shared'
 import { createClient } from 'fly-admin'
+import Debug from 'debug'
+
+const log = Debug('@artifact/fly-exec:reconcile')
 
 type ReconcilerOptions = {
   computerDir?: string
@@ -27,7 +29,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 
     const promises: Promise<boolean>[] = []
     for (const path of paths) {
-      promises.push(syncInstance(computerId, path))
+      promises.push(syncInstance(path))
     }
     const results = await Promise.all(promises)
     const changeCount = results.filter(Boolean).length
@@ -53,17 +55,10 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     return instance
   }
 
-  const syncInstance = async (computerId: string, path: string) => {
+  const syncInstance = async (path: string) => {
     const instance = await readInstance(path)
-    console.log('instance', path, instance)
+    log('syncInstance', path, instance)
     const { software, hardware } = instance
-    const agent = basename(path)
-    const agentPath = join(computerDir, computerId, COMPUTER_AGENTS, agent)
-    const agentEntry = await Deno.stat(agentPath)
-    if (!agentEntry || !agentEntry.isDirectory) {
-      console.error('agent folder does not exist', agentPath)
-      return false
-    }
 
     if (software === 'running' && hardware === 'queued') {
       instance.hardware = 'starting'
@@ -115,7 +110,7 @@ const baseStartInstance = async (instance: ExecInstance) => {
       metadata: { fly_platform_version: 'standalone' },
     },
   })
-  console.log('machine created', result)
+  log('machine created', result)
   return result.id
 }
 
@@ -133,5 +128,5 @@ const baseStopInstance = async (instance: ExecInstance) => {
     machine_id,
     force: true,
   })
-  console.log('machine stopped', result)
+  log('machine destroyed', result)
 }

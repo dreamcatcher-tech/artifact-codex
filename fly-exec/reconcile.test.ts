@@ -121,27 +121,3 @@ Deno.test('reconcile stops running instance', async () => {
   expect(stopCalls.length).toBe(1)
   expect(await setup.instanceExists()).toBe(false)
 })
-
-Deno.test('reconcile ignores instances without agent directories', async () => {
-  await using setup = await createTestSetup({
-    computerId: 'computer-missing',
-  })
-  await setup.ensureAgentFile()
-  const initial: ExecInstance = {
-    software: 'running',
-    hardware: 'queued',
-    image: 'registry/image:latest',
-  }
-
-  const { reconcile, writeInstance, readInstance } = createReconciler({
-    computerDir: setup.root,
-  })
-
-  await writeInstance(setup.instancePath, initial)
-
-  const changeCount = await reconcile(setup.computerId)
-  expect(changeCount).toBe(0)
-
-  const final = await readInstance(setup.instancePath)
-  expect(final).toEqual(initial)
-})
