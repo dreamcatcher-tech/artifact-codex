@@ -18,6 +18,7 @@ import {
   uniqueNamesGenerator,
 } from 'unique-names-generator'
 import { createReconciler } from '@artifact/fly-exec'
+import { readImageRecord } from '@artifact/fly-nfs'
 
 type ComputerManagerOptions = {
   computerDir?: string
@@ -77,8 +78,8 @@ export function createComputerManager(options: ComputerManagerOptions) {
     try {
       await readInstance(path)
     } catch {
-      const image = await readLatestImage()
-      writeInstance(path, { software: 'running', hardware: 'queued', image })
+      const record = await readLatestRecord()
+      writeInstance(path, { software: 'running', hardware: 'queued', record })
     }
   }
 
@@ -119,7 +120,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
     await Deno.remove(join(computerDir, computerId), { recursive: true })
   }
 
-  const readLatestImage = async () => {
+  const readLatestRecord = async () => {
     const containersDir = join(
       computerDir,
       COMPUTER_AGENT_CONTAINERS,
@@ -127,10 +128,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
       REPO_CONTAINER_IMAGES,
     )
     const recordPath = join(containersDir, 'agent-basic.json')
-    const text = await Deno.readTextFile(recordPath)
-    const json = JSON.parse(text)
-    console.log('container image', json.image)
-    return json.image
+    return await readImageRecord(recordPath)
   }
 
   return {

@@ -103,11 +103,17 @@ const baseStartInstance = async (instance: ExecInstance) => {
   const flyEnv = readFlyMachineRuntimeEnv()
   const app_name = flyEnv.FLY_APP_NAME
   const fly = createClient(apiKey)
+
   const result = await fly.Machine.createMachine({
     app_name,
     config: {
-      image: instance.image,
+      ...instance.record,
       metadata: { fly_platform_version: 'standalone' },
+      env: {
+        DC_NFS: envs.DC_NFS(),
+        DC_DOMAIN: envs.DC_DOMAIN(),
+        DC_EXEC: envs.DC_EXEC(),
+      },
     },
   })
   log('machine created', result)

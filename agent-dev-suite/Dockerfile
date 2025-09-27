@@ -89,6 +89,10 @@ RUN set -eux; \
 
 WORKDIR /workspace
 
+ENV DEBUG = '@artifact/agent-*'
+ENV DEBUG_COLORS = '1'
+ENV DEBUG_HIDE_DATE = '1'
+
 ENV PORT="8080"
 
 ENTRYPOINT [ "deno","run","-A","--config","/agent/deno.json","/agent/agent-dev-suite/entrypoint.ts" ]

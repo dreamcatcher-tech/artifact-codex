@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { imageRecordSchema } from '@artifact/fly-nfs'
 
 export const execInstanceSchema = z.object({
   /** state requested by the computer */
@@ -6,7 +7,7 @@ export const execInstanceSchema = z.object({
   /** the status of the instance from the hardware perspective */
   hardware: z.enum(['queued', 'starting', 'running', 'stopping']),
   /** the container image to use for the instance */
-  image: z.string(),
+  record: imageRecordSchema,
   /** the machine id of the machine that is serving this instance */
   machineId: z.string().optional(),
 })

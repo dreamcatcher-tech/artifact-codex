@@ -3,7 +3,7 @@ import { createAgentWebServer } from '@artifact/web-server'
 import { mount } from '@artifact/fly-nfs'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
-import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'
+import { FACE_KIND_SPECS, type FaceKindId } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 
 export function createApp() {
@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   const log = Debug('@artifact/agent-basic:app')
   log('starting app: args=%o', Deno.args)
 
-  await mount()
+  await mount(log, 'async')
 
   const port = Number(Deno.env.get('PORT') ?? 8080)
   const hostname = '0.0.0.0'
@@ -32,12 +32,9 @@ const FACE_KIND_CREATORS: Partial<
 }
 
 export function resolveFaceKinds(): FaceKindConfig[] {
-  const specs = readConfiguredFaceKindSpecs()
+  const specs = FACE_KIND_SPECS.filter((spec) => FACE_KIND_CREATORS[spec.id])
   return specs.map((spec) => {
-    const creator = FACE_KIND_CREATORS[spec.id]
-    if (!creator) {
-      throw new Error(`Configured face kind has no creator: ${spec.id}`)
-    }
+    const creator = FACE_KIND_CREATORS[spec.id]!
     return {
       id: spec.id,
       title: spec.title,

@@ -1,5 +1,6 @@
 #!/usr/bin/env -S deno run -A
 
+import { z } from 'zod'
 import { ensureDir } from '@std/fs'
 import Debug from 'debug'
 import { createComputerManager } from '@artifact/fly-router'
@@ -24,7 +25,10 @@ const agentProjectName = (moduleUrl: string) => {
   return name
 }
 
-export async function writeImageRecord(importMetaUrl: string): Promise<void> {
+export async function writeImageRecord(
+  importMetaUrl: string,
+  record: Omit<ImageRecord, 'image'>,
+): Promise<void> {
   Debug.enable('@artifact/*')
   await mount(log, 'sync')
   const computerManager = createComputerManager({ computerDir: NFS_MOUNT_DIR })
@@ -42,7 +46,25 @@ export async function writeImageRecord(importMetaUrl: string): Promise<void> {
   const recordPath = join(containersDir, `${name}.json`)
 
   const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
-  const payload = JSON.stringify({ image: FLY_IMAGE_REF }, null, 2)
+  const validated = imageRecordSchema.parse({ image: FLY_IMAGE_REF, ...record })
+  const payload = JSON.stringify(validated, null, 2)
   await Deno.writeTextFile(recordPath, payload)
   log('wrote image record path=%s', recordPath)
+}
+
+export const imageRecordSchema = z.object({
+  /** Docker image reference used when creating the Machine, such as registry.fly.io/app:tag. */
+  image: z.string(),
+  cpu_kind: z.enum(['shared', 'dedicated']),
+  cpus: z.number().int().positive(),
+  memory: z.number().int().multipleOf(256),
+})
+
+export type ImageRecord = z.infer<typeof imageRecordSchema>
+
+export async function readImageRecord(
+  recordPath: string,
+): Promise<ImageRecord> {
+  const text = await Deno.readTextFile(recordPath)
+  return imageRecordSchema.parse(JSON.parse(text))
 }

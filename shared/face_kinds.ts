@@ -1,4 +1,4 @@
-const FACE_KIND_SPECS = [
+export const FACE_KIND_SPECS = [
   {
     id: 'test',
     title: 'Test',

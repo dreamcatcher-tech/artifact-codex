@@ -83,7 +83,12 @@ Deno.test('reconcile starts queued instance', async () => {
   await writeInstance(setup.instancePath, {
     software: 'running',
     hardware: 'queued',
-    image: 'registry/image:latest',
+    record: {
+      image: 'registry/image:latest',
+      cpu_kind: 'shared',
+      cpus: 1,
+      memory: 1024,
+    },
   })
 
   const changeCount = await reconcile(setup.computerId)
@@ -112,7 +117,12 @@ Deno.test('reconcile stops running instance', async () => {
   await writeInstance(setup.instancePath, {
     software: 'stopped',
     hardware: 'running',
-    image: 'registry/image:latest',
+    record: {
+      image: 'registry/image:latest',
+      cpu_kind: 'shared',
+      cpus: 1,
+      memory: 1024,
+    },
     machineId: 'machine-existing',
   })
 
