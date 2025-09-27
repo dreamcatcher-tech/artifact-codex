@@ -96,7 +96,7 @@ Deno.test('reconcile starts queued instance', async () => {
   expect(startCalls.length).toBe(1)
 
   const updated = await readInstance(setup.instancePath)
-  expect(updated.hardware).toBe('starting')
+  expect(updated.hardware).toBe('running')
   expect(updated.machineId).toBe('machine-123')
 })
 
