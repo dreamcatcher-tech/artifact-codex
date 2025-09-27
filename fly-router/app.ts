@@ -112,7 +112,7 @@ function redirectToAgent(
 ): Response {
   const incoming = new URL(c.req.url)
   incoming.hostname = `${agent}--${computer}.${baseDomain}`
-  return c.redirect(incoming.toString())
+  return c.redirect(incoming.toString(), 307)
 }
 
 function redirectToComputer(
@@ -122,7 +122,7 @@ function redirectToComputer(
 ): Response {
   const incoming = new URL(c.req.url)
   incoming.hostname = `${computer}.${baseDomain}`
-  return c.redirect(incoming.toString())
+  return c.redirect(incoming.toString(), 307)
 }
 
 function replayToExecApp(c: Context, app: string, machineId: string): Response {
