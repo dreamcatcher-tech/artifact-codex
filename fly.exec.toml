@@ -5,11 +5,13 @@ primary_region = 'syd'
   dockerfile = 'fly-exec/Dockerfile'
 
 [env]
-  DC_FLY_API_TOKEN = '#secrets#'
+  # the deploy token for the DC_WORKER_POOL_APP
+  # DC_FLY_API_TOKEN = '#secrets#'
   DC_DOMAIN = 'agentic.dreamcatcher.land'
   DC_NFS = 'nfs-proto.flycast'
   DC_ROUTER = 'org1-fly-router.flycast'
   DC_EXEC = 'org1-fly-exec.flycast'
+  DC_WORKER_POOL_APP = 'org1-worker-pool'
 
   DEBUG = '@artifact/fly-exec*'
   DEBUG_COLORS = '1'

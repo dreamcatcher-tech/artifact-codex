@@ -24,11 +24,15 @@ type CreateAppOptions = {
   baseDomain?: string
   computerDir?: string
   execApp?: string
+  workerPoolApp?: string
 }
 
 export const createApp = (options: CreateAppOptions = {}) => {
   const app = new Hono<{ Variables: ClerkAuthVariables }>()
-  const { baseDomain = envs.DC_DOMAIN(), execApp = envs.DC_EXEC() } = options
+  const {
+    baseDomain = envs.DC_DOMAIN(),
+    workerPoolApp = envs.DC_WORKER_POOL_APP(),
+  } = options
   const computerManager = createComputerManager(options)
 
   app.use('*', clerkMiddleware())
@@ -82,7 +86,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
     const machineId = await computerManager
       .waitForMachineId(computerId, agentId)
 
-    return replayToExecApp(c, execApp, machineId)
+    return replayToWorkerApp(c, workerPoolApp, machineId)
   })
 
   app.delete('/integration/computer', async (c) => {
@@ -127,19 +131,22 @@ function redirectToComputer(
   return c.redirect(incoming.toString(), 307)
 }
 
-function replayToExecApp(c: Context, app: string, machineId: string): Response {
-  if (!app.endsWith('.flycast')) {
-    throw new Error('app does not end with .flycast')
+function replayToWorkerApp(
+  c: Context,
+  workerApp: string,
+  machineId: string,
+): Response {
+  if (!workerApp || workerApp.length === 0) {
+    throw new Error('worker app is missing')
   }
-  const appName = app.slice(0, -'.flycast'.length)
   const payload: FlyReplayPayload = {
-    app: appName,
+    app: workerApp,
     instance: machineId,
   }
 
   const res = c.json(payload, 202)
   res.headers.set('content-type', FLY_REPLAY_CONTENT_TYPE)
 
-  console.log('replay to exec app payload:', payload)
+  console.log('replay to worker app payload:', payload)
   return res
 }

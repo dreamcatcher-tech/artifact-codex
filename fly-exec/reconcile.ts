@@ -1,11 +1,6 @@
 import { ExecInstance, execInstanceSchema } from '@artifact/fly-nfs/schemas'
 import { join } from '@std/path'
-import {
-  COMPUTER_EXEC,
-  envs,
-  NFS_MOUNT_DIR,
-  readFlyMachineRuntimeEnv,
-} from '@artifact/shared'
+import { COMPUTER_EXEC, envs, NFS_MOUNT_DIR } from '@artifact/shared'
 import { createClient } from 'fly-admin'
 import Debug from 'debug'
 
@@ -102,8 +97,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 
 const baseStartInstance = async (instance: ExecInstance) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
-  const flyEnv = readFlyMachineRuntimeEnv()
-  const app_name = flyEnv.FLY_APP_NAME
+  const app_name = envs.DC_WORKER_POOL_APP()
   const fly = createClient(apiKey)
 
   const { image, cpu_kind, cpus, memory_mb } = instance.record
@@ -149,8 +143,7 @@ const baseStartInstance = async (instance: ExecInstance) => {
 
 const baseStopInstance = async (instance: ExecInstance) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
-  const flyEnv = readFlyMachineRuntimeEnv()
-  const app_name = flyEnv.FLY_APP_NAME
+  const app_name = envs.DC_WORKER_POOL_APP()
   const fly = createClient(apiKey)
   const { machineId: machine_id } = instance
   if (!machine_id) {

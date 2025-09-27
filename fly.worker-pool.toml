@@ -1,0 +1,5 @@
+# This is a special app that is used to run the worker pool.
+# This file does not deploy, but it can be used to create an app in a given org
+
+app = 'org1-worker-pool'
+primary_region = 'syd'

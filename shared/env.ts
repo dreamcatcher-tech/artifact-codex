@@ -86,5 +86,6 @@ export const envs = {
   DC_ROUTER: () => readAppEnv('DC_ROUTER'),
   DC_DOMAIN: () => readAppEnv('DC_DOMAIN'),
   DC_EXEC: () => readAppEnv('DC_EXEC'),
+  DC_WORKER_POOL_APP: () => readAppEnv('DC_WORKER_POOL_APP'),
   DC_FLY_API_TOKEN: () => readAppEnv('DC_FLY_API_TOKEN'),
 }
