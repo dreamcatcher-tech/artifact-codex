@@ -133,7 +133,7 @@ function replayToExecApp(c: Context, app: string, machineId: string): Response {
   const appName = app.slice(0, -'.flycast'.length)
   res.headers.set(
     'fly-replay',
-    `app=${appName};fly_prefer_instance=${machineId}`,
+    `app=${appName};instance=${machineId}`,
   )
   console.log('replay to exec app:', res.headers.get('fly-replay'))
   return res

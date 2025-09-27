@@ -57,8 +57,8 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 
   const syncInstance = async (path: string) => {
     const instance = await readInstance(path)
-    log('syncInstance', path, instance)
     const { software, hardware } = instance
+    log('syncInstance', path, { software, hardware })
 
     if (software === 'running' && hardware === 'queued') {
       instance.hardware = 'starting'
@@ -110,11 +110,7 @@ const baseStartInstance = async (instance: ExecInstance) => {
   const result = await fly.Machine.createMachine({
     app_name,
     config: {
-      guest: {
-        cpu_kind,
-        cpus,
-        memory_mb,
-      },
+      guest: { cpu_kind, cpus, memory_mb },
       image,
       metadata: { fly_platform_version: 'standalone' },
       env: {
@@ -122,15 +118,29 @@ const baseStartInstance = async (instance: ExecInstance) => {
         DC_DOMAIN: envs.DC_DOMAIN(),
         DC_EXEC: envs.DC_EXEC(),
       },
-      services: [{
-        internal_port: 8080,
-        protocol: 'tcp',
-        ports: [{
-          start_port: 3000,
-          end_port: 30000,
-          handlers: ['tls', 'http'],
-        }],
-      }],
+      services: [
+        {
+          internal_port: 8080,
+          protocol: 'tcp',
+          ports: [{
+            start_port: 3000,
+            end_port: 30000,
+            handlers: ['tls', 'http'],
+          }],
+        },
+        {
+          internal_port: 8080,
+          protocol: 'tcp',
+          ports: [{
+            force_https: true,
+            port: 80,
+            handlers: ['http'],
+          }, {
+            port: 443,
+            handlers: ['tls', 'http'],
+          }],
+        },
+      ],
     },
   })
   log('machine created', result)

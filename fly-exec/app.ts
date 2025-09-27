@@ -11,8 +11,12 @@ export const createApp = () => {
 
   app.all('*', async (c, next) => {
     const replayedFrom = c.req.header('fly-replay-src')
-    // TODO detect if the replay was because the machine we set as
-    // prefer_instance is not available
+    if (replayedFrom) {
+      console.log('replayed from:', replayedFrom)
+    }
+    // TODO detect if the replay was because the machine was not available
+    // use the fly-preferred-instance-unavailable header to detect this
+
     // if (!replayedFrom) {
     return await next()
     // }

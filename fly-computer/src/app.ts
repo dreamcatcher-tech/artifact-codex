@@ -229,7 +229,8 @@ export async function createApp(
     await updateMachineRecord(agent.id, detail)
 
     const headers = new Headers({
-      'fly-replay': `app=${config.targetApp};fly_force_instance=${detail.id}`,
+      'fly-replay':
+        `app=${config.targetApp};fly_force_instance_id=${detail.id}`,
     })
     setFlyMachineHeader(headers)
     return new Response(null, { status: 204, headers })
