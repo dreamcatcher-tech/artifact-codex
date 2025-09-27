@@ -6,7 +6,7 @@ primary_region = 'syd'
 
 [env]
   DC_DOMAIN = 'agentic.dreamcatcher.land'
-  DC_FLY_API_TOKEN = 'secrets'
+  DC_FLY_API_TOKEN = '#secrets#'
   DC_NFS = 'nfs-proto.flycast'
   DC_ROUTER = 'org1-fly-router.flycast'
   DEBUG = '@artifact/fly-exec*'

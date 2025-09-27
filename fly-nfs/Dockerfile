@@ -3,11 +3,11 @@ FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nfs-ganesha \
-    nfs-ganesha-vfs \
-    nfs-common \
-    rpcbind \
-    dbus \
+  nfs-ganesha \
+  nfs-ganesha-vfs \
+  nfs-common \
+  rpcbind \
+  dbus \
   && rm -rf /var/lib/apt/lists/*
 
 # Ensure /etc/mtab exists for ganesha VFS FSAL detection
@@ -23,8 +23,5 @@ COPY scripts/mount-nfs.sh /usr/local/bin/mount-nfs.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /self-mount-check.sh
 RUN chmod +x /usr/local/bin/mount-nfs.sh
-
-# NFSv4 uses TCP 2049
-EXPOSE 2049/tcp
 
 CMD ["/entrypoint.sh"]

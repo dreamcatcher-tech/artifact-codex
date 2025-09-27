@@ -1,4 +1,6 @@
+import { serializeError } from 'serialize-error'
 import { Context, Hono } from '@hono/hono'
+import { logger } from '@hono/hono/logger'
 import { envs } from '@artifact/shared'
 import {
   type ClerkAuthVariables,
@@ -29,7 +31,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
   const computerManager = createComputerManager(options)
 
   app.use('*', clerkMiddleware())
-
+  app.use('*', logger())
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
     if (!auth?.userId) {
@@ -75,7 +77,8 @@ export const createApp = (options: CreateAppOptions = {}) => {
 
     await computerManager.upsertExec(computerId, agentId)
 
-    const machineId = await computerManager.execRunning(computerId, agentId)
+    const machineId = await computerManager
+      .waitForMachineId(computerId, agentId)
 
     return replayToExecApp(c, execApp, machineId)
   })
@@ -92,6 +95,12 @@ export const createApp = (options: CreateAppOptions = {}) => {
     return c.json({ success: true, existed })
   })
 
+  app.onError((err, c) => {
+    console.error(err)
+    const response = serializeError(err)
+    return c.text(JSON.stringify(response, null, 2), 500)
+  })
+
   return app
 }
 
@@ -101,8 +110,9 @@ function redirectToAgent(
   computer: string,
   agent: string,
 ): Response {
-  const res = c.redirect(`${agent}--${computer}.${baseDomain}`)
-  return res
+  const incoming = new URL(c.req.url)
+  incoming.hostname = `${agent}--${computer}.${baseDomain}`
+  return c.redirect(incoming.toString())
 }
 
 function redirectToComputer(
@@ -110,8 +120,9 @@ function redirectToComputer(
   baseDomain: string,
   computer: string,
 ): Response {
-  const res = c.redirect(`${computer}.${baseDomain}`)
-  return res
+  const incoming = new URL(c.req.url)
+  incoming.hostname = `${computer}.${baseDomain}`
+  return c.redirect(incoming.toString())
 }
 
 function replayToExecApp(c: Context, app: string, machineId: string): Response {

@@ -26,7 +26,7 @@ const agentProjectName = (moduleUrl: string) => {
 
 export async function writeImageRecord(importMetaUrl: string): Promise<void> {
   Debug.enable('@artifact/*')
-  await mount()
+  await mount(log, 'sync')
   const computerManager = createComputerManager({ computerDir: NFS_MOUNT_DIR })
   await computerManager.upsertComputer(COMPUTER_AGENT_CONTAINERS)
 

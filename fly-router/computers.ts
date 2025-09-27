@@ -82,7 +82,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
     }
   }
 
-  const waitForRunning = async (computerId: string, agentId: string) => {
+  const waitForMachineId = async (computerId: string, agentId: string) => {
     const path = join(computerDir, computerId, COMPUTER_EXEC, `${agentId}.json`)
     const { readInstance } = createReconciler({ computerDir })
 
@@ -139,7 +139,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
     computerExists,
     agentExists,
     upsertExec,
-    execRunning: waitForRunning,
+    waitForMachineId,
     shutdownComputer,
     deleteComputer,
   }
@@ -147,9 +147,9 @@ export function createComputerManager(options: ComputerManagerOptions) {
 
 async function baseKickExecApp(computerId: string) {
   const execApp = envs.DC_EXEC()
-  const result = await fetch(execApp + '/changed/' + computerId, {
-    method: 'POST',
-  })
+  const url = 'http://' + execApp + '/changed/' + computerId
+  console.log('kicking exec app:', url)
+  const result = await fetch(url, { method: 'POST' })
   if (!result.ok) {
     throw new Error('Failed to kick exec app')
   }
@@ -164,7 +164,7 @@ async function makeAgentFolder(path: string) {
       style: 'lowerCase',
     })
     try {
-      await Deno.mkdir(join(path, name), { recursive: true })
+      await Deno.mkdir(join(path, name))
       return name
     } catch {
       continue
@@ -174,8 +174,8 @@ async function makeAgentFolder(path: string) {
 
 async function populateAgent(name: string) {
   return await Promise.all([
-    Deno.mkdir(join(name, AGENT_HOME), { recursive: true }),
-    Deno.mkdir(join(name, AGENT_WORKSPACE), { recursive: true }),
+    Deno.mkdir(join(name, AGENT_HOME)),
+    Deno.mkdir(join(name, AGENT_WORKSPACE)),
     Deno.writeTextFile(join(name, AGENT_TOML), ''),
   ])
 }

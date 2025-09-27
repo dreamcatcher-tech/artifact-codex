@@ -7,8 +7,6 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /mnt/computers
 
-USER deno
-
 WORKDIR /app
 
 COPY . .
