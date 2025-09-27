@@ -2,7 +2,7 @@ import { expect } from '@std/expect'
 import { join } from '@std/path'
 import { COMPUTER_AGENTS, COMPUTER_EXEC } from '@artifact/shared'
 import { createReconciler } from './reconcile.ts'
-import type { ExecInstance } from './schemas.ts'
+import type { ExecInstance } from '@artifact/fly-nfs/schemas'
 
 class ReconcileTestSetup implements AsyncDisposable {
   readonly computerDir: string
@@ -87,7 +87,7 @@ Deno.test('reconcile starts queued instance', async () => {
       image: 'registry/image:latest',
       cpu_kind: 'shared',
       cpus: 1,
-      memory: 1024,
+      memory_mb: 1024,
     },
   })
 
@@ -121,7 +121,7 @@ Deno.test('reconcile stops running instance', async () => {
       image: 'registry/image:latest',
       cpu_kind: 'shared',
       cpus: 1,
-      memory: 1024,
+      memory_mb: 1024,
     },
     machineId: 'machine-existing',
   })

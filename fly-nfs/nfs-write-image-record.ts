@@ -3,7 +3,7 @@
 import { ensureDir } from '@std/fs'
 import Debug from 'debug'
 import { createComputerManager } from '@artifact/fly-router'
-import { ImageRecord, imageRecordSchema } from '@artifact/fly-exec/schemas'
+import { ImageRecord, imageRecordSchema } from './schemas.ts'
 import {
   COMPUTER_AGENT_CONTAINERS,
   COMPUTER_REPOS,

@@ -1,8 +1,7 @@
 {
   "name": "@artifact/fly-exec",
   "exports": {
-    ".": "./reconcile.ts",
-    "./schemas": "./schemas.ts" 
+    ".": "./mod.ts"
   },
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",

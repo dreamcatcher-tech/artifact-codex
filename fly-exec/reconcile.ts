@@ -1,4 +1,4 @@
-import { ExecInstance, execInstanceSchema } from './schemas.ts'
+import { ExecInstance, execInstanceSchema } from '@artifact/fly-nfs/schemas'
 import { join } from '@std/path'
 import {
   COMPUTER_EXEC,
