@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run -A
 
-import { z } from 'zod'
 import { ensureDir } from '@std/fs'
 import Debug from 'debug'
 import { createComputerManager } from '@artifact/fly-router'
+import { ImageRecord, imageRecordSchema } from '@artifact/fly-exec/schemas'
 import {
   COMPUTER_AGENT_CONTAINERS,
   COMPUTER_REPOS,
@@ -51,16 +51,6 @@ export async function writeImageRecord(
   await Deno.writeTextFile(recordPath, payload)
   log('wrote image record path=%s', recordPath)
 }
-
-export const imageRecordSchema = z.object({
-  /** Docker image reference used when creating the Machine, such as registry.fly.io/app:tag. */
-  image: z.string(),
-  cpu_kind: z.enum(['shared', 'dedicated']),
-  cpus: z.number().int().positive(),
-  memory: z.number().int().multipleOf(256),
-})
-
-export type ImageRecord = z.infer<typeof imageRecordSchema>
 
 export async function readImageRecord(
   recordPath: string,

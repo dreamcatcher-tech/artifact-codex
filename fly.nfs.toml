@@ -9,30 +9,30 @@ primary_region = 'syd'
 # swap_size_mb = 2048
 
 [build]
-dockerfile = 'fly-nfs/Dockerfile'
+  dockerfile = 'fly-nfs/Dockerfile'
 
 [[services]]
-internal_port = 2049
-protocol = 'tcp'
-auto_stop_machines = 'suspend'
-auto_start_machines = true
-min_machines_running = 0
+  internal_port = 2049
+  protocol = 'tcp'
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
+  min_machines_running = 0
 
-[[services.ports]]
-port = 2049
+  [[services.ports]]
+    port = 2049
 
-[[services.machine_checks]]
-entrypoint = ["/bin/bash", "-lc"]
-command = ["/self-mount-check.sh"]
-timeout = "60s"
-kill_signal = "SIGKILL"
-kill_timeout = "5s"
+  [[services.machine_checks]]
+    entrypoint = ["/bin/bash", "-lc"]
+    command = ["/self-mount-check.sh"]
+    timeout = "60s"
+    kill_signal = "SIGKILL"
+    kill_timeout = "5s"
 
 [[vm]]
-memory = '512mb'
-cpu_kind = 'shared'
-cpus = 1
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
 
 [[mounts]]
-source = 'nfsdata'
-destination = '/data'
+  source = 'nfsdata'
+  destination = '/data'

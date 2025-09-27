@@ -63,8 +63,10 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     if (software === 'running' && hardware === 'queued') {
       instance.hardware = 'starting'
       await writeInstance(path, instance)
+
       const machineId = await startInstance(instance)
       instance.machineId = machineId
+      instance.hardware = 'running'
       await writeInstance(path, instance)
       return true
     }
@@ -104,16 +106,31 @@ const baseStartInstance = async (instance: ExecInstance) => {
   const app_name = flyEnv.FLY_APP_NAME
   const fly = createClient(apiKey)
 
+  const { image, cpu_kind, cpus, memory_mb } = instance.record
   const result = await fly.Machine.createMachine({
     app_name,
     config: {
-      ...instance.record,
+      guest: {
+        cpu_kind,
+        cpus,
+        memory_mb,
+      },
+      image,
       metadata: { fly_platform_version: 'standalone' },
       env: {
         DC_NFS: envs.DC_NFS(),
         DC_DOMAIN: envs.DC_DOMAIN(),
         DC_EXEC: envs.DC_EXEC(),
       },
+      services: [{
+        internal_port: 8080,
+        protocol: 'tcp',
+        ports: [{
+          start_port: 3000,
+          end_port: 30000,
+          handlers: ['tls', 'http'],
+        }],
+      }],
     },
   })
   log('machine created', result)

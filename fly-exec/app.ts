@@ -11,15 +11,18 @@ export const createApp = () => {
 
   app.all('*', async (c, next) => {
     const replayedFrom = c.req.header('fly-replay-src')
-    if (!replayedFrom) {
-      return await next()
-    }
-    console.log('replayed from:', replayedFrom)
+    // TODO detect if the replay was because the machine we set as
+    // prefer_instance is not available
+    // if (!replayedFrom) {
+    return await next()
+    // }
+    // console.log('replayed from:', replayedFrom)
 
-    const res = c.body(null, 204)
-    res.headers.set('fly-replay', `app=${envs.DC_ROUTER()}`)
-    console.log('replay response:', res)
-    return res
+    // const res = c.body(null, 204)
+    // const appName = envs.DC_ROUTER().slice(0, -'.flycast'.length)
+    // res.headers.set('fly-replay', `app=${appName}`)
+    // console.log('replay response:', res)
+    // return res
   })
 
   app.post('changed/:computerId', async (c) => {

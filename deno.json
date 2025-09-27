@@ -22,7 +22,7 @@
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",
-    "deploy": "fly deploy -c fly.exec.toml && fly deploy -c fly.router.toml"
+    "deploy": "fly -c fly.agent-basic.toml deploy && fly deploy -c fly.exec.toml && fly deploy -c fly.router.toml"
   },
   "imports": {
     "@hono/clerk-auth": "jsr:@hono/clerk-auth@^3.0.3",

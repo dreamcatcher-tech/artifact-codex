@@ -4,6 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { Hono, type HonoRequest } from '@hono/hono'
+import { logger } from '@hono/hono/logger'
 import { cors } from '@hono/hono/cors'
 import Debug from 'debug'
 import type { Debugger } from 'debug'
@@ -75,6 +76,8 @@ export const createAgentWebServer = (
       // ignore
     }
   }
+
+  app.use('*', logger())
 
   app.use('*', async (c, next) => {
     try {

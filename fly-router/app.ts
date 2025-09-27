@@ -33,10 +33,10 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.use('*', clerkMiddleware())
   app.use('*', logger())
   app.all('*', async (c, next) => {
-    const auth = getAuth(c)
-    if (!auth?.userId) {
-      return c.text('Unauthorized', 401)
-    }
+    // const auth = getAuth(c)
+    // if (!auth?.userId) {
+    //   return c.text('Unauthorized', 401)
+    // }
     return await next()
   })
 
@@ -127,6 +127,14 @@ function redirectToComputer(
 
 function replayToExecApp(c: Context, app: string, machineId: string): Response {
   const res = c.body(null)
-  res.headers.set('fly-replay', `app=${app};fly_prefer_instance=${machineId}`)
+  if (!app.endsWith('.flycast')) {
+    throw new Error('app does not end with .flycast')
+  }
+  const appName = app.slice(0, -'.flycast'.length)
+  res.headers.set(
+    'fly-replay',
+    `app=${appName};fly_prefer_instance=${machineId}`,
+  )
+  console.log('replay to exec app:', res.headers.get('fly-replay'))
   return res
 }

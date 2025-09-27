@@ -1,5 +1,14 @@
 import { z } from 'zod'
-import { imageRecordSchema } from '@artifact/fly-nfs'
+
+export const imageRecordSchema = z.object({
+  /** Docker image reference used when creating the Machine, such as registry.fly.io/app:tag. */
+  image: z.string(),
+  cpu_kind: z.enum(['shared', 'dedicated']),
+  cpus: z.number().int().positive(),
+  memory_mb: z.number().int().multipleOf(256),
+})
+
+export type ImageRecord = z.infer<typeof imageRecordSchema>
 
 export const execInstanceSchema = z.object({
   /** state requested by the computer */

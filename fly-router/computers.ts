@@ -19,10 +19,17 @@ import {
 } from 'unique-names-generator'
 import { createReconciler } from '@artifact/fly-exec'
 import { readImageRecord } from '@artifact/fly-nfs'
+import Debug from 'debug'
+const log = Debug('@artifact/fly-router:computers')
 
 type ComputerManagerOptions = {
   computerDir?: string
   kickExecApp?: (computerId: string) => Promise<void>
+}
+
+async function syncDir(path: string) {
+  using dir = await Deno.open(path, { read: true })
+  await dir.sync()
 }
 
 export function createComputerManager(options: ComputerManagerOptions) {
@@ -35,8 +42,11 @@ export function createComputerManager(options: ComputerManagerOptions) {
     const exec = join(path, COMPUTER_EXEC)
     const repos = join(path, COMPUTER_REPOS)
     await ensureDir(agents)
+    await syncDir(agents)
     await ensureDir(exec)
+    await syncDir(exec)
     await ensureDir(repos)
+    await syncDir(repos)
   }
 
   const upsertLandingAgent = async (computer: string) => {
@@ -94,7 +104,10 @@ export function createComputerManager(options: ComputerManagerOptions) {
     do {
       instance = await readInstance(path)
       if (instance.hardware === 'running') {
-        return
+        if (!instance.machineId) {
+          throw new Error('Instance is running but does not have a machine id')
+        }
+        return instance.machineId
       }
       await new Promise((resolve) => setTimeout(resolve, 10))
     } while (Date.now() - start < 60_000)
@@ -146,7 +159,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
 async function baseKickExecApp(computerId: string) {
   const execApp = envs.DC_EXEC()
   const url = 'http://' + execApp + '/changed/' + computerId
-  console.log('kicking exec app:', url)
+  log('kicking exec app:', url)
   const result = await fetch(url, { method: 'POST' })
   if (!result.ok) {
     throw new Error('Failed to kick exec app')
