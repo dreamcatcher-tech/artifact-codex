@@ -1,6 +1,4 @@
-import Debug from 'debug'
 import { createAgentWebServer } from '@artifact/web-server'
-import { mount } from '@artifact/fly-nfs'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { FACE_KIND_SPECS, type FaceKindId } from '@artifact/shared'
@@ -10,21 +8,6 @@ export function createApp() {
   const options = createAgentBasicOptions()
   return createAgentWebServer(options)
 }
-
-async function main(): Promise<void> {
-  Debug.enable('@artifact/*')
-  const log = Debug('@artifact/agent-basic:app')
-  log('starting app: args=%o', Deno.args)
-
-  await mount(log, 'async')
-
-  const port = Number(Deno.env.get('PORT') ?? 8080)
-  const hostname = '0.0.0.0'
-  const { app } = createApp()
-  log('serve: starting on %s:%d', hostname, port)
-  Deno.serve({ port, hostname, reusePort: false }, app.fetch)
-}
-
 const FACE_KIND_CREATORS: Partial<
   Record<FaceKindId, FaceKindConfig['create']>
 > = {
@@ -60,9 +43,4 @@ function createAgentBasicOptions(): CreateAgentWebServerOptions {
     defaultFaceKindId,
     debugNamespace: '@artifact/agent-basic',
   }
-}
-
-if (import.meta.main) {
-  Debug.enable('@artifact/*')
-  main()
 }

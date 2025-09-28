@@ -1,9 +1,4 @@
-import { ensureNfsMount } from '@artifact/tasks'
-import {
-  FLY_NFS_SUBPATH,
-  NFS_EXPORT_BASE,
-  NFS_MOUNT_DIR,
-} from '@artifact/shared'
+import { NFS_MOUNT_DIR } from '@artifact/shared'
 import Debug from 'debug'
 
 import { createAgentWebServer } from '@artifact/web-server'

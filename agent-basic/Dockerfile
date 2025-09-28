@@ -18,4 +18,4 @@ ENV DEBUG_COLORS = '1'
 ENV DEBUG_HIDE_DATE = '1'
 
 ENTRYPOINT ["deno", "run", "-A"]
-CMD [ "app.ts" ]
+CMD [ "main.ts" ]
