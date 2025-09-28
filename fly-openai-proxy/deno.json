@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "dev": "deno run --config ../deno.json --allow-net --allow-env src/main.ts",
+    "test": "deno test -A --config ../deno.json",
+    "lint": "deno lint --config ../deno.json --fix",
+    "fmt": "deno fmt --config ../deno.json",
+    "ok": "deno check --config ../deno.json src/main.ts && deno task test && deno fmt --config ../deno.json --check && deno lint --config ../deno.json"
+  }
+}

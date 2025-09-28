@@ -14,7 +14,8 @@
     "agent-dev-suite",
     "fly-exec",
     "fly-nfs",
-    "fly-router"
+    "fly-router",
+    "fly-openai-proxy"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",
@@ -37,7 +38,8 @@
     "serialize-error": "npm:serialize-error@^12.0.0",
     "unique-names-generator": "npm:unique-names-generator@^4.7.1",
     "ws": "npm:ws@^8.18.3",
-    "zod": "npm:zod@^3.25.76"
+    "zod": "npm:zod@^3.25.76",
+    "@std/http/server": "jsr:@std/http@^1.0.9/server"
   },
   "fmt": {
     "semiColons": false,
