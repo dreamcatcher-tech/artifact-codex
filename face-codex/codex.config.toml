@@ -7,6 +7,10 @@ sandbox_mode = "danger-full-access"
 
 notify = "__CODEX_NOTIFY__"
 
+[model_providers.openai]
+base_url = "__OPENAI_PROXY_BASE_URL__"
+wire_api = "responses"
+
 [tools]
 web_search = true
 view_image = true

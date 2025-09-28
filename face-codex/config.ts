@@ -1,5 +1,5 @@
 import { dirname, fromFileUrl, join, resolve } from '@std/path'
-import type { FaceOptions } from '@artifact/shared'
+import { envs, type FaceOptions } from '@artifact/shared'
 
 export type CodexConfig = {
   test?: boolean
@@ -31,6 +31,7 @@ const TEMPLATE_REWRITES: Record<string, string> = {
     'mcp-interactions',
     'main.ts',
   ),
+  '__OPENAI_PROXY_BASE_URL__': envs.DC_OPENAI_PROXY_BASE_URL(),
 }
 
 export type LaunchPreparation = {

@@ -73,8 +73,8 @@ RUN flyctl settings analytics disable
 
 RUN npm i -g npm
 
-COPY . /agent
-WORKDIR /agent
+COPY . /app
+WORKDIR /app
 
 RUN npm i -g @openai/codex
 
@@ -82,17 +82,17 @@ RUN npm i -g @openai/codex
 RUN deno install --quiet
 
 RUN set -eux; \
-  SRC="/agent/agent-dev-suite"; \
-  SHARED="/agent/scripts"; \
+  SRC="/app/agent-dev-suite"; \
+  SHARED="/app/scripts"; \
   install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
   install -Dm755 "${SHARED}/mount-nfs.sh" /usr/local/bin/mount-nfs.sh
 
 WORKDIR /workspace
 
-ENV DEBUG = '@artifact/agent-*'
-ENV DEBUG_COLORS = '1'
-ENV DEBUG_HIDE_DATE = '1'
+ENV DEBUG='@artifact/agent-*'
+ENV DEBUG_COLORS='1'
+ENV DEBUG_HIDE_DATE='1'
 
-ENV PORT="8080"
+ENV PORT=8080
 
-ENTRYPOINT [ "deno","run","-A","--config","/agent/deno.json","/agent/agent-dev-suite/entrypoint.ts" ]
+ENTRYPOINT [ "deno","run","-A","--config","/app/deno.json","/app/agent-dev-suite/entrypoint.ts" ]

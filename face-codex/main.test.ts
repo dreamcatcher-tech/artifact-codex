@@ -1,6 +1,7 @@
 import { expect } from '@std/expect'
 import { startFaceCodex } from './main.ts'
 import { dirname, fromFileUrl, join } from '@std/path'
+import { envs } from '@artifact/shared'
 
 Deno.test('destroy removes home directory when prepared', async () => {
   const workspace = await Deno.makeTempDir()
@@ -64,6 +65,9 @@ Deno.test('config writes notify block before tables', async () => {
     expect(text.includes('__MCP_AGENTS_COMMAND__')).toBe(false)
     expect(text.includes('__MCP_FACES_COMMAND__')).toBe(false)
     expect(text.includes('__MCP_INTERACTIONS_COMMAND__')).toBe(false)
+    expect(text.includes('__OPENAI_PROXY_BASE_URL__')).toBe(false)
+    expect(text.includes(`base_url = "${envs.DC_OPENAI_PROXY_BASE_URL()}"`))
+      .toBe(true)
 
     const moduleDir = dirname(fromFileUrl(import.meta.url))
     const repoRoot = dirname(moduleDir)

@@ -12,6 +12,7 @@ primary_region = 'syd'
   DC_ROUTER = 'org1-fly-router.flycast'
   DC_EXEC = 'org1-fly-exec.flycast'
   DC_WORKER_POOL_APP = 'org1-worker-pool'
+  DC_OPENAI_PROXY_BASE_URL = 'http://org1-openai-proxy.flycast'
 
   DEBUG = '@artifact/fly-exec*'
   DEBUG_COLORS = '1'

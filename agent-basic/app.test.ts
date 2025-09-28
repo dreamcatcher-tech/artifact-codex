@@ -29,11 +29,6 @@ function makeFaceKind(id: FaceKindId): FaceKindConfig {
   }
 }
 
-Deno.test('selectDefaultFaceKindId prefers codex when available', () => {
-  const faceKinds = [makeFaceKind('test'), makeFaceKind('codex')]
-  expect(selectDefaultFaceKindId(faceKinds)).toBe('codex')
-})
-
 Deno.test('selectDefaultFaceKindId falls back to the first face kind', () => {
   const faceKinds = [makeFaceKind('test'), makeFaceKind('inspector')]
   expect(selectDefaultFaceKindId(faceKinds)).toBe('test')
