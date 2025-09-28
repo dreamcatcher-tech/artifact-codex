@@ -70,30 +70,3 @@ export function idCheck(label = 'id') {
     seen.add(id)
   }
 }
-
-export const FLY_MACHINE_HEADER = 'fly-machine-id'
-
-export function resolveFlyMachineId(): string | undefined {
-  try {
-    const env = readFlyMachineRuntimeEnv()
-    return env.FLY_MACHINE_ID
-  } catch {
-    try {
-      const raw = Deno.env.get('FLY_MACHINE_ID')
-      return raw && raw.length > 0 ? raw : undefined
-    } catch {
-      return undefined
-    }
-  }
-}
-
-export function setFlyMachineHeader(headers: Headers): void {
-  const machineId = resolveFlyMachineId()
-  if (!machineId) return
-  headers.set(FLY_MACHINE_HEADER, machineId)
-}
-
-export function withFlyMachineHeader(response: Response): Response {
-  setFlyMachineHeader(response.headers)
-  return response
-}

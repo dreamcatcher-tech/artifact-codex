@@ -56,3 +56,5 @@ set nfs mounting to always be async
 
 go thru everywhere that uses ensureDir or any kind of writing to the nfs
 filesystem and make it do a sync to flush that all to disk
+
+pass a logger into the webserver so it always has meaningful logs

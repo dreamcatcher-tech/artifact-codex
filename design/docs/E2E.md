@@ -1,170 +1,165 @@
-# End-to-End Testing Options
+# End-to-End Validation (Shared-Org Stack)
 
-This guide outlines how to exercise the NFS server, auth server, computer apps,
-and agent stack end to end. It focuses on Fly.io deployments and provides
-patterns that let agents safely run `fly` commands to validate features in
-isolation and as a complete system, including unhappy-path coverage.
+## Purpose
 
-## Goals and Scope
+Exercise the Artifact stack from router ingress through worker Machines using the
+new shared Fly organization model. The guide defines repeatable flows that
+validate app health, unhappy paths, and MCP-driven automation without impacting
+production tenants. It assumes the baseline provisioning in
+`design/docs/fly-org-provisioning.md` has completed successfully.
 
-- Validate data flow from Fly deploy orchestration through NFS, auth, computer,
-  and agent layers.
-- Exercise both happy and unhappy paths without disrupting production apps.
-- Allow autonomous agents (via MCP) to run Fly commands under guard rails.
-- Reuse Fly app configs (`fly.nfs.toml`, `fly.auth.toml`, `fly.computer.toml`,
-  `fly.agent.toml`) across environments.
+## Stack Under Test
 
-## Core Components Under Test
+| Component | Behavior to Observe | Primary Checks | References |
+| --------- | ------------------ | -------------- | ---------- |
+| `org<id>-nfs` | Shared volume export consumed by router, exec, and agents | Volume mounts healthy, self-mount script reports success, volume contents mutate during scenarios. | `fly.nfs.toml`, `fly-nfs/` |
+| `org<id>-fly-router` | Public ingress, Clerk auth, actor/agent routing | Clerk redirects, machine notifications, adherence to routing rules in `fly-router/AGENTS.md`. | `fly.router.toml`, `fly-router/AGENTS.md` |
+| `org<id>-fly-exec` | Filesystem reconciler and replay bridge | Picks up NFS state writes, provisions Machines in worker pool, handles replays per `fly-exec/AGENTS.md`. | `fly.exec.toml`, `fly-exec/AGENTS.md` |
+| `org<id>-worker-pool` | Empty app that owns customer Machines | Machines created on demand via exec, hibernates when idle (`auto_stop_machines = 'suspend'`). | `fly.worker-pool.toml` |
+| `fly-agent-basic`, `fly-agent-dev-suite` | Baseline agent bundles staged on NFS | Release manifests published to `computers/images/*.json`, agents connect to router. | `agent-*/release.ts` |
+| Artifact control plane (MCP host) | Issues `infra.*` tools and stores org token | Provides `infra.ensure_app`, `infra.list_machines`, `infra.provision_org` hooks. | `design/docs/RUNTIME.md` |
 
-- **Fly NFS (`fly-nfs`)**: Provides the exported volume mounted by other apps.
-- **Fly Auth (`fly-auth`)**: Issues auth tokens/claims and exposes user-facing
-  endpoints backed by Clerk.
-- **Fly Computer (`fly-computer`)**: Hosts the computer-facing APIs that agents
-  bind to; depends on auth and NFS availability.
-- **Agent Dev Suite (`agent-dev-suite`)**: Runs machines that host MCP agents
-  and exposes faces/TTYD; enforces NFS mount checks and serves hardware bridges.
-- **Orchestrator**: The test driver (often a Deno script within `tasks/`) that
-  issues Fly API calls, coordinates assertions, and records evidence.
-- **Observer Tooling**: `fly logs`, `fly ssh`, metrics dashboards, and MCP-based
-  inspectors (e.g. `face-test`, `face-inspector`).
+## Environment Strategies
 
-## Environment Options
+| Strategy | Description | Fit | Tear-down Notes |
+| -------- | ----------- | --- | --------------- |
+| **Ephemeral org slice** | Append `-e2e-<runid>` suffixes to the org prefix and deploy fresh NFS/router/exec/agents per suite run. | Highest isolation, parallel friendly. | Destroy with `fly apps destroy` and delete volumes/tokens when manifests confirm success. |
+| **Shared staging org** | Reuse a long-lived shared org and recycle Machines between runs. | Lower cost, sequential runs. | Reset worker Machines with `fly machine list --config fly.worker-pool.toml --json` + targeted restarts; rotate secrets before next suite. |
+| **Hybrid fixture pool** | Keep NFS/router/exec warm; create per-scenario worker Machines and agents. | Fast validation of routing/exec behavior. | Track fixture manifests and clean orphan Machines via `infra.list_machines`. |
 
-| Option                               | Description                                                                                      | Fit                                   | Notes                                                                                                                      |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **Ephemeral staging**                | Create a new Fly org app name suffix (e.g. `*-e2e-<ulid>`) per test run and deploy all four apps | Best isolation, parallelizable        | Use `fly deploy --config fly.<name>.toml --app <app>-e2e-<id>` and tear down with `fly apps destroy` when assertions pass. |
-| **Shared staging**                   | Keep a long-lived `*-staging` stack and reset state between runs                                 | Lower cost, slower to parallelize     | Include cleanup steps (`fly volumes list`, `fly machines stop`) to avoid run-to-run interference.                          |
-| **Local orchestrator w/ Fly remote** | Run the test controller locally (via `deno task ok`) and talk to Fly API                         | Useful for rapid iteration            | Cache Fly tokens via `fly auth token` and keep secrets in `.env.local.e2e` loaded with `@std/dotenv`.                      |
-| **Hybrid fixture pool**              | Pre-create NFS + auth, spin up computer + agent per scenario                                     | Fastest for agent interaction testing | Add health probes that verify NFS mounts before starting scenario scripts.                                                 |
+## Prerequisites and Access
 
-## Control Plane Patterns
+- Install the latest `flyctl` and authenticate (`fly auth login`). See `fly --help`
+  or [Fly Docs: flyctl](https://fly.io/docs/flyctl/).
+- Ensure Deno, Docker, and repo tooling are available (`deno task ok`).
+- Ensure Clerk keys and shared secrets are staged in the Artifact control plane so
+  routers boot cleanly.
+- Fetch the org-scoped API token and scope it to `machines:write`, `apps:deploy`
+  for automation. Store in MCP secret storage.
+- Clone this repo and open the `design/docs` materials alongside app runbooks.
 
-- **Declarative Deploy Step**: Wrap each `fly deploy` in a helper that tags the
-  Git SHA, config name, and scenario ID. Store outputs so failures can be
-  correlated.
-- **Fly API Usage**: Use the Fly Machines API (`/apps/{app}/machines`) to create
-  disposable machines for fault injection (e.g. halt NFS) without touching
-  production machines.
-- **State Tracking**: Maintain a run manifest (JSON) capturing app names, volume
-  IDs, machine IDs, secrets injected, and agent credentials. Persist it in the
-  workspace (e.g. under `artifacts/e2e/<timestamp>.json`).
-- **Cleanup Guarantees**: Always attempt cleanup in `finally` blocks: destroy
-  machines, detach volumes, revoke tokens.
+## End-to-End Phases
 
-## Agent-Driven Deployment Pattern
+### Phase 0 -- Baseline Health Check
 
-1. **Provision Scoped Tokens**: Create Fly API tokens with `machines:write` and
-   `apps:deploy` scope. Store them in Vault/1Password and inject via MCP secrets
-   interface so agents never see raw tokens.
-2. **Command Envelope**: Define an MCP tool (see `@modelcontextprotocol/sdk`)
-   such as `fly.run` that accepts `{cmd, app, config, env}`. The tool should run
-   `fly` via a supervised shell (`procman`) and redact secrets from logs.
-3. **Policy Hooks**: Validate that `cmd` matches an allowlist (`deploy`,
-   `status`, `logs`, `ssh console`). Reject destructive operations
-   (`apps destroy`) unless the scenario explicitly flips a feature flag.
-4. **Observation Channel**: Stream command output back to the orchestrator so it
-   can assert on textual evidence (e.g. "mounted volume" logs).
-5. **Rehearsal Mode**: Support `dryRun: true` to call `fly config validate` or
-   `fly deploy --dry-run` whenever possible, letting agents test syntax without
-   mutating state.
+1. Confirm NFS state:
+   ```bash
+   fly machine list --config fly.nfs.toml --json
+   fly logs --config fly.nfs.toml --no-tail
+   ```
+   The self-mount check must show `mount ok`. (See [Fly Docs: fly machine list](https://fly.io/docs/flyctl/machine-list/) and [Fly Docs: fly logs](https://fly.io/docs/flyctl/logs/).)
+2. Verify router/exec deploys are current:
+   ```bash
+   fly status --config fly.router.toml
+   fly status --config fly.exec.toml
+   ```
+   Confirm environment variables match the target org prefix and domains.
 
-## Recommended Test Flow
+### Phase 1 -- Scenario Staging
 
-```mermaid
-flowchart TD
-  trigger[Test Runner]
-  subgraph Harness
-    plan[Resolve Scenario Matrix]
-    deploy[Deploy via fly.run]
-    probe[Health + Contract Checks]
-    inject[Fault Injection]
-    teardown[Cleanup]
-  end
-  subgraph FlyStack[Fly Apps]
-    nfs[NFS Machine]
-    auth[Auth App]
-    computer[Computer App]
-    agent[Agent Machines]
-  end
-  subgraph Observers
-    logs[fly logs]
-    ssh[fly ssh console]
-    faces[face-test Agent]
-  end
+1. Decide scenario identifiers (e.g. `ROUTER-INGRESS`, `EXEC-RECONCILE`).
+2. Prepare manifests in `artifacts/e2e/<timestamp>.json` describing inputs:
+   - Org slug, app names, worker machine targets.
+   - Expected agent bundle digests from NFS.
+3. Use `infra.ensure_app` to ensure apps exist before mutating state.
 
-  trigger --> plan --> deploy
-  deploy --> nfs
-  deploy --> auth
-  deploy --> computer
-  deploy --> agent
-  nfs --> probe
-  auth --> probe
-  computer --> probe
-  agent --> probe
-  probe --> inject
-  inject --> teardown
-  logs --> probe
-  ssh --> probe
-  faces --> probe
-  faces --> inject
-```
+### Phase 2 -- Deploy or Mutate Apps
 
-## Scenario Matrix
+- For app redeploys, invoke:
+  ```bash
+  fly deploy --config fly.router.toml --image <tag>
+  fly deploy --config fly.exec.toml --image <tag>
+  ```
+  Adjust image tags per scenario; use `--app` if testing alternate prefixes (see [Fly Docs: fly deploy](https://fly.io/docs/flyctl/deploy/)).
+- For agent bundles, run `deno task deploy` to refresh release manifests.
+- To create temporary Machines, use `fly machine run` with scenario-specific
+  metadata and the worker pool app.
 
-| ID             | Purpose                                | Happy Path Assertion                                                      | Unhappy Path Variant                                                                                          |
-| -------------- | -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `NFS-001`      | Verify NFS mount for auth + agent      | `mount` inside auth + agent shows `/mnt/...` active and self-check passes | Stop NFS machine via Fly API; expect auth health endpoint to fail and agents to surface mount error.          |
-| `AUTH-010`     | Validate Clerk token issuance          | Auth `/healthz` returns 200 and agent login succeeds                      | Inject invalid Clerk secret; expect 401 and agent to surface login failure while computer app retries.        |
-| `COMP-020`     | Ensure computer app reaches NFS + auth | `deno task ok` scenario confirms read/write through NFS and token refresh | Drop network between computer and auth by removing machine check; agent runner should backoff and emit alert. |
-| `AGENT-030`    | Agent spawn and face attachment        | `face-test` can open TTYD and execute noop command                        | Kill agent machine mid-session; orchestrator should detect disconnection and attempt reconnection.            |
-| `DEPLOY-040`   | Agent-led deployment                   | MCP agent runs `fly deploy` for `fly-computer` with scoped token          | Provide malformed config; expect deployment to fail fast and cleanup leave previous version untouched.        |
-| `ROLLBACK-050` | Rollback path                          | Agent triggers `fly releases revert --yes` and verifies state             | Simulate partial rollback failure by locking volume; ensure orchestrator escalates and halts further tests.   |
+### Phase 3 -- Assertions and Observability
 
-## Unhappy Path Techniques
+- Pull logs without streaming unless debugging:
+  ```bash
+  fly logs --config fly.router.toml --no-tail --machine <machine-id>
+  ```
+- Inspect Machine inventory:
+  ```bash
+  fly machine list --config fly.worker-pool.toml --json
+  ```
+- Exercise MCP tools (`infra.list_machines`, `infra.router_trace`, etc.) to
+  capture structured evidence.
+- Run HTTP probes through the router base domain and agent domains defined in
+  `fly-router/AGENTS.md`.
 
-- **Machine Disruption**: Use `fly machines stop <id>` and
-  `fly machines restart` to simulate NFS outages or slow restarts.
-- **Config Drift**: Temporarily override Fly secrets (`fly secrets set`) with
-  bad values, then verify detection and revert in cleanup.
-- **Network Faults**: Attach sidecar machines (e.g. `tc` containers) to inject
-  latency or packet loss when testing resiliency.
-- **Filesystem Corruption**: Create and delete sentinel files on NFS to ensure
-  apps behave correctly when data is missing or stale.
-- **Auth Expiry**: Shorten Clerk session TTLs in staging to force refresh and
-  confirm agents request new tokens.
+### Phase 4 -- Fault Injection and Recovery
 
-## Instrumentation and Evidence
+- Suspend/restore Machines with:
+  ```bash
+  fly machine stop --config fly.worker-pool.toml --machine <id>
+  fly machine start --config fly.worker-pool.toml --machine <id>
+  ```
+  (See [Fly Docs: fly machine](https://fly.io/docs/flyctl/machine/).)
+- Flip secrets via `fly secrets set --config ...` to validate Clerk failure
+  handling; revert in cleanup.
+- Trigger exec replay by editing instance files on NFS (per `fly-exec/AGENTS.md`).
 
-- Capture `fly status` and `fly machines list` snapshots at each phase.
-- Stream key logs: `fly logs -c fly.agent.toml --since 10m` to confirm mount
-  checks and auth calls.
-- Use `face-inspector` to record terminal sessions that agents open; archive
-  transcripts with scenario IDs.
-- Emit structured events (JSON) from test scripts to `artifacts/e2e` so results
-  can feed dashboards.
+### Phase 5 -- Cleanup and Reporting
+
+- Destroy scenario Machines and volumes in reverse creation order.
+- Revoke tokens used in automation.
+- Archive manifests, log excerpts, and MCP transcripts under
+  `artifacts/e2e/<timestamp>/`.
+- File follow-up issues for regression coverage.
+
+## Observability Playbook
+
+- Prefer `fly logs --no-tail` and `--machine` filters to capture bounded output.
+- Use `fly machine list --json` snapshots before and after exec actions to detect
+  reconciliation drift.
+- Route HTTP probes through the router to validate Clerk flows, agent mapping,
+  and replay headers (see `fly-router/AGENTS.md`).
+- Capture MCP tool output alongside Fly CLI results for a full audit trail.
+- When investigating Machines, use `fly ssh console --config fly.exec.toml` to
+  inspect `/data/computers/<id>` state.
+
+## Scenario Matrix (Illustrative)
+
+| ID | Purpose | Happy Path | Unhappy Variant |
+| -- | ------- | ---------- | --------------- |
+| `ROUTER-001` | Router ingress and Clerk handshake | Auth flow reroutes unauthenticated users, router creates actor computer and lands agent. | Remove Clerk secret, expect 401s and router to log auth failures while exec stays idle. |
+| `EXEC-010` | Exec reconciliation loop | Write `queued` instance file and observe Machine creation in worker pool. | Kill machine mid-boot; expect exec to mark `starting`->`queued` and retry. |
+| `WORKER-020` | Worker pool hibernation | Machines auto-suspend after idle period, restart on demand. | Force stop Machine; ensure exec rehydrates instance on next router signal. |
+| `AGENT-030` | Agent bundle availability | Router routes to new agent release from NFS manifest. | Publish malformed manifest; exec should reject and log parse error. |
+| `CONTROL-040` | MCP orchestration | `infra.provision_org` and `infra.list_machines` emit expected manifest + state. | Revoke token; expect MCP tool failure and alert. |
+| `FAULT-050` | NFS outage drill | Suspend NFS machine; router and exec detect mount failure and back off. | Leave NFS down longer than grace period; verify alerts and recovery once restarted. |
+
+## Fault Injection Techniques
+
+- **Machine lifecycle**: `fly machine stop/start/restart` to test exec resilience.
+- **Secrets rotation**: Temporarily set invalid Clerk secrets; confirm router
+  returns 401 and recovers once reverted.
+- **Filesystem drift**: Remove or alter `computers/<id>/exec/*.json` entries to
+  force reconciliation.
+- **Network perturbation**: Launch sidecar Machines to add latency or packet loss
+  for router->exec traffic; monitor retry behavior.
+- **Token expiry**: Rotate org token in Artifact control plane and rerun MCP
+  workflows to verify failure signals.
 
 ## Automation Hooks
 
-- Add Deno tasks under `tasks/` (e.g. `tasks/e2e.ts`) that accept `--scenario`
-  flags, pull secrets with `@std/dotenv`, and invoke the MCP orchestration.
-- Extend `deno task ok` to include an `@artifact/e2e` filter that runs smoke
-  flows nightly.
-- For CI, use GitHub Actions runners with Fly access to spin up ephemeral
-  environments per PR; store run manifests as workflow artifacts.
-
-## Agent Browsing Workflows
-
-- Provide agents with a `fly.inspect` MCP tool that opens the Fly dashboard URL
-  in a headless browser (or via `face-inspector`) and reports status changes.
-- Allow agents to traverse the mermaid model by exposing it as Markdown in the
-  MCP context, enabling them to correlate steps with the orchestrator state.
-- Combine scripted probes with exploratory "browse" sessions where agents use
-  `face-test` to open the deployed app URLs and verify UI states.
+- `tasks/e2e.ts` (to be written) should accept `--scenario`, load manifests, and
+  call MCP tools for orchestration.
+- Extend `deno task ok` to add smoke suites that run `ROUTER-001` and
+  `EXEC-010` nightly.
+- Store structured results in `artifacts/e2e/` and surface summaries to CI via
+  workflow artifacts or dashboards.
+- Guard Fly CLI execution behind MCP tools (`fly.run`, `fly.logs`, etc.) to keep
+  agent actions auditable and scoped.
 
 ## Next Steps
 
-- Prototype the `fly.run` MCP tool in `mcp-agents/` and gate it with unit tests.
-- Define the scenario manifest schema (`shared/e2e-manifest.ts`) and integrate
-  it into orchestrator scripts.
-- Stand up a nightly workflow that runs the `NFS-001` and `AUTH-010` scenarios
-  with artifact retention for log review.
+1. Implement the `tasks/e2e.ts` orchestrator and supporting manifest schema.
+2. Add regression tests that mock Fly CLI responses for failure coverage.
+3. Stand up a nightly GitHub Actions job that executes the smoke matrix against a
+   dedicated staging org slice.
+4. Keep this document synchronized with `fly-router/AGENTS.md`,
+   `fly-exec/AGENTS.md`, and provisioning guidance as the stack evolves.

@@ -140,5 +140,3 @@ export async function waitForPorts(
   }
   return pending.size === 0
 }
-
-export { resolveProbeHosts }

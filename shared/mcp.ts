@@ -15,7 +15,7 @@ export type RemoteClientOptions = {
  * Resolve an agent id to a base HTTP origin.
  * Stubbed: http://<agentId>.internal
  */
-export function resolveAgentToOrigin(agentId: string): URL {
+function resolveAgentToOrigin(agentId: string): URL {
   // Special-case for calling the currently running agent.
   // If agentId is "@self" we route to the local web server.
   // The self web server listens on PORT (default 8080).
@@ -28,7 +28,7 @@ export function resolveAgentToOrigin(agentId: string): URL {
 }
 
 /** Ensure the URL targets the MCP endpoint via `?mcp` query param. */
-export function withMcpPath(origin: URL): URL {
+function withMcpPath(origin: URL): URL {
   const url = new URL(origin.toString())
   // Keep existing path; just signal MCP via query param presence.
   // Using empty value results in `?mcp=`; presence is what matters server-side.

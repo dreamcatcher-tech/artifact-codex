@@ -13,5 +13,3 @@ export const readComputerOutputSchema = z.object({
   exists: z.boolean(),
   computer: appInfoSchema.optional(),
 })
-
-export type ReadComputerOutput = z.infer<typeof readComputerOutputSchema>

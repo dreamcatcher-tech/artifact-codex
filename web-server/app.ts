@@ -1,5 +1,5 @@
 import { readFaceOutput } from '@artifact/mcp-faces'
-import { HOST, setFlyMachineHeader } from '@artifact/shared'
+import { HOST } from '@artifact/shared'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
@@ -78,15 +78,6 @@ export const createAgentWebServer = (
   }
 
   app.use('*', logger())
-
-  app.use('*', async (c, next) => {
-    try {
-      await next()
-    } finally {
-      const res = c.res
-      if (res) setFlyMachineHeader(res.headers)
-    }
-  })
 
   let defaultFacePort: number | undefined
   const getDefaultFacePort = defaultFaceKindId

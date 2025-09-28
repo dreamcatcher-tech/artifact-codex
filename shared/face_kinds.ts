@@ -29,14 +29,6 @@ const FACE_KIND_SPEC_BY_ID = new Map<string, FaceKindSpec>(
   FACE_KIND_SPECS.map((spec) => [spec.id, spec]),
 )
 
-export function getFaceKindSpec(id: string): FaceKindSpec | undefined {
-  return FACE_KIND_SPEC_BY_ID.get(id)
-}
-
-export function listFaceKindSpecs(): readonly FaceKindSpec[] {
-  return FACE_KIND_SPECS
-}
-
 export function readConfiguredFaceKindSpecs(
   env: { get(name: string): string | undefined } = Deno.env,
 ): FaceKindSpec[] {
