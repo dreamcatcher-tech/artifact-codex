@@ -1,6 +1,8 @@
+import { createAgentWebServer } from '@artifact/web-server'
+
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
-import { type FaceKindId, readConfiguredFaceKindSpecs } from '@artifact/shared'
+import { FACE_KIND_SPECS, type FaceKindId } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 import { startFaceInspector } from '@artifact/face-inspector'
 import { startFaceCodex } from '@artifact/face-codex'
@@ -14,12 +16,9 @@ const FACE_KIND_CREATORS: Record<FaceKindId, FaceKindConfig['create']> = {
 }
 
 export function resolveFaceKinds(): FaceKindConfig[] {
-  const specs = readConfiguredFaceKindSpecs()
+  const specs = FACE_KIND_SPECS.filter((spec) => FACE_KIND_CREATORS[spec.id])
   return specs.map((spec) => {
     const creator = FACE_KIND_CREATORS[spec.id]
-    if (!creator) {
-      throw new Error(`Configured face kind has no creator: ${spec.id}`)
-    }
     return {
       id: spec.id,
       title: spec.title,
@@ -31,12 +30,16 @@ export function resolveFaceKinds(): FaceKindConfig[] {
 
 export function createAgentDevSuiteOptions(): CreateAgentWebServerOptions {
   const faceKinds = resolveFaceKinds()
-  const hasCodex = faceKinds.some((kind) => kind.id === 'codex')
   return {
     serverName: 'agent-dev-suite',
     serverVersion: '0.0.1',
     faceKinds,
-    defaultFaceKindId: hasCodex ? 'codex' : undefined,
+    defaultFaceKindId: 'codex',
     debugNamespace: '@artifact/agent-dev-suite',
   }
+}
+
+export function createApp() {
+  const options = createAgentDevSuiteOptions()
+  return createAgentWebServer(options)
 }

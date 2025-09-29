@@ -4,10 +4,6 @@ import type { CreateAgentWebServerOptions } from '@artifact/web-server'
 import { FACE_KIND_SPECS, type FaceKindId } from '@artifact/shared'
 import { startFaceTest } from '@artifact/face-test'
 
-export function createApp() {
-  const options = createAgentBasicOptions()
-  return createAgentWebServer(options)
-}
 const FACE_KIND_CREATORS: Partial<
   Record<FaceKindId, FaceKindConfig['create']>
 > = {
@@ -43,4 +39,9 @@ function createAgentBasicOptions(): CreateAgentWebServerOptions {
     defaultFaceKindId,
     debugNamespace: '@artifact/agent-basic',
   }
+}
+
+export function createApp() {
+  const options = createAgentBasicOptions()
+  return createAgentWebServer(options)
 }

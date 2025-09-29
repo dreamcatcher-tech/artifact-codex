@@ -4,7 +4,7 @@ import { ensureDir } from '@std/fs'
 
 export async function mount(
   log: Debug.Debugger,
-  mode: 'sync' | 'async',
+  mode: 'sync' | 'async' = 'async',
 ): Promise<void> {
   const source = envs.DC_NFS()
   const target = `${source}:${NFS_SHARE_PATH}`

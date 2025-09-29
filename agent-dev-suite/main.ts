@@ -4,7 +4,7 @@ import { mount } from '@artifact/fly-nfs'
 
 if (import.meta.main) {
   const log = Debug('@artifact/agent-basic:main')
-  await mount(log, 'async')
+  await mount(log)
   const { app } = createApp()
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
