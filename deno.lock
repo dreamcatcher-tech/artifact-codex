@@ -20,6 +20,7 @@
     "jsr:@std/path@^1.1.2": "1.1.2",
     "jsr:@std/toml@^1.0.10": "1.0.10",
     "jsr:@std/ulid@1": "1.0.0",
+    "npm:@alexarena/fly-io-client@1": "1.0.0",
     "npm:@clerk/backend@^2.4.1": "2.14.0",
     "npm:@modelcontextprotocol/sdk@^1.17.1": "1.18.1_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.18.1": "1.18.1_express@5.1.0_zod@3.25.76",
@@ -108,6 +109,9 @@
     }
   },
   "npm": {
+    "@alexarena/fly-io-client@1.0.0": {
+      "integrity": "sha512-4GuaJhT/pKDXcjPr1EikT9YWz+tu7oL4xyyyTLXM8stYaSonh37b8W1TgCtO5NhB/MJMPBWNyTVzQ0AMsZBQUQ=="
+    },
     "@clerk/backend@2.14.0": {
       "integrity": "sha512-EaPXIaOb3IVyn+3NRX9GVZeKk1eL1ugWOiyPzy7hfJvxRYhTBatZrwd32+nCkQ6igvRpRG4O+o5vWS1tSErbrg==",
       "dependencies": [
@@ -851,6 +855,7 @@
       "jsr:@std/path@^1.1.2",
       "jsr:@std/toml@^1.0.10",
       "jsr:@std/ulid@1",
+      "npm:@alexarena/fly-io-client@1",
       "npm:@modelcontextprotocol/sdk@^1.18.1",
       "npm:debug@^4.4.3",
       "npm:fly-admin@^1.6.1",

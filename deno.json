@@ -22,6 +22,7 @@
     "deploy": "fly -c fly.agent-basic.toml deploy && fly deploy -c fly.exec.toml && fly deploy -c fly.router.toml"
   },
   "imports": {
+    "@alexarena/fly-io-client": "npm:@alexarena/fly-io-client@^1.0.0",
     "@hono/clerk-auth": "jsr:@hono/clerk-auth@^3.0.3",
     "@hono/hono": "jsr:@hono/hono@^4.9.8",
     "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",
