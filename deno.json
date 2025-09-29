@@ -35,7 +35,6 @@
     "@std/toml": "jsr:@std/toml@^1.0.10",
     "@std/ulid": "jsr:@std/ulid@^1.0.0",
     "debug": "npm:debug@^4.4.3",
-    "fly-admin": "npm:fly-admin@^1.6.1",
     "serialize-error": "npm:serialize-error@^12.0.0",
     "unique-names-generator": "npm:unique-names-generator@^4.7.1",
     "ws": "npm:ws@^8.18.3",

@@ -1,7 +1,7 @@
 import { ExecInstance, execInstanceSchema } from '@artifact/fly-nfs/schemas'
 import { join } from '@std/path'
 import { COMPUTER_EXEC, envs, NFS_MOUNT_DIR } from '@artifact/shared'
-import { createClient } from 'fly-admin'
+import { FlyIoClient } from '@alexarena/fly-io-client'
 import Debug from 'debug'
 
 const log = Debug('@artifact/fly-exec:reconcile')
@@ -98,11 +98,10 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 const baseStartInstance = async (instance: ExecInstance) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
-  const fly = createClient(apiKey)
+  const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
 
   const { image, cpu_kind, cpus, memory_mb } = instance.record
-  const result = await fly.Machine.createMachine({
-    app_name,
+  const result = await fly.apps.machines.create(app_name, {
     config: {
       guest: { cpu_kind, cpus, memory_mb },
       image,
@@ -139,21 +138,20 @@ const baseStartInstance = async (instance: ExecInstance) => {
     },
   })
   log('machine created', result)
+  if (!result.id) {
+    throw new Error('Fly Machines API did not return a machine id')
+  }
   return result.id
 }
 
 const baseStopInstance = async (instance: ExecInstance) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
-  const fly = createClient(apiKey)
+  const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
   const { machineId: machine_id } = instance
   if (!machine_id) {
     throw new Error('machineId is required to stop an instance')
   }
-  const result = await fly.Machine.deleteMachine({
-    app_name,
-    machine_id,
-    force: true,
-  })
-  log('machine destroyed', result)
+  await fly.apps.machines.destroy(machine_id, { app_name, force: true })
+  log('machine destroyed', { machine_id })
 }

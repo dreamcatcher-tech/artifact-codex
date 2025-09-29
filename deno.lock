@@ -26,7 +26,6 @@
     "npm:@modelcontextprotocol/sdk@^1.18.1": "1.18.1_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",
     "npm:debug@^4.4.3": "4.4.3",
-    "npm:fly-admin@^1.6.1": "1.6.1",
     "npm:serialize-error@12": "12.0.0",
     "npm:unique-names-generator@*": "4.7.1",
     "npm:unique-names-generator@4.7.1": "4.7.1",
@@ -364,12 +363,6 @@
         "on-finished",
         "parseurl",
         "statuses@2.0.2"
-      ]
-    },
-    "fly-admin@1.6.1": {
-      "integrity": "sha512-LcO3mPGmmAe9TOr+HROMKu1orGSxuk3ydSebwI3CarejF55s8RXnDvIJvzAhsjGKtuDFo9rVEdshft7NKwCc+A==",
-      "dependencies": [
-        "cross-fetch"
       ]
     },
     "forwarded@0.2.0": {
@@ -858,7 +851,6 @@
       "npm:@alexarena/fly-io-client@1",
       "npm:@modelcontextprotocol/sdk@^1.18.1",
       "npm:debug@^4.4.3",
-      "npm:fly-admin@^1.6.1",
       "npm:serialize-error@12",
       "npm:unique-names-generator@^4.7.1",
       "npm:ws@^8.18.3",
