@@ -140,7 +140,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
       COMPUTER_REPOS,
       REPO_CONTAINER_IMAGES,
     )
-    const recordPath = join(containersDir, 'agent-basic.json')
+    const recordPath = join(containersDir, 'agent-dev-suite.json')
     return await readImageRecord(recordPath)
   }
 

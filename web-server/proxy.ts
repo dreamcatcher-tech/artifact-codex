@@ -2,6 +2,8 @@ import Debug from 'debug'
 import { HOST } from '@artifact/shared'
 const log = Debug('@artifact/web-server:proxy')
 
+type WebSocketData = Parameters<WebSocket['send']>[0]
+
 const HOP_BY_HOP = [
   'connection',
   'keep-alive',
@@ -130,17 +132,57 @@ export function proxyWS(req: Request, port: number): Response {
     )
   }
 
-  const pumpUp = (ev: MessageEvent) => {
-    if (upstream.readyState === WebSocket.OPEN) upstream.send(ev.data)
-  }
-  const pumpDown = (ev: MessageEvent) => {
-    if ((socket as WebSocket).readyState === WebSocket.OPEN) {
-      ;(socket as WebSocket).send(ev.data)
+  const upstreamQueue: WebSocketData[] = []
+  const clientQueue: WebSocketData[] = []
+
+  const flushUpstream = () => {
+    if (upstream.readyState !== WebSocket.OPEN) return
+    while (upstreamQueue.length) {
+      const next = upstreamQueue.shift()!
+      upstream.send(next)
     }
   }
 
-  socket.onopen = () => log('client ws open')
-  upstream.onopen = () => log('upstream ws open')
+  const flushClient = () => {
+    if ((socket as WebSocket).readyState !== WebSocket.OPEN) return
+    while (clientQueue.length) {
+      const next = clientQueue.shift()!
+      ;(socket as WebSocket).send(next)
+    }
+  }
+
+  const pumpUp = (ev: MessageEvent) => {
+    if (upstream.readyState === WebSocket.OPEN) {
+      upstream.send(ev.data)
+      return
+    }
+    if (upstream.readyState === WebSocket.CONNECTING) {
+      upstreamQueue.push(ev.data)
+    }
+  }
+
+  const pumpDown = (ev: MessageEvent) => {
+    const client = socket as WebSocket
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(ev.data)
+      return
+    }
+    if (client.readyState === WebSocket.CONNECTING) {
+      clientQueue.push(ev.data)
+    }
+  }
+
+  socket.binaryType = 'arraybuffer'
+  upstream.binaryType = 'arraybuffer'
+
+  socket.onopen = () => {
+    log('client ws open')
+    flushClient()
+  }
+  upstream.onopen = () => {
+    log('upstream ws open')
+    flushUpstream()
+  }
   socket.onmessage = pumpUp
   upstream.onmessage = pumpDown
 

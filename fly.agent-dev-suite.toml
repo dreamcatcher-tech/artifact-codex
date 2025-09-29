@@ -8,6 +8,10 @@ primary_region = 'syd'
     # only set for the testing version
     DC_DOMAIN = 'agentic.dreamcatcher.land'
     DC_NFS = 'nfs-proto.flycast'
+    DC_ROUTER = 'org1-fly-router.flycast'
+    DC_EXEC = 'org1-fly-exec.flycast'
+    DC_WORKER_POOL_APP = 'org1-worker-pool'
+    DC_OPENAI_PROXY_BASE_URL = 'http://org1-openai-proxy.flycast'
 
 [http_service]
     internal_port = 8080

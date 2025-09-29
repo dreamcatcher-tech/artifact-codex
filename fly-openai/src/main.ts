@@ -1,3 +1,5 @@
+import Debug from 'debug'
+
 type ProxyConfig = {
   apiKey: string
   apiBase: URL
@@ -140,12 +142,31 @@ function sanitizeUpstreamHeaders(
 }
 
 export function createProxyHandler(config: ProxyConfig) {
+  const log = Debug('@artifact/fly-openai:proxy')
   return async function handle(req: Request): Promise<Response> {
     const requestUrl = new URL(req.url)
     const origin = req.headers.get('Origin')
+    const started = performance.now()
+    const requestPath = `${requestUrl.pathname}${requestUrl.search}`
+
+    log('%s %s', req.method, requestPath)
+
+    const respond = (res: Response): Response => {
+      const duration = Math.round(performance.now() - started)
+      const statusText = res.statusText ? ` ${res.statusText}` : ''
+      log(
+        '%s %s -> %d%s %dms',
+        req.method,
+        requestPath,
+        res.status,
+        statusText,
+        duration,
+      )
+      return res
+    }
 
     if (!isOriginAllowed(origin, config.allowedOrigins)) {
-      return new Response('Origin not allowed', { status: 403 })
+      return respond(new Response('Origin not allowed', { status: 403 }))
     }
 
     const corsHeaders = buildCorsHeaders(origin, config.allowedOrigins)
@@ -162,16 +183,18 @@ export function createProxyHandler(config: ProxyConfig) {
           'Authorization, Content-Type, OpenAI-Beta, OpenAI-Project',
       )
       headers.set('Access-Control-Max-Age', '600')
-      return new Response(null, { status: 204, headers })
+      return respond(new Response(null, { status: 204, headers }))
     }
 
     if (req.method === 'GET' && requestUrl.pathname === '/healthz') {
       const headers = new Headers(corsHeaders)
       headers.set('Content-Type', 'application/json; charset=utf-8')
-      return new Response(JSON.stringify({ status: 'ok' }), {
-        status: 200,
-        headers,
-      })
+      return respond(
+        new Response(JSON.stringify({ status: 'ok' }), {
+          status: 200,
+          headers,
+        }),
+      )
     }
 
     const upstreamUrl = new URL(
@@ -198,13 +221,15 @@ export function createProxyHandler(config: ProxyConfig) {
     try {
       upstream = await fetch(upstreamUrl, init)
     } catch (error) {
-      console.error('Upstream request failed', error)
+      log('upstream request failed: %o', error)
       const headers = new Headers(corsHeaders)
       headers.set('Content-Type', 'application/json; charset=utf-8')
-      return new Response(JSON.stringify({ error: 'bad_gateway' }), {
-        status: 502,
-        headers,
-      })
+      return respond(
+        new Response(JSON.stringify({ error: 'bad_gateway' }), {
+          status: 502,
+          headers,
+        }),
+      )
     }
 
     const responseHeaders = new Headers()
@@ -222,10 +247,12 @@ export function createProxyHandler(config: ProxyConfig) {
     responseHeaders.set('Access-Control-Expose-Headers', '*')
     responseHeaders.delete('Content-Length')
 
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers: responseHeaders,
-    })
+    return respond(
+      new Response(upstream.body, {
+        status: upstream.status,
+        headers: responseHeaders,
+      }),
+    )
   }
 }
 

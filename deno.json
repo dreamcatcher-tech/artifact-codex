@@ -15,7 +15,7 @@
     "fly-exec",
     "fly-nfs",
     "fly-router",
-    "fly-openai-proxy"
+    "fly-openai"
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",

@@ -8,6 +8,7 @@ model_reasoning_effort = "low"
 notify = "__CODEX_NOTIFY__"
 
 [model_providers.openai]
+name = "OpenAI"
 base_url = "__OPENAI_PROXY_BASE_URL__"
 wire_api = "responses"
 
