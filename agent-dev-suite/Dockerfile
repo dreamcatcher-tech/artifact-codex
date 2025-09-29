@@ -4,8 +4,6 @@ FROM node:${NODE_MAJOR}-bookworm-slim AS node
 ARG DEBIAN_FRONTEND=noninteractive
 FROM ubuntu:24.04
 
-ENV FLYCTL_INSTALL=/usr/local
-ENV PATH="${FLYCTL_INSTALL}/bin:${PATH}"
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV COLORTERM=truecolor
@@ -66,11 +64,6 @@ COPY --from=node /usr/local/ /usr/local/
 # Install latest Deno (stable) system-wide
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
-RUN curl -fsSL https://fly.io/install.sh | sh
-
-RUN flyctl settings autoupdate disable
-RUN flyctl settings analytics disable
-
 RUN npm i -g npm
 
 COPY . /app
@@ -81,18 +74,13 @@ RUN npm i -g @openai/codex
 # Pre-cache Deno deps for faster cold starts
 RUN deno install --quiet
 
-RUN set -eux; \
-  SRC="/app/agent-dev-suite"; \
-  SHARED="/app/scripts"; \
-  install -Dm644 "${SRC}/codex.config.toml" /root/.codex/config.toml; \
-  install -Dm755 "${SHARED}/mount-nfs.sh" /usr/local/bin/mount-nfs.sh
-
 WORKDIR /workspace
 
-ENV DEBUG='@artifact/agent-*'
-ENV DEBUG_COLORS='1'
-ENV DEBUG_HIDE_DATE='1'
+ENV DEBUG=@artifact/agent-*
+ENV DEBUG_COLORS=1
+ENV DEBUG_HIDE_DATE=1
 
 ENV PORT=8080
 
-ENTRYPOINT [ "deno","run","-A","--config","/app/deno.json","/app/agent-dev-suite/entrypoint.ts" ]
+ENTRYPOINT ["deno", "run", "-A"]
+CMD [ "main.ts" ]
