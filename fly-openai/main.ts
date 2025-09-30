@@ -141,8 +141,9 @@ function sanitizeUpstreamHeaders(
   return sanitized
 }
 
+const log = Debug('@artifact/fly-openai')
+
 export function createProxyHandler(config: ProxyConfig) {
-  const log = Debug('@artifact/fly-openai:proxy')
   return async function handle(req: Request): Promise<Response> {
     const requestUrl = new URL(req.url)
     const origin = req.headers.get('Origin')
@@ -287,11 +288,15 @@ function loadConfigFromEnv(): ProxyConfig {
 }
 
 if (import.meta.main) {
+  Debug.enable('@artifact/fly-openai:*')
+
   const config = loadConfigFromEnv()
   const port = Number(Deno.env.get('PORT') ?? '8080')
 
-  console.log(
-    `Starting OpenAI proxy on port ${port}, targeting ${config.apiBase.toString()}`,
+  log(
+    'starting openai proxy on port=%d target=%s',
+    port,
+    config.apiBase.toString(),
   )
 
   Deno.serve({ port }, createProxyHandler(config))

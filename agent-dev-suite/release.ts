@@ -6,6 +6,6 @@ if (import.meta.main) {
   await writeImageRecord(import.meta.url, {
     cpu_kind: 'shared',
     cpus: 1,
-    memory_mb: 1024,
+    memory_mb: 512,
   })
 }

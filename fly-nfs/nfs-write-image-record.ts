@@ -49,7 +49,7 @@ export async function writeImageRecord(
   const validated = imageRecordSchema.parse({ image: FLY_IMAGE_REF, ...record })
   const payload = JSON.stringify(validated, null, 2)
   await Deno.writeTextFile(recordPath, payload)
-  log('wrote image record path=%s', recordPath)
+  log('wrote image record path=%s %o', recordPath, validated)
 }
 
 export async function readImageRecord(

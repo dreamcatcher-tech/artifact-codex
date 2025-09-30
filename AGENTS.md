@@ -36,9 +36,9 @@ Fly apps live alongside each app and must take precedence:
   with Fly Machines, manages hardware faults, and replays requests that failed
   mid-flight.
 
-If any guidance here appears to diverge from those files, defer to the
-canonical app documents and update this file to stay in alignment rather than
-altering the app-level references.
+If any guidance here appears to diverge from those files, defer to the canonical
+app documents and update this file to stay in alignment rather than altering the
+app-level references.
 
 ## .refs Folder
 
@@ -87,6 +87,9 @@ references (for example `.refs/codex/codex-rs/`).
 - When intentionally swallowing errors, add a lint hint such as `// ignore`.
 - tests are to be named <filename>.test.<ext> and live right next to the file
   they exercise, which would be named <filename>.<ext>
+- you never need to make lines like
+  `"dev": "deno run --config ../deno.json --allow-net --allow-env main.ts"`
+  since the `--config ../deno.json` is always added by deno automatically.
 
 ### Deno Configuration
 
