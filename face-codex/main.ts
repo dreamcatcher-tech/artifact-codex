@@ -315,7 +315,7 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
         '--dir',
         configDir,
       ]
-      : ['npx', '-y', '@openai/codex', '--cd', workspace]
+      : ['codex', '--cd', workspace, 'resume', '--last']
 
     const { child } = await launchTmuxTerminal({
       command: cmdArgs,

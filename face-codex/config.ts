@@ -113,7 +113,11 @@ async function writeConfigTemplate(configDir: string) {
 function applyRewrites(template: string): string {
   let text = template
   for (const [needle, replacement] of Object.entries(TEMPLATE_REWRITES)) {
-    text = text.split(needle).join(replacement)
+    const split = text.split(needle)
+    if (split.length !== 2) {
+      throw new Error(`split.length !== 2: ${needle} -> ${replacement}`)
+    }
+    text = split.join(replacement)
   }
   return text
 }

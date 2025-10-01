@@ -103,6 +103,10 @@ const baseStartInstance = async (instance: ExecInstance) => {
   const { image, cpu_kind, cpus, memory_mb } = instance.record
   const result = await fly.apps.machines.create(app_name, {
     config: {
+      auto_destroy: true,
+      init: {
+        swap_size_mb: 2048,
+      },
       guest: { cpu_kind, cpus, memory_mb },
       image,
       metadata: { fly_platform_version: 'standalone' },
