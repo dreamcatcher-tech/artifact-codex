@@ -3,9 +3,7 @@
 ```mermaid
 erDiagram
   COMPUTER ||--|{ AGENT : contains
-  AGENT ||--|{ FACE : has
-  FACE ||--o{ VIEW : presents
-  FACE ||--o{ INTERACTION : receives
+  AGENT ||--o{ INTERACTION : receives
 
   COMPUTER {
     string computer_id PK
@@ -20,22 +18,8 @@ erDiagram
     string status "pending, settled"
   }
 
-  FACE {
-    string face_id PK
-    string agent_id FK
-    string face_kind FK
-    string status "pending, settled"
-  }
-
-  VIEW {
-    string view_id PK
-    string face_id FK
-    string view_kind
-  }
-
   INTERACTION {
     string interaction_id PK
-    string face_id FK
     string status "pending, settled"
   }
 ```
