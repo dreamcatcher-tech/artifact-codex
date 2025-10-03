@@ -1,6 +1,7 @@
 import { expect } from '@std/expect'
 
 import { createAgentWebServer, type FaceKindConfig } from './mod.ts'
+import { createTestServerOptions } from './test-helpers.ts'
 import type { Face } from '@artifact/shared'
 
 function createStubFace(): Face {
@@ -43,11 +44,12 @@ function stubFaceKinds(): FaceKindConfig[] {
 }
 
 Deno.test('createAgentWebServer returns app and close', async () => {
-  const { app, close } = createAgentWebServer({
-    serverName: 'web-server-test',
-    faceKinds: stubFaceKinds(),
-    debugNamespace: '@artifact/web-server:test',
-  })
+  const { app, close } = createAgentWebServer(
+    createTestServerOptions({
+      serverName: 'web-server-test',
+      faceKinds: stubFaceKinds(),
+    }),
+  )
   expect(typeof app.fetch).toBe('function')
   await close()
 })

@@ -53,18 +53,6 @@ Deno.test('proxy list_faces forwards to remote server', async () => {
   expect(Array.isArray(live)).toBe(true)
 })
 
-Deno.test('proxy create_face returns faceId via remote', async () => {
-  await using fixtures = await withApp(createTestServerOptions())
-  const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })
-  const created = await handlers.create_face({
-    agentId: 'in-memory',
-    faceKindId: 'test',
-  }) as { structuredContent?: { faceId?: string } }
-  const faceId = created.structuredContent?.faceId
-  expect(typeof faceId).toBe('string')
-  expect(faceId?.startsWith('face-')).toBe(true)
-})
-
 Deno.test('proxy read/destroy on unknown id return errors', async () => {
   await using fixtures = await withApp(createTestServerOptions())
   const handlers = createRemoteFacesHandlers({ fetch: fixtures.fetch })

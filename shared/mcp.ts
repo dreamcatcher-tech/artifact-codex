@@ -55,6 +55,10 @@ export async function callRemoteTool(
   })
   const transport = new StreamableHTTPClientTransport(endpoint, opts)
   await client.connect(transport)
-  const result = await client.callTool({ name: tool, arguments: args })
-  return result as CallToolResult
+  try {
+    const result = await client.callTool({ name: tool, arguments: args })
+    return result as CallToolResult
+  } finally {
+    await client.close()
+  }
 }

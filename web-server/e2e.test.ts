@@ -49,16 +49,14 @@ function startHTTPEcho(port: number) {
 }
 
 function startWSEcho(port: number) {
-  const ac = new AbortController()
   const sockets = new Set<WebSocket>()
-  Deno.serve(
-    { hostname: HOST, port, signal: ac.signal },
+  return serveOn(
+    port,
     (req) => {
       const { socket, response } = Deno.upgradeWebSocket(req)
       const ws = socket as unknown as WebSocket
       sockets.add(ws)
       ws.onopen = safe(() => ws.send(`WS-READY-${port}`))
-
       ws.onmessage = (e: MessageEvent) => {
         if (typeof e.data === 'string') {
           safe(() => ws.send(`ECHO-${port}:${e.data}`))()
@@ -68,15 +66,18 @@ function startWSEcho(port: number) {
       ws.onerror = safe(() => ws.close())
       return response
     },
-  )
-  return {
-    [Symbol.dispose]: () => {
-      for (const s of sockets) {
-        safe(() => s.close(1000))()
+    async () => {
+      const pending: Promise<void>[] = []
+      for (const socket of sockets) {
+        const closePromise = new Promise<void>((resolve) => {
+          socket.addEventListener('close', () => resolve(), { once: true })
+        })
+        pending.push(closePromise)
+        safe(() => socket.close(1000))()
       }
-      ac.abort()
+      await Promise.allSettled(pending)
     },
-  }
+  )
 }
 
 async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
