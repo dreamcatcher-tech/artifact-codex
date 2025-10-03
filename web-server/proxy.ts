@@ -1,8 +1,8 @@
-import Debug from 'debug'
+import { type Debugger } from 'debug'
 import { HOST } from '@artifact/shared'
-const log = Debug('@artifact/web-server:proxy')
 
 type WebSocketData = Parameters<WebSocket['send']>[0]
+type OnActivity = (kind: 'http' | 'ws', detail: string) => void
 
 const HOP_BY_HOP = [
   'connection',
@@ -15,13 +15,17 @@ const HOP_BY_HOP = [
   'upgrade',
 ]
 
-// In-VM router: rely only on Fly-Forwarded-Port
-
 function stripHopByHop(h: Headers) {
   for (const k of HOP_BY_HOP) h.delete(k)
 }
 
-export async function proxyHTTP(req: Request, port: number): Promise<Response> {
+export async function proxyHTTP(
+  req: Request,
+  port: number,
+  log: Debugger,
+  onActivity: OnActivity,
+): Promise<Response> {
+  log = log.extend('proxyHTTP')
   const inUrl = new URL(req.url)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
@@ -55,8 +59,11 @@ export async function proxyHTTP(req: Request, port: number): Promise<Response> {
     String(target),
   )
 
+  onActivity('http', `${req.method.toUpperCase()} ${inUrl.pathname}`)
+
   try {
     const upstreamRes = await fetch(target, forwardInit)
+    onActivity('http', `response ${upstreamRes.status} ${inUrl.pathname}`)
     log('HTTP proxy <- %d %s', upstreamRes.status, upstreamRes.statusText)
     const outHeaders = new Headers(upstreamRes.headers)
     stripHopByHop(outHeaders)
@@ -76,11 +83,17 @@ export async function proxyHTTP(req: Request, port: number): Promise<Response> {
       'x-proxy-error': 'fetch-failed',
     })
     log('HTTP proxy error: %s', msg)
+    onActivity('http', `error ${msg}`)
     return new Response(body, { status, headers })
   }
 }
 
-export function proxyWS(req: Request, port: number): Response {
+export function proxyWS(
+  req: Request,
+  port: number,
+  log: Debugger,
+  onActivity: OnActivity,
+): Response {
   const inUrl = new URL(req.url)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
@@ -92,6 +105,7 @@ export function proxyWS(req: Request, port: number): Response {
   }`
 
   log('WS proxy -> %s', wsUrl)
+  onActivity('ws', `upgrade ${inUrl.pathname}`)
 
   const requestedProtocols = req.headers.get('sec-websocket-protocol')
   const protocols = requestedProtocols
@@ -152,6 +166,7 @@ export function proxyWS(req: Request, port: number): Response {
   }
 
   const pumpUp = (ev: MessageEvent) => {
+    onActivity('ws', 'client->upstream message')
     if (upstream.readyState === WebSocket.OPEN) {
       upstream.send(ev.data)
       return
@@ -162,6 +177,7 @@ export function proxyWS(req: Request, port: number): Response {
   }
 
   const pumpDown = (ev: MessageEvent) => {
+    onActivity('ws', 'upstream->client message')
     const client = socket as WebSocket
     if (client.readyState === WebSocket.OPEN) {
       client.send(ev.data)
@@ -177,14 +193,37 @@ export function proxyWS(req: Request, port: number): Response {
 
   socket.onopen = () => {
     log('client ws open')
+    onActivity('ws', 'client open')
     flushClient()
   }
   upstream.onopen = () => {
     log('upstream ws open')
+    onActivity('ws', 'upstream open')
     flushUpstream()
   }
   socket.onmessage = pumpUp
   upstream.onmessage = pumpDown
+
+  socket.onerror = (e) => {
+    log('client ws error %o', e)
+    onActivity('ws', 'client error')
+    closeBoth(1011)
+  }
+  upstream.onerror = (e) => {
+    log('upstream ws error %o', e)
+    onActivity('ws', 'upstream error')
+    closeBoth(1011)
+  }
+  socket.onclose = (ev: CloseEvent) => {
+    log('client ws close %d %s', ev.code, ev.reason)
+    onActivity('ws', 'client close')
+    closeBoth(ev.code, ev.reason)
+  }
+  upstream.onclose = (ev: CloseEvent) => {
+    log('upstream ws close %d %s', ev.code, ev.reason)
+    onActivity('ws', 'upstream close')
+    closeBoth(ev.code, ev.reason)
+  }
 
   const closeBoth = (code?: number, reason?: string) => {
     try {
@@ -197,23 +236,6 @@ export function proxyWS(req: Request, port: number): Response {
     } catch {
       // ignore
     }
-  }
-
-  socket.onerror = (e) => {
-    log('client ws error %o', e)
-    closeBoth(1011)
-  }
-  upstream.onerror = (e) => {
-    log('upstream ws error %o', e)
-    closeBoth(1011)
-  }
-  socket.onclose = (ev: CloseEvent) => {
-    log('client ws close %d %s', ev.code, ev.reason)
-    closeBoth(ev.code, ev.reason)
-  }
-  upstream.onclose = (ev: CloseEvent) => {
-    log('upstream ws close %d %s', ev.code, ev.reason)
-    closeBoth(ev.code, ev.reason)
   }
 
   return response

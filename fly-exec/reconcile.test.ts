@@ -73,9 +73,10 @@ Deno.test('reconcile starts queued instance', async () => {
     readInstance,
   } = createReconciler({
     computerDir: setup.root,
-    startInstance: (instance) => {
+    startInstance: (instance, computerId) => {
       startCalls.push(structuredClone(instance))
       expect(instance.hardware).toBe('starting')
+      expect(computerId).toBe('computer-start')
       return Promise.resolve('machine-123')
     },
   })
@@ -107,9 +108,10 @@ Deno.test('reconcile stops running instance', async () => {
   const stopCalls: ExecInstance[] = []
   const { reconcile, writeInstance } = createReconciler({
     computerDir: setup.root,
-    stopInstance: (instance) => {
+    stopInstance: (instance, computerId) => {
       stopCalls.push(structuredClone(instance))
       expect(instance.hardware).toBe('stopping')
+      expect(computerId).toBe('computer-stop')
       return Promise.resolve()
     },
   })

@@ -39,10 +39,13 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.use('*', logger())
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
-    console.log('auth:', auth)
-    // if (!auth?.userId) {
-    //   return c.text('Unauthorized', 401)
-    // }
+
+    if (!auth?.userId) {
+      return c.text('Unauthorized', 401)
+    }
+    const client = c.get('clerk')
+    const ot = await client.users.getUserOauthAccessToken(auth.userId, 'github')
+    console.log('oauthToken:', ot)
     return await next()
   })
 

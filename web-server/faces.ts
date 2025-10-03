@@ -3,7 +3,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { Face, FaceKindId, FaceOptions } from '@artifact/shared'
 import { HOST, toStructured } from '@artifact/shared'
 import { join } from '@std/path'
-import Debug from 'debug'
+import type { Debugger } from 'debug'
 
 import { createVirtualFace } from './face-self.ts'
 
@@ -24,16 +24,16 @@ type FaceKindEntry = {
   create?: (opts: FaceOptions) => Face
 }
 
-export interface CreateFacesOptions {
+interface CreateFacesOptions {
   faceKinds: readonly FaceKindConfig[]
-  debugNamespace?: string
+  log: Debugger
 }
 
 export const createFaces = (
-  faces: Map<FaceId, Face>,
-  { faceKinds, debugNamespace }: CreateFacesOptions,
+  facesStore: Map<FaceId, Face>,
+  { faceKinds, log }: CreateFacesOptions,
 ): FacesHandlers => {
-  const log = Debug(debugNamespace ?? '@artifact/web-server:faces')
+  log = log.extend('faces')
   const faceIdToKind = new Map<FaceId, string>()
   let faceIdSequence = 0
 
@@ -63,7 +63,7 @@ export const createFaces = (
 
   const virtualFace = createVirtualFace()
   const virtualFaceId = allocateFaceId()
-  faces.set(virtualFaceId, virtualFace)
+  facesStore.set(virtualFaceId, virtualFace)
   faceIdToKind.set(virtualFaceId, SELF_KIND_ID)
 
   const listFaceKinds = () =>
@@ -75,7 +75,7 @@ export const createFaces = (
 
   const listLiveFaces = async () => {
     return await Promise.all(
-      Array.from(faces.keys()).map(async (faceId) => {
+      Array.from(facesStore.keys()).map(async (faceId) => {
         const faceKindId = faceIdToKind.get(faceId)
         if (!faceKindId) {
           throw new Error(
@@ -86,7 +86,7 @@ export const createFaces = (
         if (!info) {
           throw new Error(`Internal error: ${faceId} unknown: ${faceKindId}`)
         }
-        const status = await faces.get(faceId)!.status()
+        const status = await facesStore.get(faceId)!.status()
         const views = (status.views ?? []).map((v) => ({
           ...v,
           url: v.url ?? `http://${HOST}:${v.port}`,
@@ -105,7 +105,7 @@ export const createFaces = (
 
   return {
     list_faces: async (): Promise<CallToolResult> => {
-      log('list_faces: kinds=%d live=%d', knownKinds.size, faces.size)
+      log('list_faces: kinds=%d live=%d', knownKinds.size, facesStore.size)
       const face_kinds = listFaceKinds()
       const live_faces = await listLiveFaces()
       return toStructured({ face_kinds, live_faces })
@@ -131,13 +131,13 @@ export const createFaces = (
         hostname,
         config: finalConfig,
       })
-      faces.set(id, face)
+      facesStore.set(id, face)
       faceIdToKind.set(id, faceKindId)
       log('create_face: %s (%s)', id, faceKindId)
       return Promise.resolve(toStructured({ faceId: id }))
     },
     read_face: async ({ faceId }): Promise<CallToolResult> => {
-      const face = faces.get(faceId)
+      const face = facesStore.get(faceId)
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
@@ -153,12 +153,12 @@ export const createFaces = (
       if (faceId === virtualFaceId) {
         throw new Error('@self system face cannot be destroyed')
       }
-      const face = faces.get(faceId)
+      const face = facesStore.get(faceId)
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
       await face.destroy()
-      faces.delete(faceId)
+      facesStore.delete(faceId)
       faceIdToKind.delete(faceId)
       log('destroy_face: %s', faceId)
       return toStructured({ deleted: true })

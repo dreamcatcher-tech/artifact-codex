@@ -1,12 +1,5 @@
-# fly.toml app configuration file generated for nfs-proto on 2025-09-18T01:16:46Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'nfs-proto'
 primary_region = 'syd'
-# swap stops the suspend feature from working
-# swap_size_mb = 2048
 
 [build]
   dockerfile = 'fly-nfs/Dockerfile'
@@ -21,15 +14,11 @@ primary_region = 'syd'
   [[services.ports]]
     port = 2049
 
-  [[services.machine_checks]]
-    entrypoint = ["/bin/bash", "-lc"]
-    command = ["/self-mount-check.sh"]
-    timeout = "60s"
-    kill_signal = "SIGKILL"
-    kill_timeout = "5s"
+[deploy]
+  release_command = '/self-mount-check.sh'
 
 [[vm]]
-  memory = '512mb'
+  memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
 

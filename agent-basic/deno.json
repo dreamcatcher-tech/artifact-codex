@@ -7,7 +7,6 @@
     "lint": "deno lint --fix",
     "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint",
-    "web": "bash test.sh",
     "dev": "deno run -A --watch main.ts"
   }
 }

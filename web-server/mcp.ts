@@ -4,52 +4,30 @@ import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
 import type { Face } from '@artifact/shared'
-import Debug from 'debug'
+import { type Debugger } from 'debug'
 
-import {
-  createFaces,
-  type CreateFacesOptions,
-  type FaceKindConfig,
-} from './faces.ts'
-import {
-  createInteractions,
-  type CreateInteractionsOptions,
-} from './interactions.ts'
+import { createFaces, type FaceKindConfig } from './faces.ts'
+import { createInteractions } from './interactions.ts'
 
 type FaceId = string
 
-export interface CreateMcpHandlerOptions {
+export interface McpHandlerOptions {
   serverName: string
   serverVersion: string
   faceKinds: readonly FaceKindConfig[]
-  debugNamespace?: string
-  facesOptions?: Omit<CreateFacesOptions, 'faceKinds'>
-  interactionsOptions?: CreateInteractionsOptions
+  log: Debugger
+  onPendingChange: (pendingCount: number) => void
 }
 
 export const createMcpHandler = (
-  {
-    serverName,
-    serverVersion,
-    faceKinds,
-    debugNamespace,
-    facesOptions,
-    interactionsOptions,
-  }: CreateMcpHandlerOptions,
+  { serverName, serverVersion, faceKinds, log, onPendingChange }:
+    McpHandlerOptions,
 ) => {
   let closed = false
-  const ns = debugNamespace ?? '@artifact/web-server:mcp'
-  const log = Debug(ns)
+  log = log.extend('mcp')
   const facesStore = new Map<FaceId, Face>()
-  const faces = createFaces(facesStore, {
-    faceKinds,
-    debugNamespace: facesOptions?.debugNamespace ?? `${ns}:faces`,
-    ...facesOptions,
-  })
-  const interactions = createInteractions(facesStore, {
-    debugNamespace: interactionsOptions?.debugNamespace ?? `${ns}:interactions`,
-    ...interactionsOptions,
-  })
+  const faces = createFaces(facesStore, { faceKinds, log })
+  const interactions = createInteractions(facesStore, log, onPendingChange)
 
   const servers = new Set<McpServer>()
   const handler = async (c: Context) => {

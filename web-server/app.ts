@@ -1,92 +1,52 @@
-import { readFaceOutput } from '@artifact/mcp-faces'
-import { HOST } from '@artifact/shared'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { Hono, type HonoRequest } from '@hono/hono'
 import { logger } from '@hono/hono/logger'
 import { cors } from '@hono/hono/cors'
-import Debug from 'debug'
 import type { Debugger } from 'debug'
 
 import { createMcpHandler } from './mcp.ts'
 import type { FaceKindConfig } from './faces.ts'
 import { proxyHTTP, proxyWS } from './proxy.ts'
 import { isMcpRequest, isWebSocketRequest, portFromHeaders } from './utils.ts'
+import { createIdleShutdownManager } from './idle.ts'
 
 const IN_MEMORY_BASE_URL = new URL('http://in-memory/?mcp')
 
-export interface CreateAgentWebServerOptions {
+export interface AgentWebServerOptions {
   serverName: string
   serverVersion?: string
   faceKinds: readonly FaceKindConfig[]
-  defaultFaceKindId?: FaceKindConfig['id']
-  defaultFaceAgentId?: string
-  debugNamespace?: string
+  log: Debugger
+  timeoutMs: number
+  onIdle: () => void | Promise<void>
 }
 
-export interface CreateAgentWebServerResult {
+export interface AgentWebServerResult {
   app: Hono
   close(): Promise<void>
 }
 
-export interface DefaultFaceOptions {
-  faceKindId: FaceKindConfig['id']
-  agentId: string
-}
-
 export const createAgentWebServer = (
-  options: CreateAgentWebServerOptions,
-): CreateAgentWebServerResult => {
-  const {
-    serverName,
-    serverVersion = '0.0.1',
-    faceKinds,
-    defaultFaceKindId,
-    defaultFaceAgentId = '@self',
-  } = options
-  const debugNamespace = options.debugNamespace ?? '@artifact/web-server'
-  const log = Debug(debugNamespace)
-
-  log(
-    'createAgentWebServer: init name=%s faces=%d',
-    serverName,
-    faceKinds.length,
-  )
+  { serverName, serverVersion = '0.0.1', faceKinds, log, timeoutMs, onIdle }:
+    AgentWebServerOptions,
+): AgentWebServerResult => {
+  log = log.extend('web-server')
+  log('init name=%s faces=%d', serverName, faceKinds.length)
 
   const app = new Hono()
+  const idler = createIdleShutdownManager({ timeoutMs, onIdle, log })
+
   const mcp = createMcpHandler({
     serverName,
     serverVersion,
     faceKinds,
-    debugNamespace: `${debugNamespace}:mcp`,
+    log,
+    onPendingChange: idler.handlePendingChange,
   })
 
-  const emit = (req: Request, res?: Response) => {
-    try {
-      const method = req.method
-      const pathname = new URL(req.url).pathname
-      if (res) {
-        const text = res.statusText ? ` ${res.statusText}` : ''
-        log('%s %s -> %d%s', method, pathname, res.status, text)
-      } else {
-        log('%s %s', method, pathname)
-      }
-    } catch {
-      // ignore
-    }
-  }
+  // TODO check the auth belongs to the computer we serve
 
   app.use('*', logger())
-
-  let defaultFacePort: number | undefined
-  const getDefaultFacePort = defaultFaceKindId
-    ? createDefaultFacePortGetter(app, {
-      faceKindId: defaultFaceKindId,
-      agentId: defaultFaceAgentId,
-      debugNamespace: `${debugNamespace}:default-face`,
-    })
-    : () => Promise.resolve<number | undefined>(undefined)
+  app.use('*', idler.middleware)
 
   app.use('*', async (c, next) => {
     if (isMcpRequest(c.req)) {
@@ -95,28 +55,14 @@ export const createAgentWebServer = (
 
     const forwardedPort = portFromHeaders(c.req)
     if (forwardedPort && forwardedPort !== 443) {
-      return await proxyRequest(c.req, forwardedPort, emit)
+      return await proxyRequest(c.req, forwardedPort, log, idler)
     }
 
-    if (!defaultFaceKindId) {
-      log('default face not configured; rejecting request')
-      const res = new Response('default face not configured', { status: 502 })
-      emit(c.req.raw, res)
-      return res
-    }
+    // in the new model, there is always a face, but there is always a single face for an agent
 
-    if (!defaultFacePort) {
-      defaultFacePort = await getDefaultFacePort()
-    }
-
-    if (!defaultFacePort) {
-      log('default face available but port missing')
-      const res = new Response('default face unavailable', { status: 502 })
-      emit(c.req.raw, res)
-      return res
-    }
-
-    return await proxyRequest(c.req, defaultFacePort, emit)
+    const AGENT_LOCAL_PORT = 10000 // all faces have to use this port we pass in
+    // TODO buffer until the face is ready
+    return await proxyRequest(c.req, AGENT_LOCAL_PORT, log, idler)
   })
 
   app.use(cors({
@@ -139,12 +85,12 @@ export const createAgentWebServer = (
       throw new Error('MCP request expected')
     }
     const res = await mcp.handler(c)
-    emit(c.req.raw, res)
     return res
   })
 
   const close = async () => {
     log('createAgentWebServer: close')
+    idler.dispose()
     await mcp.close()
   }
 
@@ -154,126 +100,20 @@ export const createAgentWebServer = (
 const proxyRequest = async (
   req: HonoRequest,
   port: number,
-  emit: (req: Request, res?: Response) => void,
+  log: Debugger,
+  idler: { touch: (reason: string) => void },
 ) => {
+  const onActivity = (kind: string, detail: string) => {
+    idler.touch(`proxy ${kind}: ${detail}`)
+  }
+
   const isWS = isWebSocketRequest(req)
   if (isWS) {
-    const res = proxyWS(req.raw, port)
-    emit(req.raw, res)
+    const res = proxyWS(req.raw, port, log, onActivity)
     return res
   }
-  const res = await proxyHTTP(req.raw, port)
-  emit(req.raw, res)
+  const res = await proxyHTTP(req.raw, port, log, onActivity)
   return res
-}
-
-const createDefaultFacePortGetter = (
-  app: Hono,
-  options: DefaultFaceOptions & { debugNamespace: string },
-) => {
-  const { faceKindId, agentId, debugNamespace } = options
-  const log = Debug(debugNamespace)
-  let cached: number | undefined
-
-  return async () => {
-    if (cached) return cached
-    cached = await createDefaultFacePort(app, { faceKindId, agentId, log })
-    return cached
-  }
-}
-
-const createDefaultFacePort = async (
-  app: Hono,
-  { faceKindId, agentId, log }: DefaultFaceOptions & { log: Debugger },
-) => {
-  log('createDefaultFacePort: start kind=%s agent=%s', faceKindId, agentId)
-  const client = new Client({
-    name: 'default-face',
-    version: '0.0.1',
-  })
-  const opts = { fetch: createInMemoryFetch(app) }
-  const transport = new StreamableHTTPClientTransport(IN_MEMORY_BASE_URL, opts)
-
-  const parseToolError = (
-    result: { isError?: boolean; content?: { type: string; text?: string }[] },
-  ): string | undefined => {
-    if (!result.isError) return undefined
-    const texts =
-      result.content?.flatMap((block) =>
-        block.type === 'text' && block.text ? [block.text.trim()] : []
-      ) ?? []
-    return texts.filter((text) => text.length > 0).join('\n') || undefined
-  }
-
-  try {
-    await client.connect(transport)
-
-    const workspace = Deno.cwd()
-
-    const createResult = await client.callTool({
-      name: 'create_face',
-      arguments: {
-        agentId,
-        faceKindId,
-        workspace,
-        hostname: HOST,
-      },
-    }) as {
-      structuredContent?: { faceId?: string }
-      isError?: boolean
-      content?: { type: string; text?: string }[]
-    }
-
-    const createError = parseToolError(createResult)
-    if (createError) {
-      throw new Error(`Failed to create default face: ${createError}`)
-    }
-
-    const faceId = createResult.structuredContent?.faceId
-    if (!faceId) {
-      throw new Error('No faceId returned')
-    }
-
-    const readResult = await client.callTool({
-      name: 'read_face',
-      arguments: { agentId, faceId },
-    }) as {
-      structuredContent?: unknown
-      isError?: boolean
-      content?: { type: string; text?: string }[]
-    }
-
-    const readError = parseToolError(readResult)
-    if (readError) {
-      throw new Error(`Failed to read default face ${faceId}: ${readError}`)
-    }
-
-    const structured = readResult.structuredContent
-    if (!structured) {
-      throw new Error(`Face ${faceId} did not return structured content`)
-    }
-
-    const { views } = readFaceOutput.parse(structured)
-    if (!views[0]) {
-      throw new Error(`Face ${faceId} did not expose any views`)
-    }
-    log('createDefaultFacePort: ready port=%d', views[0].port)
-    return views[0].port
-  } finally {
-    try {
-      await client.close()
-    } catch {
-      // ignore
-    }
-  }
-}
-
-export const createInMemoryFetch = (app: Hono): FetchLike => {
-  const fetch: FetchLike = (url, init) => {
-    const request = new Request(url, init as RequestInit)
-    return Promise.resolve(app.fetch(request))
-  }
-  return fetch
 }
 
 export const inMemoryBaseUrl = IN_MEMORY_BASE_URL

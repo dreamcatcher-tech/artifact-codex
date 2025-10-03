@@ -8,8 +8,11 @@ const log = Debug('@artifact/fly-exec:reconcile')
 
 type ReconcilerOptions = {
   computerDir?: string
-  startInstance?: (instance: ExecInstance) => Promise<string>
-  stopInstance?: (instance: ExecInstance) => Promise<void>
+  startInstance?: (
+    instance: ExecInstance,
+    computerId: string,
+  ) => Promise<string>
+  stopInstance?: (instance: ExecInstance, computerId: string) => Promise<void>
 }
 
 export const createReconciler = (options: ReconcilerOptions = {}) => {
@@ -24,7 +27,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 
     const promises: Promise<boolean>[] = []
     for (const path of paths) {
-      promises.push(syncInstance(path))
+      promises.push(syncInstance(path, computerId))
     }
     const results = await Promise.all(promises)
     const changeCount = results.filter(Boolean).length
@@ -50,7 +53,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     return instance
   }
 
-  const syncInstance = async (path: string) => {
+  const syncInstance = async (path: string, computerId: string) => {
     const instance = await readInstance(path)
     const { software, hardware } = instance
     log('syncInstance', path, { software, hardware })
@@ -59,7 +62,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
       instance.hardware = 'starting'
       await writeInstance(path, instance)
 
-      const machineId = await startInstance(instance)
+      const machineId = await startInstance(instance, computerId)
       instance.machineId = machineId
       instance.hardware = 'running'
       await writeInstance(path, instance)
@@ -69,7 +72,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     if (software === 'stopped' && hardware === 'running') {
       instance.hardware = 'stopping'
       await writeInstance(path, instance)
-      await stopInstance(instance)
+      await stopInstance(instance, computerId)
       await deleteInstance(path)
       return true
     }
@@ -95,7 +98,10 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
   }
 }
 
-const baseStartInstance = async (instance: ExecInstance) => {
+const baseStartInstance = async (
+  instance: ExecInstance,
+  computerId: string,
+) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
   const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
@@ -104,12 +110,18 @@ const baseStartInstance = async (instance: ExecInstance) => {
   const result = await fly.apps.machines.create(app_name, {
     config: {
       auto_destroy: true,
+      restart: {
+        policy: 'no',
+      },
       init: {
         swap_size_mb: 2048,
       },
       guest: { cpu_kind, cpus, memory_mb },
       image,
-      metadata: { fly_platform_version: 'standalone' },
+      metadata: {
+        fly_platform_version: 'standalone',
+        dc_computer_id: computerId,
+      },
       env: {
         DC_NFS: envs.DC_NFS(),
         DC_DOMAIN: envs.DC_DOMAIN(),
@@ -148,7 +160,7 @@ const baseStartInstance = async (instance: ExecInstance) => {
   return result.id
 }
 
-const baseStopInstance = async (instance: ExecInstance) => {
+const baseStopInstance = async (instance: ExecInstance, computerId: string) => {
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
   const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
@@ -157,5 +169,5 @@ const baseStopInstance = async (instance: ExecInstance) => {
     throw new Error('machineId is required to stop an instance')
   }
   await fly.apps.machines.destroy(machine_id, { app_name, force: true })
-  log('machine destroyed', { machine_id })
+  log('machine destroyed', { machine_id, computerId })
 }

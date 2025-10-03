@@ -1,0 +1,36 @@
+name: Deploy All Apps
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-all
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Run validation suite
+        run: deno task ok
+
+      - name: Deploy all Fly apps
+        run: deno task all

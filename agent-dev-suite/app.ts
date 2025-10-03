@@ -1,4 +1,5 @@
 import { createAgentWebServer } from '@artifact/web-server'
+import type { IdleShutdownOptions } from '@artifact/web-server'
 
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { CreateAgentWebServerOptions } from '@artifact/web-server'
@@ -28,7 +29,13 @@ export function resolveFaceKinds(): FaceKindConfig[] {
   })
 }
 
-export function createAgentDevSuiteOptions(): CreateAgentWebServerOptions {
+export interface CreateAgentDevSuiteAppOptions {
+  idleShutdown?: IdleShutdownOptions
+}
+
+export function createAgentDevSuiteOptions(
+  options: CreateAgentDevSuiteAppOptions = {},
+): CreateAgentWebServerOptions {
   const faceKinds = resolveFaceKinds()
   return {
     serverName: 'agent-dev-suite',
@@ -36,10 +43,11 @@ export function createAgentDevSuiteOptions(): CreateAgentWebServerOptions {
     faceKinds,
     defaultFaceKindId: 'codex',
     debugNamespace: '@artifact/agent-dev-suite',
+    idleShutdown: options.idleShutdown,
   }
 }
 
-export function createApp() {
-  const options = createAgentDevSuiteOptions()
-  return createAgentWebServer(options)
+export function createApp(options?: CreateAgentDevSuiteAppOptions) {
+  const serverOptions = createAgentDevSuiteOptions(options)
+  return createAgentWebServer(serverOptions)
 }

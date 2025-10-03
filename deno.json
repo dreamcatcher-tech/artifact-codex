@@ -19,7 +19,18 @@
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",
-    "deploy": "fly -c fly.agent-basic.toml deploy && fly deploy -c fly.exec.toml && fly deploy -c fly.router.toml"
+    "deploy-agent-basic": "fly deploy -c fly.agent-basic.toml",
+    "deploy-agent-dev-suite": "fly deploy -c fly.agent-dev-suite.toml",
+    "deploy-exec": "fly deploy -c fly.exec.toml",
+    "deploy-nfs": "fly deploy -c fly.nfs.toml",
+    "deploy-openai": "fly deploy -c fly.openai.toml",
+    "deploy-router": "fly deploy -c fly.router.toml",
+    "base": { "dependencies": ["deploy-nfs", "deploy-openai"] },
+    "compute": { "dependencies": ["deploy-exec", "deploy-router"] },
+    "agents": {
+      "dependencies": ["deploy-agent-basic", "deploy-agent-dev-suite"]
+    },
+    "all": "deno task base && deno task agents && deno task compute"
   },
   "imports": {
     "@alexarena/fly-io-client": "npm:@alexarena/fly-io-client@^1.0.0",
@@ -32,6 +43,7 @@
     "@std/expect": "jsr:@std/expect@^1.0.17",
     "@std/fs": "jsr:@std/fs@^1.0.19",
     "@std/path": "jsr:@std/path@^1.1.2",
+    "@std/testing": "jsr:@std/testing@^1.0.15",
     "@std/toml": "jsr:@std/toml@^1.0.10",
     "@std/ulid": "jsr:@std/ulid@^1.0.0",
     "debug": "npm:debug@^4.4.3",

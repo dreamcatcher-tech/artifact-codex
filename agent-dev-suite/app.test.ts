@@ -32,3 +32,12 @@ Deno.test('createAgentDevSuiteOptions sets default face to codex', () => {
   expect(options.defaultFaceKindId).toEqual('codex')
   expect(options.faceKinds.length).toBeGreaterThan(0)
 })
+
+Deno.test('createAgentDevSuiteOptions forwards idle shutdown options', () => {
+  const idleShutdown = {
+    timeoutMs: 123,
+    onIdle: () => {},
+  }
+  const options = createAgentDevSuiteOptions({ idleShutdown })
+  expect(options.idleShutdown).toBe(idleShutdown)
+})

@@ -2,7 +2,8 @@ import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toStructured } from '@artifact/shared'
 import type { Face } from '@artifact/shared'
-import Debug from 'debug'
+import { type Debugger } from 'debug'
+
 type FaceId = string
 type InteractionId = string
 type InteractionRecord = {
@@ -10,16 +11,16 @@ type InteractionRecord = {
   input: string
 }
 
-export interface CreateInteractionsOptions {
-  debugNamespace?: string
-}
-
 export const createInteractions = (
-  faces: Map<FaceId, Face>,
-  { debugNamespace }: CreateInteractionsOptions = {},
+  facesStore: Map<FaceId, Face>,
+  log: Debugger,
+  onPendingChange: (pendingCount: number) => void,
 ): InteractionsHandlers => {
-  const log = Debug(debugNamespace ?? '@artifact/web-server:interactions')
+  log = log.extend('interactions')
   const interactions = new Map<InteractionId, InteractionRecord>()
+  const notifyPending = () => {
+    onPendingChange(interactions.size)
+  }
   let interactionIdSequence = 0
 
   const allocateInteractionId = (): InteractionId => {
@@ -30,7 +31,7 @@ export const createInteractions = (
 
   return {
     list_interactions: ({ faceId }): Promise<CallToolResult> => {
-      const face = faces.get(faceId)
+      const face = facesStore.get(faceId)
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
@@ -41,13 +42,14 @@ export const createInteractions = (
       return Promise.resolve(toStructured({ interactionIds }))
     },
     create_interaction: ({ faceId, input }): Promise<CallToolResult> => {
-      const face = faces.get(faceId)
+      const face = facesStore.get(faceId)
       if (!face) {
         throw new Error(`Face not found: ${faceId}`)
       }
       const interactionId = allocateInteractionId()
       face.interaction(interactionId, input)
       interactions.set(interactionId, { faceId, input })
+      notifyPending()
       log(
         'create_interaction: face=%s input=%j -> %s',
         faceId,
@@ -61,7 +63,7 @@ export const createInteractions = (
       if (!interaction) {
         throw new Error(`Interaction not found: ${interactionId}`)
       }
-      const face = faces.get(interaction.faceId)
+      const face = facesStore.get(interaction.faceId)
       try {
         if (!face) {
           throw new Error(`Face not found: ${interaction.faceId}`)
@@ -75,6 +77,7 @@ export const createInteractions = (
         return toStructured({ result, input: interaction.input })
       } finally {
         interactions.delete(interactionId)
+        notifyPending()
       }
     },
     destroy_interaction: async ({ interactionId }): Promise<CallToolResult> => {
@@ -82,12 +85,13 @@ export const createInteractions = (
       if (!interaction) {
         throw new Error(`Interaction not found: ${interactionId}`)
       }
-      const face = faces.get(interaction.faceId)
+      const face = facesStore.get(interaction.faceId)
       if (!face) {
         throw new Error(`Face not found: ${interaction.faceId}`)
       }
       await face.cancel(interactionId)
       interactions.delete(interactionId)
+      notifyPending()
       log('destroy_interaction: %s (deleted)', interactionId)
       return toStructured({ ok: true })
     },
