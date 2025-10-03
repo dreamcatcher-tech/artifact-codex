@@ -27,7 +27,7 @@ Deno.test('prepareLaunchDirectories isolates default home under workspace bucket
     })
     expect(prep1).toBeDefined()
     const home1 = prep1!.home
-    const bucketRoot = join(workspace, '.dreamcatcher', 'face-codex')
+    const bucketRoot = join(workspace, '.dreamcatcher', 'agent-codex')
     expect(home1.startsWith(bucketRoot)).toBe(true)
     expect(await pathExists(home1)).toBe(true)
     expect(await pathExists(join(home1, 'config.toml'))).toBe(true)

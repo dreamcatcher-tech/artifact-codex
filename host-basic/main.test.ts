@@ -1,22 +1,22 @@
 import { expect } from '@std/expect'
-import { startFaceTest } from '@artifact/face-test'
+import { startAgentTest } from '@artifact/agent-test'
 import { withApp } from '@artifact/web-server/fixture'
 
 import { createHostBasicOptions, resolveFaceKinds } from './main.ts'
 
-denoTestResolveFaceKinds()
+denoTestResolveAgentKinds()
 denoTestCreateHostBasicOptions()
 denoTestIntegration()
 
-function denoTestResolveFaceKinds() {
-  Deno.test('resolveFaceKinds exposes the test face', () => {
+function denoTestResolveAgentKinds() {
+  Deno.test('resolveAgentKinds exposes the test agent', () => {
     const kinds = resolveFaceKinds()
     expect(Array.isArray(kinds)).toBe(true)
     expect(kinds.length).toBe(1)
-    const [face] = kinds
-    expect(face.id).toBe('test')
-    expect(face.title).toBe('Test Agent')
-    expect(face.create).toBe(startFaceTest)
+    const [agent] = kinds
+    expect(agent.id).toBe('test')
+    expect(agent.title).toBe('Test Agent')
+    expect(agent.create).toBe(startAgentTest)
   })
 }
 

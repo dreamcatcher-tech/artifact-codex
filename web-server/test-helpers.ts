@@ -1,47 +1,51 @@
-import type { CreateAgentWebServerOptions, FaceKindConfig } from './mod.ts'
-import { startFaceTest } from '@artifact/face-test'
-import { startFaceInspector } from '@artifact/face-inspector'
-import { startFaceCodex } from '@artifact/face-codex'
-import { startFaceCmd } from '@artifact/face-cmd'
+import Debug from 'debug'
+import type { AgentWebServerOptions, FaceKindConfig } from './mod.ts'
+import { startAgentTest } from '@artifact/agent-test'
+import { startAgentInspector } from '@artifact/agent-inspector'
+import { startAgentCodex } from '@artifact/agent-codex'
+import { startAgentCmd } from '@artifact/agent-cmd'
 
 const DEFAULT_FACE_KINDS: FaceKindConfig[] = [
   {
     id: 'test',
     title: 'Test',
     description: 'A test face',
-    create: startFaceTest,
+    create: startAgentTest,
   },
   {
     id: 'inspector',
     title: 'Inspector',
     description: 'MCP Inspector that presents a web server UI',
-    create: startFaceInspector,
+    create: startAgentInspector,
   },
   {
     id: 'codex',
     title: 'Codex',
     description: 'Runs a Codex session and presents it in a ttyd ui',
-    create: startFaceCodex,
+    create: startAgentCodex,
   },
   {
     id: 'cmd',
     title: 'Command',
     description: 'Runs an arbitrary shell command in tmux with a ttyd view',
-    create: startFaceCmd,
+    create: startAgentCmd,
   },
 ]
 
 export function createTestServerOptions(
-  overrides: Partial<CreateAgentWebServerOptions> = {},
-): CreateAgentWebServerOptions {
+  overrides: Partial<AgentWebServerOptions> = {},
+): AgentWebServerOptions {
   const faceKinds = overrides.faceKinds ?? DEFAULT_FACE_KINDS
+  const log = overrides.log ?? Debug('@artifact/web-server:test')
+  const timeoutMs = overrides.timeoutMs ?? 60_000
+  const onIdle = overrides.onIdle ?? (() => {})
   return {
     serverName: overrides.serverName ?? 'web-server-test',
     serverVersion: overrides.serverVersion ?? '0.0.1',
     faceKinds,
-    defaultFaceKindId: overrides.defaultFaceKindId ?? 'codex',
-    defaultFaceAgentId: overrides.defaultFaceAgentId ?? '@self',
-    debugNamespace: overrides.debugNamespace ?? '@artifact/web-server:test',
+    log,
+    timeoutMs,
+    onIdle,
   }
 }
 

@@ -31,6 +31,8 @@ Deno.test('createHostCoderOptions sets default face to codex', () => {
   const options = createHostCoderOptions()
   expect(options.defaultFaceKindId).toEqual('codex')
   expect(options.faceKinds.length).toBeGreaterThan(0)
+  expect(typeof options.log).toBe('function')
+  expect(options.timeoutMs).toBeGreaterThan(0)
 })
 
 Deno.test('createHostCoderOptions forwards idle shutdown options', () => {
@@ -39,5 +41,7 @@ Deno.test('createHostCoderOptions forwards idle shutdown options', () => {
     onIdle: () => {},
   }
   const options = createHostCoderOptions({ idleShutdown })
-  expect(options.idleShutdown).toBe(idleShutdown)
+  expect(options.idleShutdown.timeoutMs).toBe(idleShutdown.timeoutMs)
+  expect(options.idleShutdown.onIdle).toBe(idleShutdown.onIdle)
+  expect(typeof options.idleShutdown.log).toBe('function')
 })

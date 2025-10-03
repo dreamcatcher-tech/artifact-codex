@@ -37,8 +37,8 @@ type LaunchState = {
   tmuxSession?: string
 }
 
-export function startFaceCodex(opts: CodexFaceOptions = {}): Face {
-  console.log('startFaceCodex:', opts)
+export function startAgentCodex(opts: CodexFaceOptions = {}): Face {
+  console.log('startAgentCodex:', opts)
   const startedAt = new Date()
   let closed = false
   let count = 0
@@ -357,7 +357,7 @@ async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
 }
 
 function createTmuxSession(): string {
-  return `face-codex-${crypto.randomUUID().slice(0, 8)}`
+  return `agent-codex-${crypto.randomUUID().slice(0, 8)}`
 }
 
 function ensureEnv(env: Record<string, string>, key: string, value: string) {

@@ -1,10 +1,10 @@
 import { expect } from '@std/expect'
-import { startFaceInspector } from './main.ts'
+import { startAgentInspector } from './main.ts'
 
 Deno.test('inspector face basic methods and non-interactive behavior', async () => {
   const workspace = await Deno.makeTempDir()
   const home = await Deno.makeTempDir()
-  const face = startFaceInspector({ workspace, home, config: { test: true } })
+  const face = startAgentInspector({ workspace, home, config: { test: true } })
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.awaitInteraction).toBe('function')
@@ -15,7 +15,7 @@ Deno.test('inspector face basic methods and non-interactive behavior', async () 
     expect(s.closed).toBe(false)
     expect(s.interactions).toBe(0)
     expect(s.views).toHaveLength(2)
-    const msg = 'face-inspector is non-interactive'
+    const msg = 'agent-inspector is non-interactive'
     expect(() => face.interaction('0', 'ping')).toThrow(msg)
   } finally {
     await face.destroy()

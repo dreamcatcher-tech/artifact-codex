@@ -46,8 +46,11 @@ export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
   }
 }
 
-function readAppEnv(name: string): string {
+function readAppEnv(name: string, fallback?: string): string {
   const value = Deno.env.get(name) ?? ''
+  if (value.length === 0 && typeof fallback === 'string') {
+    return fallback
+  }
   if (value.length === 0) {
     throw new Error(`Missing ${name} in environment`)
   }
@@ -61,5 +64,6 @@ export const envs = {
   DC_EXEC: () => readAppEnv('DC_EXEC'),
   DC_WORKER_POOL_APP: () => readAppEnv('DC_WORKER_POOL_APP'),
   DC_FLY_API_TOKEN: () => readAppEnv('DC_FLY_API_TOKEN'),
-  DC_OPENAI_PROXY_BASE_URL: () => readAppEnv('DC_OPENAI_PROXY_BASE_URL'),
+  DC_OPENAI_PROXY_BASE_URL: () =>
+    readAppEnv('DC_OPENAI_PROXY_BASE_URL', 'https://localhost'),
 }

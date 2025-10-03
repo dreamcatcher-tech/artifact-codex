@@ -16,7 +16,7 @@ function createViews(opts: FaceOptions): FaceView[] {
  * Minimal Face used for exercising error paths.
  * Echoes input strings and throws when the input is "error".
  */
-export function startFaceTest(opts: FaceOptions = {}): Face {
+export function startAgentTest(opts: FaceOptions = {}): Face {
   const guardId = idCheck('interaction id')
   const pending = new Map<string, { value?: string; error?: Error }>()
   const views = createViews(opts)

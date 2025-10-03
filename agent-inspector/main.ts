@@ -18,9 +18,9 @@ export interface FaceInspectorOptions extends FaceOptions {
   config?: { test?: boolean }
 }
 
-export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
+export function startAgentInspector(opts: FaceInspectorOptions = {}): Face {
   if (!opts.workspace || !opts.home) {
-    throw new Error('face-inspector requires workspace and home options')
+    throw new Error('agent-inspector requires workspace and home options')
   }
   const startedAt = new Date()
   let closed = false
@@ -46,7 +46,9 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
 
   async function maybeLaunch() {
     if (!opts.workspace || !opts.home) {
-      throw new Error('face-inspector requires both workspace and home options')
+      throw new Error(
+        'agent-inspector requires both workspace and home options',
+      )
     }
 
     // Ensure the provided directories exist; create home if missing
@@ -103,7 +105,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
       ports.sort((a, b) => a - b)
       const [ttydPort, uiPort, apiPort] = ports
 
-      const session = `face-inspector-${crypto.randomUUID().slice(0, 8)}`
+      const session = `agent-inspector-${crypto.randomUUID().slice(0, 8)}`
       const env: Record<string, string> = {
         // Network binds
         HOST,
@@ -194,7 +196,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
 
     if (!launched) {
       throw new Error(
-        'Failed to launch face-inspector: no available port triplet starting at 10000',
+        'Failed to launch agent-inspector: no available port triplet starting at 10000',
       )
     }
 
@@ -205,7 +207,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
   maybeLaunch()
 
   function interaction(): never {
-    throw new Error('face-inspector is non-interactive')
+    throw new Error('agent-inspector is non-interactive')
   }
 
   async function cancel(_id: string) {
@@ -244,7 +246,7 @@ export function startFaceInspector(opts: FaceInspectorOptions = {}): Face {
 
   async function awaitInteraction(_id: string): Promise<string> {
     await Promise.resolve()
-    throw new Error('face-inspector has no pending interactions')
+    throw new Error('agent-inspector has no pending interactions')
   }
 
   return { interaction, awaitInteraction, cancel, status, destroy }

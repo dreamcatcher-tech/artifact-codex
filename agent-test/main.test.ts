@@ -1,8 +1,8 @@
 import { expect } from '@std/expect'
-import { startFaceTest } from './main.ts'
+import { startAgentTest } from './main.ts'
 
 Deno.test('start returns Face with basic methods', async () => {
-  const face = startFaceTest()
+  const face = startAgentTest()
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.awaitInteraction).toBe('function')
@@ -21,7 +21,7 @@ Deno.test('start returns Face with basic methods', async () => {
 })
 
 Deno.test('interaction stores provided id; awaitInteraction returns result', async () => {
-  const face = startFaceTest()
+  const face = startAgentTest()
   try {
     const id = '0'
     face.interaction(id, 'hello world')
@@ -37,7 +37,7 @@ Deno.test('interaction stores provided id; awaitInteraction returns result', asy
 })
 
 Deno.test('error path: awaitInteraction rejects with error', async () => {
-  const face = startFaceTest()
+  const face = startAgentTest()
   try {
     const id = '1'
     face.interaction(id, 'error')
@@ -50,7 +50,7 @@ Deno.test('error path: awaitInteraction rejects with error', async () => {
 })
 
 Deno.test('close marks closed and prevents interactions', async () => {
-  const face = startFaceTest()
+  const face = startAgentTest()
   await face.destroy()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)

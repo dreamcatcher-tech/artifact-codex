@@ -16,7 +16,7 @@ type CmdConfig = {
   title?: string
 }
 
-export function startFaceCmd(
+export function startAgentCmd(
   opts: FaceOptions = {},
 ): Face {
   const startedAt = new Date()
@@ -56,7 +56,7 @@ export function startFaceCmd(
       throw new Error(`workspace directory not found: ${cwd}`)
     }
 
-    tmuxSession = `face-cmd-${crypto.randomUUID().slice(0, 8)}`
+    tmuxSession = `agent-cmd-${crypto.randomUUID().slice(0, 8)}`
     const extHost = opts.hostname ?? HOST
 
     const startPort = 10000

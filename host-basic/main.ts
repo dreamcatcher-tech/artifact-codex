@@ -2,7 +2,7 @@ import { mount } from '@artifact/fly-nfs'
 import { createAgentWebServer } from '@artifact/web-server'
 import type { FaceKindConfig } from '@artifact/web-server'
 import type { AgentWebServerOptions } from '@artifact/web-server'
-import { startFaceTest } from '@artifact/face-test'
+import { startAgentTest } from '@artifact/agent-test'
 import Debug from 'debug'
 
 export function resolveFaceKinds(): FaceKindConfig[] {
@@ -10,7 +10,7 @@ export function resolveFaceKinds(): FaceKindConfig[] {
     id: 'test',
     title: 'Test Agent',
     description: 'A test agent',
-    create: startFaceTest,
+    create: startAgentTest,
   }]
 }
 

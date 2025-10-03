@@ -1,11 +1,11 @@
 import { expect } from '@std/expect'
-import { startFaceCodex } from './main.ts'
+import { startAgentCodex } from './main.ts'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { envs } from '@artifact/shared'
 
 Deno.test('destroy removes home directory when prepared', async () => {
   const workspace = await Deno.makeTempDir()
-  const face = startFaceCodex({
+  const face = startAgentCodex({
     workspace,
     config: {
       getEnv: (key) => key === 'OPENAI_API_KEY' ? 'test-key' : undefined,
@@ -37,7 +37,7 @@ Deno.test('destroy removes home directory when prepared', async () => {
 
 Deno.test('config writes notify block before tables', async () => {
   const workspace = await Deno.makeTempDir()
-  const face = startFaceCodex({
+  const face = startAgentCodex({
     workspace,
     config: {
       getEnv: (key) => key === 'OPENAI_API_KEY' ? 'test-key' : undefined,
@@ -95,7 +95,7 @@ Deno.test('config writes notify block before tables', async () => {
 })
 
 Deno.test('start returns object with required methods', async () => {
-  const face = startFaceCodex()
+  const face = startAgentCodex()
   try {
     expect(typeof face.interaction).toBe('function')
     expect(typeof face.awaitInteraction).toBe('function')
@@ -112,7 +112,7 @@ Deno.test('start returns object with required methods', async () => {
 
 Deno.test('interaction resolves awaitInteraction', async () => {
   const dir = await Deno.makeTempDir()
-  const face = startFaceCodex({ config: { notifyDir: dir } })
+  const face = startAgentCodex({ config: { notifyDir: dir } })
   try {
     const id = '0'
     face.interaction(id, 'hello')
@@ -135,7 +135,7 @@ Deno.test('interaction resolves awaitInteraction', async () => {
 })
 
 Deno.test('close makes face reject new interactions and sets closed', async () => {
-  const face = startFaceCodex()
+  const face = startAgentCodex()
   await face.destroy()
   const s1 = await face.status()
   expect(s1.closed).toBe(true)

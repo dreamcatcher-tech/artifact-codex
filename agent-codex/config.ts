@@ -15,7 +15,7 @@ const TEMPLATE_PATH = join(MODULE_DIR, 'codex.config.toml')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
 const NOTIFY_MARKER_LINE = 'notify = "__CODEX_NOTIFY__"'
 const DREAMCATCHER_DIR = '.dreamcatcher'
-const FACE_HOME_BUCKET = 'face-codex'
+const FACE_HOME_BUCKET = 'agent-codex'
 const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY'
 
 const TEMPLATE_REWRITES: Record<string, string> = {
