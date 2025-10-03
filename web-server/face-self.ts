@@ -12,7 +12,7 @@ function env(name: string): string | undefined {
 
 /**
  * Create a Face that represents the tmux + ttyd launcher that started this
- * agent-basic process. It does not spawn new processes; it only references the
+ * host-basic process. It does not spawn new processes; it only references the
  * existing tmux session/socket and the ttyd port.
  */
 export function createVirtualFace(_opts: FaceOptions = {}): Face {

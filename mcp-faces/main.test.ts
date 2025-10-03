@@ -36,7 +36,7 @@ Deno.test('tools/list includes face tools', async () => {
   expect(names).toContain('destroy_face')
 })
 
-// Proxy behavior tests: use the in-memory agent-basic app and pass its fetch
+// Proxy behavior tests: use the in-memory host-basic app and pass its fetch
 // to the faces proxy so remote calls go to /mcp on that app.
 
 Deno.test('proxy list_faces forwards to remote server', async () => {

@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/agent-basic",
+  "name": "@artifact/host-basic",
   "exports": { ".": "./app.ts" },
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",

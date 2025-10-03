@@ -76,11 +76,11 @@ RUN deno install --quiet
 
 WORKDIR /workspace
 
-ENV DEBUG=@artifact/agent-*
+ENV DEBUG=@artifact/host-*
 ENV DEBUG_COLORS=1
 ENV DEBUG_HIDE_DATE=1
 
 ENV PORT=8080
 
-ENTRYPOINT ["deno", "run", "-A", "--config", "/app/agent-dev-suite/deno.json"]
-CMD ["/app/agent-dev-suite/main.ts"]
+ENTRYPOINT ["deno", "run", "-A", "--config", "/app/host-coder/deno.json"]
+CMD ["/app/host-coder/main.ts"]

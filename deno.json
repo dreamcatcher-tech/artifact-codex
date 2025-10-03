@@ -10,8 +10,8 @@
     "face-test",
     "shared",
     "web-server",
-    "agent-basic",
-    "agent-dev-suite",
+    "host-basic",
+    "host-coder",
     "fly-exec",
     "fly-nfs",
     "fly-router",
@@ -19,8 +19,8 @@
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",
-    "deploy-agent-basic": "fly deploy -c fly.agent-basic.toml",
-    "deploy-agent-dev-suite": "fly deploy -c fly.agent-dev-suite.toml",
+    "deploy-host-basic": "fly deploy -c fly.host-basic.toml",
+    "deploy-host-coder": "fly deploy -c fly.host-coder.toml",
     "deploy-exec": "fly deploy -c fly.exec.toml",
     "deploy-nfs": "fly deploy -c fly.nfs.toml",
     "deploy-openai": "fly deploy -c fly.openai.toml",
@@ -28,7 +28,7 @@
     "base": { "dependencies": ["deploy-nfs", "deploy-openai"] },
     "compute": { "dependencies": ["deploy-exec", "deploy-router"] },
     "agents": {
-      "dependencies": ["deploy-agent-basic", "deploy-agent-dev-suite"]
+      "dependencies": ["deploy-host-basic", "deploy-host-coder"]
     },
     "all": "deno task base && deno task agents && deno task compute"
   },

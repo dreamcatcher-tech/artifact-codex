@@ -29,25 +29,25 @@ export function resolveFaceKinds(): FaceKindConfig[] {
   })
 }
 
-export interface CreateAgentDevSuiteAppOptions {
+export interface CreateHostCoderAppOptions {
   idleShutdown?: IdleShutdownOptions
 }
 
-export function createAgentDevSuiteOptions(
-  options: CreateAgentDevSuiteAppOptions = {},
+export function createHostCoderOptions(
+  options: CreateHostCoderAppOptions = {},
 ): CreateAgentWebServerOptions {
   const faceKinds = resolveFaceKinds()
   return {
-    serverName: 'agent-dev-suite',
+    serverName: 'host-coder',
     serverVersion: '0.0.1',
     faceKinds,
     defaultFaceKindId: 'codex',
-    debugNamespace: '@artifact/agent-dev-suite',
+    debugNamespace: '@artifact/host-coder',
     idleShutdown: options.idleShutdown,
   }
 }
 
-export function createApp(options?: CreateAgentDevSuiteAppOptions) {
-  const serverOptions = createAgentDevSuiteOptions(options)
+export function createApp(options?: CreateHostCoderAppOptions) {
+  const serverOptions = createHostCoderOptions(options)
   return createAgentWebServer(serverOptions)
 }

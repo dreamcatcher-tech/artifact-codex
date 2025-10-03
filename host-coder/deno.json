@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/agent-dev-suite",
+  "name": "@artifact/host-coder",
   "exports": { ".": "./app.ts" },
   "tasks": {
     "test": "deno test -A",

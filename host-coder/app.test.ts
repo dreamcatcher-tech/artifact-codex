@@ -16,7 +16,7 @@ for (const [name, value] of Object.entries(envDefaults)) {
   }
 }
 
-const { createAgentDevSuiteOptions, resolveFaceKinds } = await import(
+const { createHostCoderOptions, resolveFaceKinds } = await import(
   './app.ts'
 )
 
@@ -27,17 +27,17 @@ Deno.test('resolveFaceKinds exposes codex face by default', () => {
   expect(ids).toContain('codex')
 })
 
-Deno.test('createAgentDevSuiteOptions sets default face to codex', () => {
-  const options = createAgentDevSuiteOptions()
+Deno.test('createHostCoderOptions sets default face to codex', () => {
+  const options = createHostCoderOptions()
   expect(options.defaultFaceKindId).toEqual('codex')
   expect(options.faceKinds.length).toBeGreaterThan(0)
 })
 
-Deno.test('createAgentDevSuiteOptions forwards idle shutdown options', () => {
+Deno.test('createHostCoderOptions forwards idle shutdown options', () => {
   const idleShutdown = {
     timeoutMs: 123,
     onIdle: () => {},
   }
-  const options = createAgentDevSuiteOptions({ idleShutdown })
+  const options = createHostCoderOptions({ idleShutdown })
   expect(options.idleShutdown).toBe(idleShutdown)
 })

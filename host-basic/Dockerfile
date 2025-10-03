@@ -13,9 +13,9 @@ COPY . .
 
 RUN deno install --quiet
 
-WORKDIR /app/agent-basic
+WORKDIR /app/host-basic
 
-ENV DEBUG=@artifact/agent-*
+ENV DEBUG=@artifact/host-basic*
 ENV DEBUG_COLORS=1
 ENV DEBUG_HIDE_DATE=1
 

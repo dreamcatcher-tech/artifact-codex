@@ -1,13 +1,18 @@
-app = 'fly-agent-basic'
+app = 'fly-host-coder'
 primary_region = 'syd'
+swap_size_mb = 2048
 
 [build]
-    dockerfile = 'agent-basic/Dockerfile'
+    dockerfile = 'host-coder/Dockerfile'
 
 [env]
     # only set for the testing version
     DC_DOMAIN = 'agentic.dreamcatcher.land'
     DC_NFS = 'nfs-proto.flycast'
+    DC_ROUTER = 'org1-fly-router.flycast'
+    DC_EXEC = 'org1-fly-exec.flycast'
+    DC_WORKER_POOL_APP = 'org1-worker-pool'
+    DC_OPENAI_PROXY_BASE_URL = 'http://org1-openai-proxy.flycast'
 
 [http_service]
     internal_port = 8080
@@ -29,12 +34,12 @@ primary_region = 'syd'
         handlers = ['tls', 'http']
 
 [[vm]]
-    memory = '1gb'
+    memory = '256mb'
     cpu_kind = 'shared'
     cpus = 1
 
 [deploy]
-    release_command = '/app/agent-basic/release.ts'
+    release_command = '/app/host-coder/release.ts'
 
 [experimental]
     lazy_load_images = true

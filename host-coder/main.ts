@@ -3,7 +3,7 @@ import { createApp } from './app.ts'
 import { mount } from '@artifact/fly-nfs'
 
 if (import.meta.main) {
-  const log = Debug('@artifact/agent-basic:main')
+  const log = Debug('@artifact/host-coder:main')
   await mount(log)
   const abortController = new AbortController()
   const timeoutMs = 5 * 60 * 1000
@@ -19,6 +19,6 @@ if (import.meta.main) {
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
   const hostname = '0.0.0.0'
-  log('starting agent-basic server on :%d', port)
+  log('starting host-coder server on :%d', port)
   Deno.serve({ port, hostname, ...abortController }, app.fetch)
 }
