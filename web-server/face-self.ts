@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run
-import type { Face, FaceOptions, FaceView } from '@artifact/shared'
+import type { Agent, AgentOptions, AgentView } from '@artifact/shared'
 import { HOST } from '@artifact/shared'
 
 function env(name: string): string | undefined {
@@ -15,9 +15,9 @@ function env(name: string): string | undefined {
  * host-basic process. It does not spawn new processes; it only references the
  * existing tmux session/socket and the ttyd port.
  */
-export function createVirtualFace(_opts: FaceOptions = {}): Face {
+export function createVirtualFace(_opts: AgentOptions = {}): Agent {
   const startedAt = new Date()
-  const views: FaceView[] | undefined = (() => {
+  const views: AgentView[] | undefined = (() => {
     const port = Number(env('TTYD_PORT') ?? '')
     if (!Number.isFinite(port) || port <= 0) return undefined
     const extHost = env('TTYD_HOST') ?? HOST

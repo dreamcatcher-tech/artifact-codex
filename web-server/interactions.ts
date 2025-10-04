@@ -1,7 +1,7 @@
 import type { InteractionsHandlers } from '@artifact/mcp-interactions'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { toStructured } from '@artifact/shared'
-import type { Face } from '@artifact/shared'
+import type { Agent } from '@artifact/shared'
 import { type Debugger } from 'debug'
 
 type FaceId = string
@@ -12,7 +12,7 @@ type InteractionRecord = {
 }
 
 export const createInteractions = (
-  facesStore: Map<FaceId, Face>,
+  facesStore: Map<FaceId, Agent>,
   log: Debugger,
   onPendingChange: (pendingCount: number) => void,
 ): InteractionsHandlers => {

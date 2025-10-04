@@ -8,26 +8,22 @@ sandbox_mode = "danger-full-access"
 notify = "__CODEX_NOTIFY__"
 
 [model_providers.openai]
-name = "OpenAI"
-base_url = "__OPENAI_PROXY_BASE_URL__"
-wire_api = "responses"
+  name = "OpenAI"
+  base_url = "__OPENAI_PROXY_BASE_URL__"
+  wire_api = "responses"
 
 [tools]
-web_search = true
-view_image = true
+  web_search = true
+  view_image = true
 
 [mcp_servers.mcp-computers]
-command = "__MCP_COMPUTERS_COMMAND__"
-args = []
+  command = "__MCP_COMPUTERS_COMMAND__"
+  args = []
 
 [mcp_servers.mcp-agents]
-command = "__MCP_AGENTS_COMMAND__"
-args = []
-
-[mcp_servers.mcp-faces]
-command = "__MCP_FACES_COMMAND__"
-args = []
+  command = "__MCP_AGENTS_COMMAND__"
+  args = []
 
 [mcp_servers.mcp-interactions]
-command = "__MCP_INTERACTIONS_COMMAND__"
-args = []
+  command = "__MCP_INTERACTIONS_COMMAND__"
+  args = []

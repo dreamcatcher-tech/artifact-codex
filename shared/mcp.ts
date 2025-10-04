@@ -2,7 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { HOST } from './consts.ts'
+import { HOST } from './const.ts'
 
 export type RemoteClientOptions = {
   /** Optional fetch implementation override (used in tests). */
@@ -11,14 +11,7 @@ export type RemoteClientOptions = {
   clientName?: string
 }
 
-/**
- * Resolve an agent id to a base HTTP origin.
- * Stubbed: http://<agentId>.internal
- */
 function resolveAgentToOrigin(agentId: string): URL {
-  // Special-case for calling the currently running agent.
-  // If agentId is "@self" we route to the local web server.
-  // The self web server listens on PORT (default 8080).
   if (agentId === '@self') {
     const port = Deno.env.get('PORT') ?? '8080'
     return new URL(`http://${HOST}:${port}`)
@@ -30,8 +23,6 @@ function resolveAgentToOrigin(agentId: string): URL {
 /** Ensure the URL targets the MCP endpoint via `?mcp` query param. */
 function withMcpPath(origin: URL): URL {
   const url = new URL(origin.toString())
-  // Keep existing path; just signal MCP via query param presence.
-  // Using empty value results in `?mcp=`; presence is what matters server-side.
   const params = url.searchParams
   if (!params.has('mcp')) params.set('mcp', '')
   url.search = params.toString()
@@ -61,4 +52,21 @@ export async function callRemoteTool(
   } finally {
     await client.close()
   }
+}
+
+export function toStructured(
+  structuredContent: Record<string, unknown>,
+): CallToolResult {
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify(structuredContent, null, 2),
+    }],
+    structuredContent,
+  }
+}
+
+export function toError(err: unknown): CallToolResult {
+  const msg = err instanceof Error ? err.message : String(err)
+  return { content: [{ type: 'text', text: msg }], isError: true }
 }

@@ -1,5 +1,5 @@
 import { expect } from '@std/expect'
-import { findAvailablePort, HOST } from '@artifact/shared'
+import { HOST } from '@artifact/shared'
 import { createAgentWebServer } from './mod.ts'
 import { createTestServerOptions } from './test-helpers.ts'
 import NodeWS from 'ws'
@@ -99,12 +99,8 @@ async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
 }
 
 Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
-  const HTTP_PORT = await findAvailablePort({
-    min: 30500,
-    max: 30600,
-    hostname: HOST,
-  })
-  const LISTEN = 18080
+  const HTTP_PORT = 30500
+  const LISTEN = 30700
   await using _upstream = startHTTPEcho(HTTP_PORT)
   await using _appSrv = startApp(LISTEN)
 
@@ -116,12 +112,8 @@ Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
 })
 
 Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
-  const WS_PORT = await findAvailablePort({
-    min: 30650,
-    max: 30750,
-    hostname: HOST,
-  })
-  const LISTEN = 18081
+  const WS_PORT = 30650
+  const LISTEN = 30750
   await using _upstream = startWSEcho(WS_PORT)
   await using _appSrv = startApp(LISTEN)
   const ws = new NodeWS(`ws://${HOST}:${LISTEN}/ws`, [], {

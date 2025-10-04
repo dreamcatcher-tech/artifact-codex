@@ -1,6 +1,7 @@
 {
   "name": "@artifact/agent-test",
-  "exports": "./main.ts",
+  "version": "0.0.1",
+  "exports": "./mod.ts",
   "tasks": {
     "watch": "deno test -A --watch",
     "test": "deno test -A",

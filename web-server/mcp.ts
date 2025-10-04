@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
 import { createFacesServer } from '@artifact/mcp-faces'
-import type { Face } from '@artifact/shared'
+import type { Agent } from '@artifact/shared'
 import { type Debugger } from 'debug'
 
 import { createFaces, type FaceKindConfig } from './faces.ts'
@@ -25,7 +25,7 @@ export const createMcpHandler = (
 ) => {
   let closed = false
   log = log.extend('mcp')
-  const facesStore = new Map<FaceId, Face>()
+  const facesStore = new Map<FaceId, Agent>()
   const faces = createFaces(facesStore, { faceKinds, log })
   const interactions = createInteractions(facesStore, log, onPendingChange)
 

@@ -1,11 +1,11 @@
-export type FaceView = {
+export type AgentView = {
   name: string
   port: number
   protocol: 'http'
   url: string
 }
 
-export type FaceStatus = {
+export type AgentStatus = {
   startedAt: string
   closed: boolean
   interactions: number
@@ -22,34 +22,31 @@ export type FaceStatus = {
   notifications?: number
   lastNotificationRaw?: string
   // Optional views exposed by the face (e.g., web UIs or proxies)
-  views?: FaceView[]
+  views?: AgentView[]
 }
 
-export type FaceWaitOptions = {
+export type AgentWaitOptions = {
   status?: 'pending' | 'settled'
 }
 
-export type Face = {
+export type Agent = {
   interaction: (id: string, input: string) => void
   awaitInteraction: (
     id: string,
-    opts?: FaceWaitOptions,
+    opts?: AgentWaitOptions,
   ) => Promise<string> | string
   cancel: (id: string) => Promise<void> | void
   destroy: () => Promise<void> | void
-  status: () => Promise<FaceStatus> | FaceStatus
+  status: () => Promise<AgentStatus> | AgentStatus
 }
 
-export type FaceOptions = {
+export type AgentOptions = {
   /** Absolute path to a workspace directory (CWD for child processes). */
   workspace?: string
   /** Absolute path to the Face home directory used for app config/cache/scratch. */
   home?: string
-  /**
-   * External hostname to use when generating URLs for views exposed by the face.
-   * Useful when running behind a reverse proxy so links are correct for users.
-   */
+  /** Optional hostname hint for agents that expose network views. */
   hostname?: string
-  /** Arbitrary configuration map for face-kind specific options */
+  /** Arbitrary configuration map for agent-kind specific options */
   config?: Record<string, unknown>
 }

@@ -2,9 +2,9 @@ import { expect } from '@std/expect'
 
 import { createAgentWebServer, type FaceKindConfig } from './mod.ts'
 import { createTestServerOptions } from './test-helpers.ts'
-import type { Face } from '@artifact/shared'
+import type { Agent } from '@artifact/shared'
 
-function createStubFace(): Face {
+function createStubFace(): Agent {
   let destroyed = false
   return {
     interaction: () => {

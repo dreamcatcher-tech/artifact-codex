@@ -23,7 +23,7 @@ export type FlyMachineRuntimeEnv = {
   PRIMARY_REGION: string
 }
 
-export function readFlyMachineRuntimeEnv(): FlyMachineRuntimeEnv {
+export function readFlyEnv(): FlyMachineRuntimeEnv {
   const get = (name: keyof FlyMachineRuntimeEnv) => {
     const value = (Deno.env.get(name) ?? '').trim()
     if (value.length === 0) {

@@ -8,7 +8,7 @@ import {
   COMPUTER_AGENT_CONTAINERS,
   COMPUTER_REPOS,
   NFS_MOUNT_DIR,
-  readFlyMachineRuntimeEnv,
+  readFlyEnv,
   REPO_CONTAINER_IMAGES,
 } from '@artifact/shared'
 import { basename, fromFileUrl, join } from '@std/path'
@@ -45,7 +45,7 @@ export async function writeImageRecord(
   const name = agentProjectName(importMetaUrl)
   const recordPath = join(containersDir, `${name}.json`)
 
-  const { FLY_IMAGE_REF } = readFlyMachineRuntimeEnv()
+  const { FLY_IMAGE_REF } = readFlyEnv()
   const validated = imageRecordSchema.parse({ image: FLY_IMAGE_REF, ...record })
   const payload = JSON.stringify(validated, null, 2)
   await Deno.writeTextFile(recordPath, payload)

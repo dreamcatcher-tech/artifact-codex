@@ -1,4 +1,4 @@
-export const FACE_KIND_SPECS = [
+export const AGENT_KINDS = [
   {
     id: 'test',
     title: 'Test',
@@ -21,6 +21,6 @@ export const FACE_KIND_SPECS = [
   },
 ] as const
 
-export type FaceKindSpec = (typeof FACE_KIND_SPECS)[number]
+export type AgentKind = (typeof AGENT_KINDS)[number]
 
-export type FaceKindId = FaceKindSpec['id']
+export type AgentKindId = AgentKind['id']

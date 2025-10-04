@@ -12,36 +12,18 @@ export type SpawnOptions = {
    * Environment overrides to pass to the child process.
    */
   env?: Record<string, string>
-  /**
-   * If true, forward child stderr to parent stderr (helpful for debugging).
-   * Default: false.
-   */
-  passthroughStderr?: boolean
 }
 
 export type StdioMcpServer = {
   /** Child process pid if available (SDK client). */
   pid: number | null
-  request: <T = unknown>(
-    method: string,
-    params?: unknown,
-    id?: number | string,
-  ) => Promise<T>
+  client: Client
   close: () => void
   [Symbol.asyncDispose]: () => Promise<void>
 }
 
-/**
- * Spawn a stdio-based MCP server for tests and return a tiny JSON-RPC client.
- *
- * By default it runs: `deno run -c deno.json --allow-read --allow-write
- * --allow-env --allow-net main.ts` in the current working directory (each
- * `mcp-*` package tests run from their own folder).
- */
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import type { ClientRequest as MCPClientRequest } from '@modelcontextprotocol/sdk/types.js'
-import { z } from 'zod'
 import process from 'node:process'
 
 function pidIsAlive(id: number): boolean {
@@ -79,33 +61,9 @@ export async function spawnStdioMcpServer(
   const client = new Client({ name: 'test-client', version: '0.1.0' })
   await client.connect(transport)
 
-  // No additional stderr piping; 'inherit' avoids open resource tracking.
-
-  async function request<T = unknown>(
-    method: string,
-    params?: unknown,
-    _id?: number | string,
-  ): Promise<T> {
-    // Use a permissive schema to avoid per-method wiring in tests
-    const Any = z.any()
-    try {
-      const req = (params === undefined)
-        ? { method }
-        : { method, params: params as Record<string, unknown> }
-      // Cast to the SDK's ClientRequest type to satisfy typing
-      const result = await client.request(req as MCPClientRequest, Any)
-      return result as T
-    } catch (err) {
-      // Normalize error message to match previous tests expectations
-      const msg = err instanceof Error ? err.message : String(err)
-      throw new Error(`${method} error: ${msg}`)
-    }
-  }
-
   async function close() {
     const { pid } = transport
 
-    // Ask the transport to abort/close its child process.
     await transport.close()
 
     if (pid) {
@@ -117,7 +75,7 @@ export async function spawnStdioMcpServer(
 
   return {
     pid: transport.pid,
-    request,
+    client,
     close,
     [Symbol.asyncDispose]: close,
   }

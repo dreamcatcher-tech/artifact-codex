@@ -41,7 +41,7 @@ through an ADR.
 - docs/NETWORKING.md — Ports, SSH entry, egress rules, discovery.
 - docs/SECURITY.md — Identity, authN/authZ, secrets, isolation, audit.
 - docs/OPERATIONS.md — Deploy, scaling, backups, incident runbooks, SLOs.
-- docs/OBSERVABILITY.md — Logs, metrics, traces, face transcripts.
+- docs/OBSERVABILITY.md — Logs, metrics, traces, interaction transcripts.
 - docs/COSTS.md — Instance sizing, quotas, idle policies, autosuspend.
 - docs/USER-FLOW.md — User journeys and session flows.
 - docs/ADRs/ — Architecture Decision Records (one decision per file).
@@ -103,7 +103,7 @@ through an ADR.
 - Quote labels that contain punctuation: use `node["Label (detail / detail)"]`
   to avoid the parser interpreting `(`, `)`, `{`, `}`, `[`, `]`, `|`, or `:` as
   shape/control tokens.
-- Keep node IDs simple: letters/numbers/underscores only (e.g., `FV`, `BM`,
+- Keep node IDs simple: letters/numbers/underscores only (e.g., `IV`, `BM`,
   `AppHost`). No spaces.
 - Prefer one edge per line: clearer diffs and fewer parse surprises than long
   chains.
@@ -116,7 +116,7 @@ Common error
 
 - Symptom: `Parse error ... Expecting 'SQE' ... got 'PS'`.
 - Cause: unquoted parentheses or other punctuation in a label (e.g.,
-  `FV[Face View (TTYD iframe)]`).
+  `IV[Interaction View (TTYD iframe)]`).
 - Fix: quote the label text or simplify the shape.
 
 Do (passes validation)
@@ -124,7 +124,7 @@ Do (passes validation)
 ```mermaid
 flowchart LR
   subgraph Browser
-    FV["Face View (TTYD iframe)"]
+    IV["Interaction View (TTYD iframe)"]
     BM["Browser I/O Bridge"]
   end
   AH["App Host"]
@@ -132,7 +132,7 @@ flowchart LR
   CL["Clerk"]
   DEV["Mic / Camera / Screen / Files"]
 
-  FV -->|WS| AG
+  IV -->|WS| AG
   BM -->|Auth| CL
   BM -->|Commands/Streams| AH
   AH -->|WS/HTTP| AG
@@ -143,7 +143,7 @@ Don’t (example of the pitfall; not validated)
 
 ```text
 flowchart LR
-  FV[Face View (TTYD iframe)]
+  IV[Interaction View (TTYD iframe)]
 ```
 
 ## Reconciliation Rules

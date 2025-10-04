@@ -60,3 +60,7 @@ filesystem and make it do a sync to flush that all to disk
 uses gosu or setpriv to drop capabilities of root on boot
 
 make each agent have exactly one face
+
+the supervisor, when proxying, should strip the cookies out, so we don't pass
+along any credentials ? altho that might be safe since you need the server
+private key to open up those bits.

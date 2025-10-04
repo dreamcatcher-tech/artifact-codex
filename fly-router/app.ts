@@ -28,7 +28,9 @@ type CreateAppOptions = {
 }
 
 export const createApp = (options: CreateAppOptions = {}) => {
-  const app = new Hono<{ Variables: ClerkAuthVariables }>()
+  const app = new Hono<
+    { Variables: ClerkAuthVariables & { userId: string } }
+  >()
   const {
     baseDomain = envs.DC_DOMAIN(),
     workerPoolApp = envs.DC_WORKER_POOL_APP(),
@@ -39,13 +41,16 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.use('*', logger())
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
-
     if (!auth?.userId) {
       return c.text('Unauthorized', 401)
     }
+    c.set('userId', auth.userId)
     const client = c.get('clerk')
     const ot = await client.users.getUserOauthAccessToken(auth.userId, 'github')
-    console.log('oauthToken:', ot)
+    if (ot) {
+      // update their computer env with this value so new agents will use it
+      // existing agents can try read it to refresh it
+    }
     return await next()
   })
 
@@ -54,7 +59,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
       return next()
     }
 
-    const computerId = TEST_COMPUTER_ID
+    const computerId = c.var.userId
     await computerManager.upsertComputer(computerId)
 
     return redirectToComputer(c, baseDomain, computerId)
@@ -68,6 +73,8 @@ export const createApp = (options: CreateAppOptions = {}) => {
     if (!await computerManager.computerExists(computerId)) {
       return c.text('Computer not found', 404)
     }
+
+    // TODO check the user has access to this computer
 
     const agentId = await computerManager.upsertLandingAgent(computerId)
 

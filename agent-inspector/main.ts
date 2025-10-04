@@ -1,12 +1,12 @@
 #!/usr/bin/env -S deno run
 import { join } from '@std/path'
-import type { Face, FaceOptions, FaceStatus, FaceView } from '@artifact/shared'
-import {
-  findAvailablePorts,
-  HOST,
-  launchTmuxTerminal,
-  waitForPort,
+import type {
+  Agent,
+  AgentOptions,
+  AgentStatus,
+  AgentView,
 } from '@artifact/shared'
+import { HOST, launchTmuxTerminal } from '@artifact/shared'
 
 /**
  * Start a Face that launches the MCP Inspector via `npx -y @modelcontextprotocol/inspector`.
@@ -14,11 +14,11 @@ import {
  * - Throws on interaction requests (non-interactive face).
  * - By default, only launches the child when both `workspace` and `home` are provided in opts.
  */
-export interface FaceInspectorOptions extends FaceOptions {
+export interface FaceInspectorOptions extends AgentOptions {
   config?: { test?: boolean }
 }
 
-export function startAgentInspector(opts: FaceInspectorOptions = {}): Face {
+export function startAgentInspector(opts: FaceInspectorOptions = {}): Agent {
   if (!opts.workspace || !opts.home) {
     throw new Error('agent-inspector requires workspace and home options')
   }
@@ -30,8 +30,7 @@ export function startAgentInspector(opts: FaceInspectorOptions = {}): Face {
   // Child process + runtime state
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
-  const externalHost = opts.hostname ?? HOST
-  let views: FaceView[] = []
+  let views: AgentView[] = []
 
   // readiness gate: status() resolves after the face is ready
   let readyResolve: (() => void) | null = null
@@ -68,137 +67,73 @@ export function startAgentInspector(opts: FaceInspectorOptions = {}): Face {
     }
 
     const config = opts.config ?? {}
-
+    const TTYD_PORT = 10000
     // Test mode: do not spawn external processes; just set stub views
     if (config.test) {
-      const base = 10000
       views = [
         {
           name: 'terminal',
-          port: base,
+          port: TTYD_PORT,
           protocol: 'http',
-          url: `http://${externalHost}:${base}`,
+          url: `https://${HOST}:${TTYD_PORT}`,
         },
         {
           name: 'client',
-          port: base + 1,
+          port: TTYD_PORT + 1,
           protocol: 'http',
-          url: `http://${externalHost}:${base + 1}`,
+          url: `https://${HOST}:${TTYD_PORT + 1}`,
         },
       ]
       markReady()
       return
     }
+    const uiPort = TTYD_PORT + 1
+    const apiPort = TTYD_PORT + 2
 
-    const minPort = 10000
-    const maxTries = 50
-    const maxPort = minPort + maxTries * 3
-    const exclude = new Set<number>()
-    let launched = false
-    for (let attempt = 0; attempt < maxTries && !launched; attempt++) {
-      const ports = await findAvailablePorts(3, {
-        min: minPort,
-        max: maxPort,
-        exclude: [...exclude],
-        hostname: HOST,
-      })
-      ports.sort((a, b) => a - b)
-      const [ttydPort, uiPort, apiPort] = ports
+    const session = `agent-inspector-${crypto.randomUUID().slice(0, 8)}`
+    const env: Record<string, string> = {
+      // Network binds
+      HOST,
+      ALLOWED_ORIGINS: '*',
+      MCP_AUTO_OPEN_ENABLED: 'false',
+      // Encourage common dev servers to use our chosen port/host
+      PORT: String(uiPort),
+      CLIENT_PORT: String(uiPort),
+      SERVER_PORT: String(apiPort),
+      MCP_PROXY_FULL_ADDRESS: `http://${HOST}:${apiPort}`,
 
-      const session = `agent-inspector-${crypto.randomUUID().slice(0, 8)}`
-      const env: Record<string, string> = {
-        // Network binds
-        HOST,
-        ALLOWED_ORIGINS: '*',
-        MCP_AUTO_OPEN_ENABLED: 'false',
-        // Encourage common dev servers to use our chosen port/host
-        PORT: String(uiPort),
-        CLIENT_PORT: String(uiPort),
-        SERVER_PORT: String(apiPort),
-        MCP_PROXY_FULL_ADDRESS: `http://${externalHost}:${apiPort}`,
-
-        // tmux launcher related (explicitly read-only by leaving WRITEABLE off)
-        SESSION: session,
-        TTYD_PORT: String(ttydPort),
-        TTYD_HOST: externalHost,
-      }
-
-      const { child: proc } = await launchTmuxTerminal({
-        command: ['npx', '-y', '@modelcontextprotocol/inspector'],
-        session,
-        ttydPort,
-        ttydHost: externalHost,
-        cwd: workspaceDir,
-        env,
-      })
-
-      // Wait for ttyd or process exit (port conflict)
-      const ttydOk = await Promise.race([
-        waitForPort(ttydPort, { hostname: HOST, timeoutMs: 8_000 }),
-        proc.status.then(() => false),
-      ])
-      if (!ttydOk) {
-        try {
-          proc.kill('SIGTERM')
-        } catch {
-          // ignore
-        }
-        try {
-          await proc.status
-        } catch {
-          // ignore
-        }
-        ports.forEach((p) => exclude.add(p))
-        continue
-      }
-
-      // Now wait for UI to bind on the chosen port. If it fails (e.g., port in use
-      // and the tool refuses to start), retry with the next triplet.
-      const uiOk = await waitForPort(uiPort, {
-        hostname: HOST,
-        timeoutMs: 30_000,
-        intervalMs: 200,
-      })
-      if (!uiOk) {
-        try {
-          proc.kill('SIGTERM')
-        } catch {
-          // ignore
-        }
-        try {
-          await proc.status
-        } catch {
-          // ignore
-        }
-        ports.forEach((p) => exclude.add(p))
-        continue
-      }
-
-      // Success
-      child = proc
-      pid = proc.pid
-      views = [
-        {
-          name: 'terminal',
-          port: ttydPort,
-          protocol: 'http',
-          url: `http://${externalHost}:${ttydPort}`,
-        },
-        {
-          name: 'client',
-          port: uiPort,
-          protocol: 'http',
-          url: `http://${externalHost}:${uiPort}`,
-        },
-      ]
-      launched = true
+      // tmux launcher related (explicitly read-only by leaving WRITEABLE off)
+      SESSION: session,
+      TTYD_PORT: String(TTYD_PORT),
+      TTYD_HOST: HOST,
     }
 
-    if (!launched) {
-      throw new Error(
-        'Failed to launch agent-inspector: no available port triplet starting at 10000',
-      )
-    }
+    const { child: proc } = await launchTmuxTerminal({
+      command: ['npx', '-y', '@modelcontextprotocol/inspector'],
+      session,
+      ttydPort: TTYD_PORT,
+      ttydHost: HOST,
+      cwd: workspaceDir,
+      env,
+    })
+
+    // Success
+    child = proc
+    pid = proc.pid
+    views = [
+      {
+        name: 'terminal',
+        port: TTYD_PORT,
+        protocol: 'http',
+        url: `http://${HOST}:${TTYD_PORT}`,
+      },
+      {
+        name: 'client',
+        port: uiPort,
+        protocol: 'http',
+        url: `http://${HOST}:${uiPort}`,
+      },
+    ]
 
     markReady()
   }
@@ -228,7 +163,7 @@ export function startAgentInspector(opts: FaceInspectorOptions = {}): Face {
     }
   }
 
-  async function status(): Promise<FaceStatus> {
+  async function status(): Promise<AgentStatus> {
     // Only resolves once loading is complete
     await ready
     return {

@@ -1,5 +1,5 @@
 import { dirname, fromFileUrl, join, resolve } from '@std/path'
-import { envs, type FaceOptions } from '@artifact/shared'
+import { type AgentOptions, envs } from '@artifact/shared'
 
 export type CodexConfig = {
   test?: boolean
@@ -7,7 +7,7 @@ export type CodexConfig = {
   getEnv?: (key: string) => string | undefined
   launch?: 'tmux' | 'disabled'
 }
-export type CodexFaceOptions = FaceOptions & { config?: CodexConfig }
+export type CodexFaceOptions = AgentOptions & { config?: CodexConfig }
 
 const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
 const REPO_ROOT = dirname(MODULE_DIR)

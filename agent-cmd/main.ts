@@ -1,13 +1,6 @@
 #!/usr/bin/env -S deno run
-import type { Face, FaceOptions, FaceView } from '@artifact/shared'
-import {
-  findAvailablePort,
-  HOST,
-  idCheck,
-  launchTmuxTerminal,
-  sendKeysViaTmux,
-  waitForPort,
-} from '@artifact/shared'
+import type { Agent, AgentOptions, AgentView } from '@artifact/shared'
+import { HOST, launchTmuxTerminal, sendKeysViaTmux } from '@artifact/shared'
 
 type CmdConfig = {
   /** Command and args to run inside tmux. Example: ["bash", "-lc", "htop"] */
@@ -17,15 +10,15 @@ type CmdConfig = {
 }
 
 export function startAgentCmd(
-  opts: FaceOptions = {},
-): Face {
+  opts: AgentOptions = {},
+): Agent {
   const startedAt = new Date()
   let closed = false
   let interactions = 0
   let lastInteractionId: string | undefined
 
   // tmux/ttyd state
-  let views: FaceView[] | undefined
+  let views: AgentView[] | undefined
   let tmuxSession: string | undefined
   let child: Deno.ChildProcess | undefined
   let pid: number | undefined
@@ -33,7 +26,6 @@ export function startAgentCmd(
 
   // Simple interaction bookkeeping: resolve immediately after send-keys
   const active = new Map<string, Promise<string>>()
-  const guardUniqueInteractionId = idCheck('interaction id')
 
   function assertOpen() {
     if (closed) throw new Error('face is closed')
@@ -57,69 +49,34 @@ export function startAgentCmd(
     }
 
     tmuxSession = `agent-cmd-${crypto.randomUUID().slice(0, 8)}`
-    const extHost = opts.hostname ?? HOST
+    const extHost = HOST
 
-    const startPort = 10000
-    const exclude = new Set<number>()
-    const maxAttempts = 200
-    let launched = false
-    for (let attempt = 0; attempt < maxAttempts && !launched; attempt += 1) {
-      const port = await findAvailablePort({
-        min: startPort,
-        max: startPort + 199,
-        exclude: [...exclude],
-        hostname: HOST,
-      })
-      const env: Record<string, string> = {
-        ...Deno.env.toObject(),
-        SESSION: tmuxSession,
-        TTYD_PORT: String(port),
-        HOST,
-        TTYD_HOST: extHost,
-        WRITEABLE: 'on',
-      }
-      const { child: proc } = await launchTmuxTerminal({
-        command: [...cfg.command],
-        session: tmuxSession,
-        ttydPort: port,
-        ttydHost: extHost,
-        cwd,
-        env,
-        writeable: true,
-      })
-      const ok = await Promise.race([
-        waitForPort(port, { hostname: HOST, timeoutMs: 5000 }),
-        proc.status.then(() => false),
-      ])
-      if (ok) {
-        child = proc
-        pid = proc.pid
-        views = [{
-          name: 'terminal',
-          port,
-          protocol: 'http',
-          url: `http://${extHost}:${port}`,
-        }]
-        launched = true
-      } else {
-        try {
-          proc.kill('SIGTERM')
-        } catch {
-          // ignore
-        }
-        try {
-          await proc.status
-        } catch {
-          // ignore
-        }
-        exclude.add(port)
-      }
+    const TTYD_PORT = 10000
+    const env: Record<string, string> = {
+      ...Deno.env.toObject(),
+      SESSION: tmuxSession,
+      TTYD_PORT: String(TTYD_PORT),
+      HOST,
+      TTYD_HOST: extHost,
+      WRITEABLE: 'on',
     }
-    if (!launched) {
-      throw new Error(
-        'Failed to launch ttyd via tmux on available port starting at 10000',
-      )
-    }
+    const { child: proc } = await launchTmuxTerminal({
+      command: [...cfg.command],
+      session: tmuxSession,
+      ttydPort: TTYD_PORT,
+      ttydHost: extHost,
+      cwd,
+      env,
+      writeable: true,
+    })
+    child = proc
+    pid = proc.pid
+    views = [{
+      name: 'terminal',
+      port: TTYD_PORT,
+      protocol: 'http',
+      url: `http://${extHost}:${TTYD_PORT}`,
+    }]
   }
 
   // Fire-and-forget launch
@@ -127,7 +84,6 @@ export function startAgentCmd(
 
   function interaction(id: string, input: string) {
     assertOpen()
-    guardUniqueInteractionId(id)
     interactions += 1
     lastInteractionId = id
 

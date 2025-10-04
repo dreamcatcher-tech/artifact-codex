@@ -6,13 +6,13 @@ import type {
 } from '@artifact/web-server'
 
 import type { FaceKindConfig } from '@artifact/web-server'
-import { FACE_KIND_SPECS, type FaceKindId } from '@artifact/shared'
+import { AGENT_KINDS, type AgentKindId } from '@artifact/shared'
 import { startAgentTest } from '@artifact/agent-test'
 import { startAgentInspector } from '@artifact/agent-inspector'
 import { startAgentCodex } from '@artifact/agent-codex'
 import { startAgentCmd } from '@artifact/agent-cmd'
 
-const FACE_KIND_CREATORS: Record<FaceKindId, FaceKindConfig['create']> = {
+const FACE_KIND_CREATORS: Record<AgentKindId, FaceKindConfig['create']> = {
   test: startAgentTest,
   inspector: startAgentInspector,
   codex: startAgentCodex,
@@ -20,7 +20,7 @@ const FACE_KIND_CREATORS: Record<FaceKindId, FaceKindConfig['create']> = {
 }
 
 export function resolveFaceKinds(): FaceKindConfig[] {
-  const specs = FACE_KIND_SPECS.filter((spec) => FACE_KIND_CREATORS[spec.id])
+  const specs = AGENT_KINDS.filter((spec) => FACE_KIND_CREATORS[spec.id])
   return specs.map((spec) => {
     const creator = FACE_KIND_CREATORS[spec.id]
     return {
@@ -40,7 +40,7 @@ export interface CreateHostCoderAppOptions {
 }
 
 export interface HostCoderWebServerOptions extends AgentWebServerOptions {
-  defaultFaceKindId: FaceKindId
+  defaultFaceKindId: AgentKindId
   debugNamespace: string
   idleShutdown: IdleShutdownOptions
 }

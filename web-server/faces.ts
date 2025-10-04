@@ -1,6 +1,6 @@
 import type { FacesHandlers } from '@artifact/mcp-faces'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import type { Face, FaceKindId, FaceOptions } from '@artifact/shared'
+import type { Agent, AgentKindId, AgentOptions } from '@artifact/shared'
 import { HOST, toStructured } from '@artifact/shared'
 import { join } from '@std/path'
 import type { Debugger } from 'debug'
@@ -12,16 +12,16 @@ type FaceId = string
 const SELF_KIND_ID = '@self system'
 
 export type FaceKindConfig = {
-  id: FaceKindId
+  id: AgentKindId
   title: string
   description: string
-  create: (opts: FaceOptions) => Face
+  create: (opts: AgentOptions) => Agent
 }
 
 type FaceKindEntry = {
   title: string
   description: string
-  create?: (opts: FaceOptions) => Face
+  create?: (opts: AgentOptions) => Agent
 }
 
 interface CreateFacesOptions {
@@ -30,7 +30,7 @@ interface CreateFacesOptions {
 }
 
 export const createFaces = (
-  facesStore: Map<FaceId, Face>,
+  facesStore: Map<FaceId, Agent>,
   { faceKinds, log }: CreateFacesOptions,
 ): FacesHandlers => {
   log = log.extend('faces')

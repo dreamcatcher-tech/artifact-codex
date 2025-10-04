@@ -1,14 +1,7 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Face, FaceView } from '@artifact/shared'
-import {
-  findAvailablePort,
-  HOST,
-  idCheck,
-  launchTmuxTerminal,
-  sendKeysViaTmux,
-  waitForPort,
-} from '@artifact/shared'
+import type { Agent, AgentView } from '@artifact/shared'
+import { HOST, launchTmuxTerminal, sendKeysViaTmux } from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 import {
   type CodexConfig,
@@ -20,8 +13,7 @@ const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
 await load({ envPath: join(MODULE_DIR, '/.env'), export: true })
 const MOCK_APP_SCRIPT = join(MODULE_DIR, 'mock-app.ts')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
-const PORT_START = 10000
-const PORT_SPAN = 200
+const TTYD_PORT = 10000
 
 type Pending = {
   id: string
@@ -33,11 +25,11 @@ type Pending = {
 type LaunchState = {
   child?: Deno.ChildProcess
   pid?: number
-  views?: FaceView[]
+  views?: AgentView[]
   tmuxSession?: string
 }
 
-export function startAgentCodex(opts: CodexFaceOptions = {}): Face {
+export function startAgentCodex(opts: CodexFaceOptions = {}): Agent {
   console.log('startAgentCodex:', opts)
   const startedAt = new Date()
   let closed = false
@@ -58,7 +50,6 @@ export function startAgentCodex(opts: CodexFaceOptions = {}): Face {
     ?.notifyDir as string | undefined
 
   const launchState: LaunchState = {}
-  const guardUniqueInteractionId = idCheck('interaction id')
 
   async function launchIfNeeded() {
     const prepared = await prepareLaunchDirectories(opts)
@@ -72,7 +63,7 @@ export function startAgentCodex(opts: CodexFaceOptions = {}): Face {
 
     ensureNotifyWatcher()
 
-    const host = opts.hostname ?? HOST
+    const host = HOST
     const cfg = opts.config ?? {}
 
     const launchMode = cfg.launch ?? 'tmux'
@@ -163,7 +154,6 @@ export function startAgentCodex(opts: CodexFaceOptions = {}): Face {
 
   function interaction(id: string, input: string) {
     assertOpen()
-    guardUniqueInteractionId(id)
     count += 1
     lastId = id
 
@@ -272,88 +262,57 @@ type LaunchArgs = {
 type LaunchResult = {
   child: Deno.ChildProcess
   pid: number
-  views: FaceView[]
+  views: AgentView[]
 }
 
 async function launchCodexProcess(args: LaunchArgs): Promise<LaunchResult> {
   const { cfg, configDir, workspace, host, tmuxSession } = args
-  const exclude = new Set<number>()
-  const maxAttempts = PORT_SPAN
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const port = await findAvailablePort({
-      port: PORT_START,
-      min: PORT_START,
-      max: PORT_START + PORT_SPAN - 1,
-      exclude: [...exclude],
-      hostname: host,
-    })
-    const env: Record<string, string> = {
-      ...Deno.env.toObject(),
-      CODEX_HOME: configDir,
-      SESSION: tmuxSession,
-      TTYD_PORT: String(port),
-      HOST: host,
-      TTYD_HOST: host,
-      WRITEABLE: 'on',
-    }
-    ensureEnv(env, 'COLORTERM', 'truecolor')
-    ensureEnv(env, 'FORCE_COLOR', '1')
-    ensureEnv(env, 'CLICOLOR_FORCE', '1')
-    ensureEnv(env, 'TERM_PROGRAM', 'artifact-codex')
-    ensureEnv(env, 'TERM_PROGRAM_VERSION', '1')
-    ensureEnv(env, 'LANG', 'C.UTF-8')
-    ensureEnv(env, 'LC_ALL', env.LANG)
-    ensureEnv(env, 'LC_CTYPE', env.LANG)
-    const cmdArgs = cfg.test
-      ? [
-        'deno',
-        'run',
-        '-A',
-        MOCK_APP_SCRIPT,
-        '--notify',
-        NOTIFY_SCRIPT,
-        '--dir',
-        configDir,
-      ]
-      : ['codex', '--cd', workspace, 'resume', '--last']
-
-    const { child } = await launchTmuxTerminal({
-      command: cmdArgs,
-      session: tmuxSession,
-      ttydPort: port,
-      ttydHost: host,
-      cwd: workspace,
-      env,
-      writeable: true,
-    })
-    const ready = await Promise.race([
-      waitForPort(port, { hostname: host, timeoutMs: 5000 }),
-      child.status.then(() => false),
-    ])
-    if (ready) {
-      const views: FaceView[] = [{
-        name: 'terminal',
-        port,
-        protocol: 'http',
-        url: `http://${host}:${port}`,
-      }]
-      return { child, pid: child.pid, views }
-    }
-    try {
-      child.kill('SIGTERM')
-    } catch {
-      // ignore
-    }
-    try {
-      await child.status
-    } catch {
-      // ignore
-    }
-    exclude.add(port)
+  const env: Record<string, string> = {
+    ...Deno.env.toObject(),
+    CODEX_HOME: configDir,
+    SESSION: tmuxSession,
+    TTYD_PORT: String(TTYD_PORT),
+    HOST: host,
+    TTYD_HOST: host,
+    WRITEABLE: 'on',
   }
-  throw new Error(
-    'Failed to launch ttyd via tmux on available port starting at 10000',
-  )
+  ensureEnv(env, 'COLORTERM', 'truecolor')
+  ensureEnv(env, 'FORCE_COLOR', '1')
+  ensureEnv(env, 'CLICOLOR_FORCE', '1')
+  ensureEnv(env, 'TERM_PROGRAM', 'artifact-codex')
+  ensureEnv(env, 'TERM_PROGRAM_VERSION', '1')
+  ensureEnv(env, 'LANG', 'C.UTF-8')
+  ensureEnv(env, 'LC_ALL', env.LANG)
+  ensureEnv(env, 'LC_CTYPE', env.LANG)
+  const cmdArgs = cfg.test
+    ? [
+      'deno',
+      'run',
+      '-A',
+      MOCK_APP_SCRIPT,
+      '--notify',
+      NOTIFY_SCRIPT,
+      '--dir',
+      configDir,
+    ]
+    : ['codex', '--cd', workspace, 'resume', '--last']
+
+  const { child } = await launchTmuxTerminal({
+    command: cmdArgs,
+    session: tmuxSession,
+    ttydPort: TTYD_PORT,
+    ttydHost: host,
+    cwd: workspace,
+    env,
+    writeable: true,
+  })
+  const views: AgentView[] = [{
+    name: 'terminal',
+    port: TTYD_PORT,
+    protocol: 'http',
+    url: `http://${host}:${TTYD_PORT}`,
+  }]
+  return { child, pid: child.pid, views }
 }
 
 function createTmuxSession(): string {
