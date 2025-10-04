@@ -2,7 +2,6 @@
   "workspace": [
     "mcp-agents",
     "mcp-computers",
-    "mcp-faces",
     "mcp-interactions",
     "agent-cmd",
     "agent-codex",

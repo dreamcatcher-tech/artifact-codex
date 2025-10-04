@@ -2,7 +2,6 @@ import type { Context } from '@hono/hono'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPTransport } from '@hono/mcp'
 import { createInteractionsServer } from '@artifact/mcp-interactions'
-import { createFacesServer } from '@artifact/mcp-faces'
 import type { Agent } from '@artifact/shared'
 import { type Debugger } from 'debug'
 

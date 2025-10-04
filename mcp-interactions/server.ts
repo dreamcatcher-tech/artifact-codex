@@ -2,8 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-// Schemas for interaction tools
-
 export const readInteractionOutput = z.object({
   exists: z.boolean(),
   interaction: z
