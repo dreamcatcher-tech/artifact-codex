@@ -9,7 +9,7 @@
     "agent-inspector",
     "agent-test",
     "shared",
-    "web-server",
+    "supervisor",
     "host-basic",
     "host-coder",
     "fly-exec",

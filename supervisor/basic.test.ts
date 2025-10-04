@@ -38,7 +38,7 @@ function stubFaceKinds(): FaceKindConfig[] {
   return [{
     id: 'test',
     title: 'Test',
-    description: 'Stub face for web-server tests',
+    description: 'Stub face for supervisor tests',
     create: () => createStubFace(),
   }]
 }
@@ -46,7 +46,7 @@ function stubFaceKinds(): FaceKindConfig[] {
 Deno.test('createAgentWebServer returns app and close', async () => {
   const { app, close } = createAgentWebServer(
     createTestServerOptions({
-      serverName: 'web-server-test',
+      serverName: 'supervisor-test',
       faceKinds: stubFaceKinds(),
     }),
   )

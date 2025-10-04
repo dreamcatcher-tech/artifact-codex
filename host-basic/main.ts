@@ -1,7 +1,7 @@
 import { mount } from '@artifact/fly-nfs'
-import { createAgentWebServer } from '@artifact/web-server'
-import type { FaceKindConfig } from '@artifact/web-server'
-import type { AgentWebServerOptions } from '@artifact/web-server'
+import { createAgentWebServer } from '@artifact/supervisor'
+import type { FaceKindConfig } from '@artifact/supervisor'
+import type { AgentWebServerOptions } from '@artifact/supervisor'
 import { startAgentTest } from '@artifact/agent-test'
 import Debug from 'debug'
 

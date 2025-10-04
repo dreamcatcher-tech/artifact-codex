@@ -29,7 +29,7 @@ export const createAgentWebServer = (
   { serverName, serverVersion = '0.0.1', faceKinds, log, timeoutMs, onIdle }:
     AgentWebServerOptions,
 ): AgentWebServerResult => {
-  log = log.extend('web-server')
+  log = log.extend('supervisor')
   log('init name=%s faces=%d', serverName, faceKinds.length)
 
   const app = new Hono()

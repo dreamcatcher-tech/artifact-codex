@@ -1,5 +1,5 @@
 {
-  "name": "@artifact/web-server",
+  "name": "@artifact/supervisor",
   "exports": {
     ".": "./mod.ts",
     "./fixture": "./fixture.ts",

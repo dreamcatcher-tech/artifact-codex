@@ -2,8 +2,8 @@ import { expect } from '@std/expect'
 import { spawnStdioMcpServer } from '@artifact/shared'
 import { createRemoteFacesHandlers } from './main.ts'
 import type { ListFacesOutput } from './server.ts'
-import { withApp } from '@artifact/web-server/fixture'
-import { createTestServerOptions } from '@artifact/web-server/test-helpers'
+import { withApp } from '@artifact/supervisor/fixture'
+import { createTestServerOptions } from '@artifact/supervisor/test-helpers'
 
 Deno.test('MCP initialize handshake', async () => {
   await using srv = await spawnStdioMcpServer()

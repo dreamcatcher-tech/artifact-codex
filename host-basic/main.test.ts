@@ -1,6 +1,6 @@
 import { expect } from '@std/expect'
 import { startAgentTest } from '@artifact/agent-test'
-import { withApp } from '@artifact/web-server/fixture'
+import { withApp } from '@artifact/supervisor/fixture'
 
 import { createHostBasicOptions, resolveFaceKinds } from './main.ts'
 

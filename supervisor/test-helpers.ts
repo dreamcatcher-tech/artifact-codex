@@ -36,11 +36,11 @@ export function createTestServerOptions(
   overrides: Partial<AgentWebServerOptions> = {},
 ): AgentWebServerOptions {
   const faceKinds = overrides.faceKinds ?? DEFAULT_FACE_KINDS
-  const log = overrides.log ?? Debug('@artifact/web-server:test')
+  const log = overrides.log ?? Debug('@artifact/supervisor:test')
   const timeoutMs = overrides.timeoutMs ?? 60_000
   const onIdle = overrides.onIdle ?? (() => {})
   return {
-    serverName: overrides.serverName ?? 'web-server-test',
+    serverName: overrides.serverName ?? 'supervisor-test',
     serverVersion: overrides.serverVersion ?? '0.0.1',
     faceKinds,
     log,

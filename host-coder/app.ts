@@ -1,11 +1,11 @@
 import Debug from 'debug'
-import { createAgentWebServer } from '@artifact/web-server'
+import { createAgentWebServer } from '@artifact/supervisor'
 import type {
   AgentWebServerOptions,
   IdleShutdownOptions,
-} from '@artifact/web-server'
+} from '@artifact/supervisor'
 
-import type { FaceKindConfig } from '@artifact/web-server'
+import type { FaceKindConfig } from '@artifact/supervisor'
 import { AGENT_KINDS, type AgentKindId } from '@artifact/shared'
 import { startAgentTest } from '@artifact/agent-test'
 import { startAgentInspector } from '@artifact/agent-inspector'
