@@ -1,0 +1,152 @@
+format = "v1"
+
+[workspace]
+  name = "example-workspace"
+  root = "/workspace"
+
+  [workspace.agent]
+    # Resolve the agent name from an environment variable when creating derived contexts.  
+    env_var  = "AGENT_NAME"
+    fallback = "anonymous-agent"
+
+  [workspace.branching]
+    # Branches are created per workspace operation; prefix and suffix are optional.
+    prefix  = "ws/"
+    suffix  = "-session"
+    pattern = "{pr efix}{agent}{suffix}"
+
+[environment.packages]
+  # Packages expected to be pre-installed in the provisioned workspace image.
+  apt = ["git", "curl", "build-essential"]
+  dnf = ["git", "gcc", "make"]
+
+[environment.network]
+  # Declare outbound hosts that must be reachable and whether elevated credentials are needed.
+  required_hosts = ["github.com", "npmjs.org", "registry.internal.example"]
+  requires_vpn   = false
+
+[environment.credentials]
+  # Defaults are used when a repository does not specify credentials explicitly.
+  [environment.credentials.defaults]
+    git_read           = "github-readonly"
+    git_write          = "github-readwrite"
+    container_registry = "artifact-registry-publish"
+
+  [environment.credentials.definitions.github-readwrite]
+    method               = "ssh"
+    key_env              = "GITHUB_RW_KEY"
+    known_hosts          = ["github.com"]
+    scopes               = ["clone", "push"]
+    allowed_repositories = ["primary-service", "templates"]
+    [environment.credentials.definitions.github-readwrite.github_actions]
+      secret                = "GITHUB_RW_DEPLOY_KEY"
+      export_env            = "GITHUB_RW_KEY"
+      environment           = "production"
+      provision_instruction = "admins: add the key as an encrypted repository secret and allow the workflow to read production environment secrets"
+
+  [environment.credentials.definitions.github-readonly]
+    method               = "https"
+    token_env            = "GITHUB_RO_TOKEN"
+    username             = "git-reader"
+    scopes               = ["clone"]
+    allowed_repositories = ["documentation", "secondary-service"]
+    [environment.credentials.definitions.github-readonly.github_actions]
+      secret                = "GITHUB_RO_TOKEN"
+      export_env            = "GITHUB_RO_TOKEN"
+      environment           = "staging"
+      provision_instruction = "store as an environment secret for staging so auditors can rotate independently"
+
+  [environment.credentials.definitions.artifact-registry-publish]
+    method    = "https"
+    host      = "registry.internal.example"
+    token_env = "ARTIFACT_REGISTRY_TOKEN"
+    scopes    = ["publish"]
+    [environment.credentials.definitions.artifact-registry-publish.github_actions]
+      secret                = "ARTIFACT_REGISTRY_TOKEN"
+      export_env            = "ARTIFACT_REGISTRY_TOKEN"
+      environment           = "production"
+      provision_instruction = "link workflow to the Artifact Registry environment so OIDC policies gate access"
+
+[repositories]
+
+  [repositories.primary-service]
+    description = "Primary service codebase"
+    remote      = "git@github.com:example/service.git"
+    target      = "service"
+    read_only   = false
+    # Supports glob patterns for directories and files.
+    sparse_dirs  = []
+    sparse_files = []
+
+    [repositories.primary-service.checkout]
+      branch = "main"
+      # `commit` can pin in addition to branch; omit when tracking moving branch.
+      commit = "3f8c2a5b6d1e4f7890abc1234567890defabc123"
+
+    [repositories.primary-service.auth]
+      use = "github-readwrite"
+      # Example job-level injection in GitHub Actions.
+      [repositories.primary-service.auth.github_actions]
+        job_env   = { SSH_AUTH_SOCK = "/tmp/ssh-agent.sock" }
+        with_step = "- name: Load deploy key\n  run: echo \"$GITHUB_RW_KEY\" > ~/.ssh/id_rsa && chmod 0600 ~/.ssh/id_rsa"
+
+  [repositories.documentation]
+    description  = "Documentation subtree only"
+    remote       = "https://github.com/example/docs.git"
+    target       = "docs"
+    read_only    = true
+    sparse_dirs  = ["guides/**", "adr/**"]
+    sparse_files = ["README.md"]
+
+    [repositories.documentation.checkout]
+      branch = "public"
+
+    [repositories.documentation.auth]
+      use = "github-readonly"
+      # Override sensitive bindings while preserving the shared template.
+      [repositories.documentation.auth.override]
+        username = "docs-reader"
+      [repositories.documentation.auth.github_actions]
+        secret     = "DOCS_GITHUB_TOKEN"
+        export_env = "DOCS_GITHUB_TOKEN"
+        notes      = "store as a repository-level secret; no environment promotion required"
+
+  [repositories.templates]
+    description  = "Starter templates snapshot"
+    remote       = "git@github.com:example/templates.git"
+    target       = "templates"
+    read_only    = false
+    sparse_dirs  = ["deno/cli/**"]
+    sparse_files = ["deno/lib/project.json"]
+
+    [repositories.templates.checkout]
+      # Example of pinning to an exact revision without a branch.
+      commit = "5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e"
+
+    [repositories.templates.auth]
+      use = "github-readwrite"
+      # Narrow the credential binding to a repo-specific key.
+      [repositories.templates.auth.github_actions]
+        secret     = "TEMPLATES_DEPLOY_KEY"
+        export_env = "TEMPLATES_DEPLOY_KEY"
+        okta_app   = "engineering-git"
+        notes      = "secret lives in the Templates GitHub environment to enforce manual approval"
+
+  [repositories.secondary-service]
+    description  = "Secondary microservice with restricted checkout"
+    remote       = "git@github.com:example/secondary.git"
+    target       = "secondary"
+    read_only    = true
+    sparse_dirs  = ["src/graphql/**"]
+    sparse_files = ["package.json"]
+
+    [repositories.secondary-service.checkout]
+      branch = "release/2025Q4"
+
+    [repositories.secondary-service.auth]
+      use = "github-readonly"
+      [repositories.secondary-service.auth.github_actions]
+        secret      = "SECONDARY_RO_TOKEN"
+        export_env  = "SECONDARY_RO_TOKEN"
+        environment = "partners"
+        notes       = "configure as an environment secret so deployments require partner sign-off"

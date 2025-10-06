@@ -1,9 +1,9 @@
 {
   "name": "@artifact/supervisor",
+  "version": "0.0.1",
   "exports": {
     ".": "./mod.ts",
-    "./fixture": "./fixture.ts",
-    "./test-helpers": "./test-helpers.ts"
+    "./fixture": "./fixture.ts"
   },
   "tasks": {
     "test": "deno test -A",

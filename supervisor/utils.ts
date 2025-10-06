@@ -14,7 +14,3 @@ export function portFromHeaders(req: HonoRequest): number | null {
 export function isWebSocketRequest(req: HonoRequest): boolean {
   return req.header('upgrade')?.toLowerCase() === 'websocket'
 }
-
-export function isMcpRequest(req: HonoRequest): boolean {
-  return req.query('mcp') !== undefined
-}

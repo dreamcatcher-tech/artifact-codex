@@ -1,8 +1,9 @@
 import { expect } from '@std/expect'
 import { HOST } from '@artifact/shared'
-import { createAgentWebServer } from './mod.ts'
-import { createTestServerOptions } from './test-helpers.ts'
+import { createSupervisor } from './mod.ts'
 import NodeWS from 'ws'
+import Debug from 'debug'
+import { createIdleTrigger } from '@artifact/shared'
 
 function safe<T>(fn: () => T) {
   return () => {
@@ -36,7 +37,11 @@ function serveOn(
 }
 
 function startApp(listen: number) {
-  const { app, close } = createAgentWebServer(createTestServerOptions())
+  const { app, close } = createSupervisor({
+    serverName: 'supervisor-test',
+    log: Debug('supervisor-test'),
+    idler: createIdleTrigger(new AbortController(), 1000),
+  })
   return serveOn(listen, app.fetch, close)
 }
 

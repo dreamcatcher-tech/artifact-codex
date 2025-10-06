@@ -1,8 +1,11 @@
 import { type Debugger } from 'debug'
-import { HOST } from '@artifact/shared'
+import { HOST, type IdleTrigger } from '@artifact/shared'
 
+type ActivityKind = 'http' | 'ws'
+type ActivityObserver =
+  | IdleTrigger
+  | ((kind: ActivityKind, detail: string) => void)
 type WebSocketData = Parameters<WebSocket['send']>[0]
-type OnActivity = (kind: 'http' | 'ws', detail: string) => void
 
 const HOP_BY_HOP = [
   'connection',
@@ -19,11 +22,103 @@ function stripHopByHop(h: Headers) {
   for (const k of HOP_BY_HOP) h.delete(k)
 }
 
+const CLERK_COOKIE_NAMES = new Set([
+  '__client',
+  '__client_uat',
+  '__session',
+  '__clerk_db_jwt',
+  '__clerk_handshake',
+])
+
+const CLERK_COOKIE_PREFIXES = ['__clerk']
+
+function isClerkCookie(name: string) {
+  const lowered = name.trim().toLowerCase()
+  if (!lowered) return false
+  return (
+    CLERK_COOKIE_NAMES.has(lowered) ||
+    CLERK_COOKIE_PREFIXES.some((prefix) => lowered.startsWith(prefix))
+  )
+}
+
+function stripClerkCookies(headers: Headers) {
+  const cookieHeader = headers.get('cookie')
+  if (!cookieHeader) return
+  const kept = cookieHeader
+    .split(';')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => {
+      const eqIndex = segment.indexOf('=')
+      const name = eqIndex === -1 ? segment : segment.slice(0, eqIndex)
+      return !isClerkCookie(name)
+    })
+  if (kept.length === 0) {
+    headers.delete('cookie')
+  } else {
+    headers.set('cookie', kept.join('; '))
+  }
+}
+
+function stripClerkSetCookies(headers: Headers) {
+  const values: string[] = []
+  headers.forEach((value, key) => {
+    if (key.toLowerCase() === 'set-cookie') {
+      values.push(value)
+    }
+  })
+  if (values.length === 0) return
+  headers.delete('set-cookie')
+  for (const value of values) {
+    const [cookiePart] = value.split(';', 1)
+    const eqIndex = cookiePart.indexOf('=')
+    const name = eqIndex === -1 ? cookiePart : cookiePart.slice(0, eqIndex)
+    if (!isClerkCookie(name)) {
+      headers.append('set-cookie', value)
+    }
+  }
+}
+
+function reportActivity(
+  observer: ActivityObserver | undefined,
+  kind: ActivityKind,
+  detail: string,
+) {
+  if (typeof observer !== 'function') return
+  try {
+    observer(kind, detail)
+  } catch {
+    // ignore
+  }
+}
+
+function beginActivity(
+  observer: ActivityObserver | undefined,
+  kind: ActivityKind,
+  detail: string,
+) {
+  reportActivity(observer, kind, detail)
+  if (!observer || typeof observer === 'function') {
+    return () => {}
+  }
+  const id = observer.busy()
+  let done = false
+  return () => {
+    if (done) return
+    done = true
+    try {
+      observer.idle(id)
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function proxyHTTP(
   req: Request,
   port: number,
   log: Debugger,
-  onActivity: OnActivity,
+  activity?: ActivityObserver,
 ): Promise<Response> {
   log = log.extend('proxyHTTP')
   const inUrl = new URL(req.url)
@@ -44,6 +139,7 @@ export async function proxyHTTP(
   fwdHeaders.set('x-forwarded-proto', inUrl.protocol.replace(':', ''))
   fwdHeaders.set('x-forwarded-host', inUrl.host)
   fwdHeaders.set('via', '1.1 hono-deno')
+  stripClerkCookies(fwdHeaders)
 
   const forwardInit: RequestInit = {
     method: req.method,
@@ -59,14 +155,22 @@ export async function proxyHTTP(
     String(target),
   )
 
-  onActivity('http', `${req.method.toUpperCase()} ${inUrl.pathname}`)
-
+  const endActivity = beginActivity(
+    activity,
+    'http',
+    `${req.method.toUpperCase()} ${inUrl.pathname}`,
+  )
   try {
     const upstreamRes = await fetch(target, forwardInit)
-    onActivity('http', `response ${upstreamRes.status} ${inUrl.pathname}`)
+    reportActivity(
+      activity,
+      'http',
+      `response ${upstreamRes.status} ${inUrl.pathname}`,
+    )
     log('HTTP proxy <- %d %s', upstreamRes.status, upstreamRes.statusText)
     const outHeaders = new Headers(upstreamRes.headers)
     stripHopByHop(outHeaders)
+    stripClerkSetCookies(outHeaders)
     return new Response(upstreamRes.body, {
       status: upstreamRes.status,
       headers: outHeaders,
@@ -83,8 +187,10 @@ export async function proxyHTTP(
       'x-proxy-error': 'fetch-failed',
     })
     log('HTTP proxy error: %s', msg)
-    onActivity('http', `error ${msg}`)
+    reportActivity(activity, 'http', `error ${msg}`)
     return new Response(body, { status, headers })
+  } finally {
+    endActivity()
   }
 }
 
@@ -92,7 +198,7 @@ export function proxyWS(
   req: Request,
   port: number,
   log: Debugger,
-  onActivity: OnActivity,
+  activity?: ActivityObserver,
 ): Response {
   const inUrl = new URL(req.url)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
@@ -105,7 +211,13 @@ export function proxyWS(
   }`
 
   log('WS proxy -> %s', wsUrl)
-  onActivity('ws', `upgrade ${inUrl.pathname}`)
+  const endActivity = beginActivity(activity, 'ws', `upgrade ${inUrl.pathname}`)
+  let finished = false
+  const finish = () => {
+    if (finished) return
+    finished = true
+    endActivity()
+  }
 
   const requestedProtocols = req.headers.get('sec-websocket-protocol')
   const protocols = requestedProtocols
@@ -123,6 +235,8 @@ export function proxyWS(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     log('WS upgrade failed for %s%s: %s', inUrl.pathname, inUrl.search, msg)
+    reportActivity(activity, 'ws', `upgrade failed ${msg}`)
+    finish()
     return new Response(
       `WebSocket upgrade failed for ${inUrl.pathname}${inUrl.search}: ${msg}`,
       { status: 400 },
@@ -140,6 +254,8 @@ export function proxyWS(
     }
     const msg = err instanceof Error ? err.message : String(err)
     log('WS connect failed to %s: %s', wsUrl, msg)
+    reportActivity(activity, 'ws', `connect failed ${msg}`)
+    finish()
     return new Response(
       `WebSocket connect to ${wsUrl} failed: ${msg}`,
       { status: 502 },
@@ -166,7 +282,7 @@ export function proxyWS(
   }
 
   const pumpUp = (ev: MessageEvent) => {
-    onActivity('ws', 'client->upstream message')
+    reportActivity(activity, 'ws', 'client->upstream message')
     if (upstream.readyState === WebSocket.OPEN) {
       upstream.send(ev.data)
       return
@@ -177,7 +293,7 @@ export function proxyWS(
   }
 
   const pumpDown = (ev: MessageEvent) => {
-    onActivity('ws', 'upstream->client message')
+    reportActivity(activity, 'ws', 'upstream->client message')
     const client = socket as WebSocket
     if (client.readyState === WebSocket.OPEN) {
       client.send(ev.data)
@@ -193,12 +309,12 @@ export function proxyWS(
 
   socket.onopen = () => {
     log('client ws open')
-    onActivity('ws', 'client open')
+    reportActivity(activity, 'ws', 'client open')
     flushClient()
   }
   upstream.onopen = () => {
     log('upstream ws open')
-    onActivity('ws', 'upstream open')
+    reportActivity(activity, 'ws', 'upstream open')
     flushUpstream()
   }
   socket.onmessage = pumpUp
@@ -206,22 +322,22 @@ export function proxyWS(
 
   socket.onerror = (e) => {
     log('client ws error %o', e)
-    onActivity('ws', 'client error')
+    reportActivity(activity, 'ws', 'client error')
     closeBoth(1011)
   }
   upstream.onerror = (e) => {
     log('upstream ws error %o', e)
-    onActivity('ws', 'upstream error')
+    reportActivity(activity, 'ws', 'upstream error')
     closeBoth(1011)
   }
   socket.onclose = (ev: CloseEvent) => {
     log('client ws close %d %s', ev.code, ev.reason)
-    onActivity('ws', 'client close')
+    reportActivity(activity, 'ws', 'client close')
     closeBoth(ev.code, ev.reason)
   }
   upstream.onclose = (ev: CloseEvent) => {
     log('upstream ws close %d %s', ev.code, ev.reason)
-    onActivity('ws', 'upstream close')
+    reportActivity(activity, 'ws', 'upstream close')
     closeBoth(ev.code, ev.reason)
   }
 
@@ -236,6 +352,7 @@ export function proxyWS(
     } catch {
       // ignore
     }
+    finish()
   }
 
   return response

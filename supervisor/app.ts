@@ -2,51 +2,53 @@ import { Hono, type HonoRequest } from '@hono/hono'
 import { logger } from '@hono/hono/logger'
 import { cors } from '@hono/hono/cors'
 import type { Debugger } from 'debug'
-
-import { createMcpHandler } from './mcp.ts'
-import type { FaceKindConfig } from './faces.ts'
+import { createMcpHandler } from './mcp-handler.ts'
 import { proxyHTTP, proxyWS } from './proxy.ts'
-import { isMcpRequest, isWebSocketRequest, portFromHeaders } from './utils.ts'
-import { createIdleShutdownManager } from './idle.ts'
+import { isWebSocketRequest, portFromHeaders } from './utils.ts'
+import type { IdleTrigger } from '@artifact/shared'
+import { MCP_PORT } from '@artifact/shared'
+import { createProvisioner } from './provision.ts'
 
 const IN_MEMORY_BASE_URL = new URL('http://in-memory/?mcp')
 
-export interface AgentWebServerOptions {
+export interface SupervisorOptions {
   serverName: string
-  serverVersion?: string
-  faceKinds: readonly FaceKindConfig[]
   log: Debugger
-  timeoutMs: number
-  onIdle: () => void | Promise<void>
+  idler: IdleTrigger
 }
 
-export interface AgentWebServerResult {
+export interface SupervisorServer {
   app: Hono
   close(): Promise<void>
 }
 
-export const createAgentWebServer = (
-  { serverName, serverVersion = '0.0.1', faceKinds, log, timeoutMs, onIdle }:
-    AgentWebServerOptions,
-): AgentWebServerResult => {
+export const createSupervisor = (
+  { serverName, log, idler }: SupervisorOptions,
+): SupervisorServer => {
   log = log.extend('supervisor')
-  log('init name=%s faces=%d', serverName, faceKinds.length)
+  log('init name=%s', serverName)
+
+  // switch mcp modes here, since the proxy should be disabled until we are provisioned
 
   const app = new Hono()
-  const idler = createIdleShutdownManager({ timeoutMs, onIdle, log })
-
-  const mcp = createMcpHandler({
-    serverName,
-    serverVersion,
-    faceKinds,
-    log,
-    onPendingChange: idler.handlePendingChange,
-  })
+  app.use('*', logger())
+  app.use('*', idler.middleware)
+  app.use(corsMiddleware)
 
   // TODO check the auth belongs to the computer we serve
 
-  app.use('*', logger())
-  app.use('*', idler.middleware)
+  const provisioner = createProvisioner()
+  const provisionerMcpHandler = createMcpHandler(provisioner.registerTools)
+
+  app.use('*', async (c, next) => {
+    if (await provisioner.isProvisioned()) {
+      return next()
+    }
+    if (!isMcpRequest(c.req)) {
+      return c.text('Awaiting provisioning mcp request', 503)
+    }
+    return await provisioner.handler(c)
+  })
 
   app.use('*', async (c, next) => {
     if (isMcpRequest(c.req)) {
@@ -58,53 +60,45 @@ export const createAgentWebServer = (
       return await proxyRequest(c.req, forwardedPort, log, idler)
     }
 
-    // in the new model, there is always a face, but there is always a single face for an agent
-
-    const AGENT_LOCAL_PORT = 10000 // all faces have to use this port we pass in
     // TODO buffer until the face is ready
-    return await proxyRequest(c.req, AGENT_LOCAL_PORT, log, idler)
+    // read the view from the mcp server resources
+    // if not present, return a regular thing
+    return c.text('todo: read the view from the mcp server resources')
+    // return await proxyRequest(c.req, AGENT_LOCAL_PORT, log, idler)
   })
 
-  app.use(cors({
-    origin: '*',
-    allowMethods: ['POST', 'GET', 'DELETE', 'OPTIONS'],
-    allowHeaders: [
-      'Authorization',
-      'content-type',
-      'mcp-session-id',
-      'mcp-protocol-version',
-    ],
-    exposeHeaders: [
-      'mcp-session-id',
-      'WWW-Authenticate',
-    ],
-  }))
+  // now decide if we have been provisioned or not
+  const mcp = createMcpHandler({ serverName, log, idler })
 
   app.use('*', async (c) => {
-    if (!isMcpRequest(c.req)) {
-      throw new Error('MCP request expected')
+    if (await provisioner.isProvisioned()) {
     }
-    const res = await mcp.handler(c)
-    return res
+
+    return await mcp.handler(c)
   })
 
   const close = async () => {
-    log('createAgentWebServer: close')
-    idler.dispose()
+    log('supervisor: close')
+    await provisioner.isProvisioned()
+    await provisionerMcpHandler.close()
     await mcp.close()
   }
 
   return { app, close }
 }
 
+const isMcpRequest = (req: HonoRequest) => {
+  const port = portFromHeaders(req)
+  return port === MCP_PORT
+}
 const proxyRequest = async (
   req: HonoRequest,
   port: number,
   log: Debugger,
-  idler: { touch: (reason: string) => void },
+  idler: IdleTrigger,
 ) => {
   const onActivity = (kind: string, detail: string) => {
-    idler.touch(`proxy ${kind}: ${detail}`)
+    // idler.touch(`proxy ${kind}: ${detail}`)
   }
 
   const isWS = isWebSocketRequest(req)
@@ -117,3 +111,18 @@ const proxyRequest = async (
 }
 
 export const inMemoryBaseUrl = IN_MEMORY_BASE_URL
+
+const corsMiddleware = cors({
+  origin: '*',
+  allowMethods: ['POST', 'GET', 'DELETE', 'OPTIONS'],
+  allowHeaders: [
+    'Authorization',
+    'content-type',
+    'mcp-session-id',
+    'mcp-protocol-version',
+  ],
+  exposeHeaders: [
+    'mcp-session-id',
+    'WWW-Authenticate',
+  ],
+})

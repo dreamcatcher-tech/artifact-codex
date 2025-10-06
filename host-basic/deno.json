@@ -1,6 +1,6 @@
 {
   "name": "@artifact/host-basic",
-  "exports": { ".": "./app.ts" },
+  "exports": { ".": "./main.ts" },
   "tasks": {
     "watch": "deno test -A --trace-leaks --watch",
     "test": "deno test -A",

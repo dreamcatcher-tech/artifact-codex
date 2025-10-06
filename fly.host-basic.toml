@@ -1,40 +1,49 @@
-app = 'fly-host-basic'
+app            = 'org1-fly-host-basic'
 primary_region = 'syd'
-
-[build]
-    dockerfile = 'host-basic/Dockerfile'
-
-[env]
-    # only set for the testing version
-    DC_DOMAIN = 'agentic.dreamcatcher.land'
-    DC_NFS = 'nfs-proto.flycast'
-
-[http_service]
-    internal_port = 8080
-    force_https = true
-    auto_stop_machines = 'suspend'
-    auto_start_machines = true
-    min_machines_running = 0
-
-[[services]]
-    protocol = 'tcp'
-    internal_port = 8080
-    auto_stop_machines = 'suspend'
-    auto_start_machines = true
-    min_machines_running = 0
-
-    [[services.ports]]
-        start_port = 3000
-        end_port = 30000
-        handlers = ['tls', 'http']
-
-[[vm]]
-    memory = '1gb'
-    cpu_kind = 'shared'
-    cpus = 1
-
-[deploy]
-    release_command = '/app/host-basic/release.ts'
+swap_size_mb   = 2048
 
 [experimental]
-    lazy_load_images = true
+  lazy_load_images = true
+
+[build]
+  dockerfile = 'host-basic/Dockerfile'
+
+[deploy]
+  release_command = '/app/host-basic/release.ts'
+
+[env]
+  DC_DOMAIN = 'agentic.dreamcatcher.land'
+  DC_NFS    = 'nfs-proto.flycast'
+
+[http_service]
+  internal_port        = 8080
+  force_https          = true
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
+  min_machines_running = 0
+
+[[services]]
+  protocol             = 'tcp'
+  internal_port        = 8080
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    start_port = 3000
+    end_port   = 30000
+    handlers   = ['tls', 'http']
+
+# mcp supervisor service
+[[services]]
+  protocol      = 'tcp'
+  internal_port = 8080
+
+  [[services.ports]]
+    port     = 442
+    handlers = ['http']
+
+[[vm]]
+  memory   = '256mb'
+  cpu_kind = 'shared'
+  cpus     = 1

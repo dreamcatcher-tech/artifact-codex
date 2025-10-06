@@ -11,9 +11,9 @@ WORKDIR /app
 
 COPY . .
 
-RUN deno install --quiet
-
 WORKDIR /app/host-basic
+
+RUN deno cache --quiet main.ts
 
 ENV DEBUG=@artifact/host-basic*
 ENV DEBUG_COLORS=1

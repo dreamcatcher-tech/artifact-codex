@@ -1,48 +1,21 @@
 import { mount } from '@artifact/fly-nfs'
-import { createAgentWebServer } from '@artifact/supervisor'
-import type { FaceKindConfig } from '@artifact/supervisor'
-import type { AgentWebServerOptions } from '@artifact/supervisor'
-import { startAgentTest } from '@artifact/agent-test'
+import { createSupervisor } from '@artifact/supervisor'
+import { createIdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
-
-export function resolveFaceKinds(): FaceKindConfig[] {
-  return [{
-    id: 'test',
-    title: 'Test Agent',
-    description: 'A test agent',
-    create: startAgentTest,
-  }]
-}
-
-export function createHostBasicOptions(
-  abort: AbortController,
-): AgentWebServerOptions {
-  const faceKinds = resolveFaceKinds()
-  const log = Debug('@artifact/host-basic')
-  const timeoutMs = 5 * 60 * 1000
-  return {
-    serverName: 'host-basic',
-    serverVersion: '0.0.1',
-    faceKinds,
-    log: Debug('@artifact/host-basic'),
-    timeoutMs,
-    onIdle: () => {
-      log('idle timeout reached (%dms); aborting server', timeoutMs)
-      abort.abort()
-    },
-  }
-}
+const TIMEOUT_MS = 5 * 60 * 1000
 
 if (import.meta.main) {
-  const log = Debug('@artifact/host-basic:main')
+  const log = Debug('@artifact/host-basic')
   await mount(log, 'async')
 
   const abort = new AbortController()
-  const options = createHostBasicOptions(abort)
-  const { app } = createAgentWebServer(options)
+  const idler = createIdleTrigger(abort, TIMEOUT_MS)
+  const options = { serverName: 'host-basic', log, idler }
+  const { app } = createSupervisor(options)
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
   const flycastHostname = '0.0.0.0'
   log('starting host-basic server on :%d', port)
-  Deno.serve({ port, hostname: flycastHostname, ...abort }, app.fetch)
+  const { signal } = abort
+  Deno.serve({ port, hostname: flycastHostname, signal }, app.fetch)
 }

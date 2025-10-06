@@ -9,6 +9,7 @@ export const HOST: string = (() => {
     return '127.0.0.1'
   }
 })()
+export const MCP_PORT = 442
 
 export const NFS_MOUNT_DIR = '/mnt/computers'
 export const NFS_SHARE_PATH = '/data/computers'

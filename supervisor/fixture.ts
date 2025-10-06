@@ -2,14 +2,14 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
 import {
-  type AgentWebServerOptions,
-  createAgentWebServer,
+  createSupervisor,
   inMemoryBaseUrl,
+  type SupervisorOptions,
 } from './app.ts'
 import type { Hono } from '@hono/hono'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 
-export interface WithAppOptions extends AgentWebServerOptions {
+export interface WithAppOptions extends SupervisorOptions {
   clientName?: string
   clientVersion?: string
 }
@@ -17,7 +17,7 @@ export interface WithAppOptions extends AgentWebServerOptions {
 export async function withApp(options: WithAppOptions) {
   const { clientName = 'test-client', clientVersion = '0.0.0', ...serverOpts } =
     options
-  const { app, close } = createAgentWebServer(serverOpts)
+  const { app, close } = createSupervisor(serverOpts)
   const fetch = createInMemoryFetch(app)
   const client = new Client({ name: clientName, version: clientVersion })
   const transport = new StreamableHTTPClientTransport(inMemoryBaseUrl, {
