@@ -1,22 +1,20 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
-import { createApp, inMemoryBaseUrl, type SupervisorOptions } from './app.ts'
+import { createApp } from './app.ts'
 import type { Hono } from '@hono/hono'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { createIdleTrigger } from '@artifact/shared'
+import type { SupervisorEnv } from './app.ts'
 
-export interface WithAppOptions extends SupervisorOptions {
-  clientName?: string
-  clientVersion?: string
-}
+export async function harness(timoutMs = Number.MAX_SAFE_INTEGER) {
+  const controller = new AbortController()
+  const idler = createIdleTrigger(controller, timoutMs)
+  const { app, [Symbol.asyncDispose]: close } = createApp(idler)
 
-export async function withApp(options: WithAppOptions) {
-  const { clientName = 'test-client', clientVersion = '0.0.0', ...serverOpts } =
-    options
-  const { app, close } = createApp(serverOpts)
   const fetch = createInMemoryFetch(app)
-  const client = new Client({ name: clientName, version: clientVersion })
-  const transport = new StreamableHTTPClientTransport(inMemoryBaseUrl, {
+  const client = new Client({ name: 'test-client', version: '0.0.0' })
+  const transport = new StreamableHTTPClientTransport(new URL('abc://nope'), {
     fetch,
   })
   await client.connect(transport)
@@ -24,7 +22,6 @@ export async function withApp(options: WithAppOptions) {
     app,
     fetch,
     client,
-    baseUrl: String(inMemoryBaseUrl),
     [Symbol.asyncDispose]: async () => {
       await client.close()
       await close()
@@ -32,7 +29,7 @@ export async function withApp(options: WithAppOptions) {
   }
 }
 
-const createInMemoryFetch = (app: Hono): FetchLike => {
+const createInMemoryFetch = (app: Hono<SupervisorEnv>): FetchLike => {
   const fetch: FetchLike = (url, init) => {
     const request = new Request(url, init as RequestInit)
     return Promise.resolve(app.fetch(request))

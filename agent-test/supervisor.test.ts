@@ -1,4 +1,4 @@
-import { withApp } from '@artifact/supervisor/fixture'
+import { harness } from '@artifact/supervisor/fixture'
 import { expect } from '@std/expect'
 
 // here we want to load up the supervisor fixture, and use it to boot up an agent
@@ -8,7 +8,7 @@ Deno.test({
   ignore: true,
   fn: async () => {
     // @ts-expect-error temporary harness stub
-    const { app: _app, fetch, client: _client } = await withApp({})
+    const { app: _app, fetch, client: _client } = await harness({})
     const response = await fetch('/mcp')
     expect(response.status).toBe(200)
   },

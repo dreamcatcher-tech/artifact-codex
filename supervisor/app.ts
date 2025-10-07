@@ -3,7 +3,6 @@ import type { IdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
 import { HTTPException } from '@hono/hono/http-exception'
 import { MCP_PORT } from '@artifact/shared'
-import { portFromHeaders } from './utils.ts'
 import { logger } from '@hono/hono/logger'
 import { createLoader } from './loader.ts'
 import { createExternal, type External } from './external.ts'
@@ -11,7 +10,7 @@ import { createInternal, type Internal } from './internal.ts'
 
 const log = Debug('@artifact/supervisor')
 
-type SupervisorEnv = {
+export type SupervisorEnv = {
   Variables: { requestKind: ClassifiedRequest }
 }
 
@@ -137,4 +136,15 @@ const assertState = (state: AgentState, expected: AgentState) => {
       message: `Agent state is ${state} but expected ${expected}`,
     })
   }
+}
+
+function parsePort(v: string | undefined): number | null {
+  if (!v) return null
+  if (!/^\d{1,5}$/.test(v)) return null
+  const n = Number(v)
+  return n >= 1 && n <= 65535 ? n : null
+}
+
+function portFromHeaders(req: HonoRequest): number | null {
+  return parsePort(req.header('fly-forwarded-port'))
 }

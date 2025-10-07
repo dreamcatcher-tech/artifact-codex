@@ -1,6 +1,6 @@
 import { expect } from '@std/expect'
 import { startAgentTest } from '@artifact/agent-test'
-import { withApp } from '@artifact/supervisor/fixture'
+import { harness } from '@artifact/supervisor/fixture'
 
 import { createHostBasicOptions, resolveFaceKinds } from './main.ts'
 
@@ -38,7 +38,7 @@ function denoTestIntegration() {
   Deno.test('createHostBasicOptions integrates with the agent web server', async () => {
     const abort = new AbortController()
     const options = createHostBasicOptions(abort)
-    await using fixtures = await withApp({
+    await using fixtures = await harness({
       ...options,
       clientName: 'host-basic-test-client',
       clientVersion: '0.0.0',

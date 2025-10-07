@@ -1,5 +1,6 @@
 import { type Debugger } from 'debug'
 import { HOST, type IdleTrigger } from '@artifact/shared'
+import type { HonoRequest } from '@hono/hono'
 
 type ActivityKind = 'http' | 'ws'
 type ActivityObserver =
@@ -356,4 +357,8 @@ export function proxyWS(
   }
 
   return response
+}
+
+function isWebSocketRequest(req: HonoRequest): boolean {
+  return req.header('upgrade')?.toLowerCase() === 'websocket'
 }
