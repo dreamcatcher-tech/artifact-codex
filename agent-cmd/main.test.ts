@@ -1,7 +1,6 @@
 import { spawnStdioMcpServer } from '@artifact/shared'
 import { expect } from '@std/expect'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { fromFileUrl } from '@std/path'
 
 type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
   structuredContent?: T

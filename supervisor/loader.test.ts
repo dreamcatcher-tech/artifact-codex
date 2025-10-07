@@ -37,7 +37,6 @@ const createFixture = async () => {
       return loaderCallback
     },
     [Symbol.asyncDispose]: async () => {
-      console.log('closing fixture')
       await client.close()
       await loader.close()
     },

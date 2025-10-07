@@ -2,7 +2,7 @@ import Debug from 'debug'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
-import { toStructured } from '@artifact/shared'
+import { toStructured, waitForPidExit } from '@artifact/shared'
 import { createMcpHandler } from './mcp-handler.ts'
 import { z } from 'zod'
 import { join } from '@std/path'
@@ -59,14 +59,14 @@ export const createLoader = (cb: () => void) => {
   })
   const close = async () => {
     await loadingMcpServer.close()
+    const pid = agentMcpTransport?.pid
     if (agentMcpClient) {
-      console.log('closing agent mcp client')
       await agentMcpClient.close()
     }
-    if (agentMcpTransport) {
-      console.log('closing agent mcp transport')
-      await agentMcpTransport.close()
-    }
+    agentMcpTools = undefined
+    agentMcpClient = undefined
+    agentMcpTransport = undefined
+    await waitForPidExit(pid)
   }
   return {
     get client() {

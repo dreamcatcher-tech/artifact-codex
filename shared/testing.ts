@@ -24,17 +24,7 @@ export type StdioMcpServer = {
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import process from 'node:process'
-
-function pidIsAlive(id: number): boolean {
-  try {
-    // Signal 0: probe for existence (no-op if alive; throws if dead)
-    process.kill(id, 0)
-    return true
-  } catch {
-    return false
-  }
-}
+import { waitForPidExit } from './mcp.ts'
 
 export async function spawnStdioMcpServer(
   opts: SpawnOptions = {},
@@ -63,14 +53,8 @@ export async function spawnStdioMcpServer(
 
   async function close() {
     const { pid } = transport
-
-    await transport.close()
-
-    if (pid) {
-      while (pidIsAlive(pid)) {
-        await new Promise((r) => setTimeout(r))
-      }
-    }
+    await client.close()
+    await waitForPidExit(pid)
   }
 
   return {

@@ -4,10 +4,30 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { type CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { HOST, MCP_PORT } from './const.ts'
+import process from 'node:process'
 
 export type RemoteClientOptions = {
   /** Optional fetch implementation override (used in tests). */
   fetch?: FetchLike
+}
+
+function pidIsAlive(id: number): boolean {
+  try {
+    // Signal 0: probe for existence (no-op if alive; throws if dead)
+    process.kill(id, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const waitForPidExit = async (pid?: number | null) => {
+  if (!pid) {
+    return
+  }
+  while (pidIsAlive(pid)) {
+    await new Promise((resolve) => setTimeout(resolve))
+  }
 }
 
 function resolveAgentUrl(agentId: string): URL {
