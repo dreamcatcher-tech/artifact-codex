@@ -27,6 +27,7 @@ export const createLoader = (cb: () => void) => {
       if (loadingPromise) {
         throw new Error('Already loading')
       }
+      // has to go load from the disk to learn what agent to load
 
       const projectRoot = new URL('..', import.meta.url).pathname
       const file = join(projectRoot, 'agent-test/main.ts')
