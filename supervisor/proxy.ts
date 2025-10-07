@@ -1,4 +1,4 @@
-import { type Debugger } from 'debug'
+import Debug from 'debug'
 import { HOST, type IdleTrigger } from '@artifact/shared'
 import type { HonoRequest } from '@hono/hono'
 
@@ -7,6 +7,8 @@ type ActivityObserver =
   | IdleTrigger
   | ((kind: ActivityKind, detail: string) => void)
 type WebSocketData = Parameters<WebSocket['send']>[0]
+type NextFn = () => Promise<void>
+type HonoContextLike = { req: HonoRequest }
 
 const HOP_BY_HOP = [
   'connection',
@@ -118,10 +120,9 @@ function beginActivity(
 export async function proxyHTTP(
   req: Request,
   port: number,
-  log: Debugger,
   activity?: ActivityObserver,
 ): Promise<Response> {
-  log = log.extend('proxyHTTP')
+  const log = Debug('@artifact/supervisor:proxyHTTP')
   const inUrl = new URL(req.url)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
@@ -198,9 +199,9 @@ export async function proxyHTTP(
 export function proxyWS(
   req: Request,
   port: number,
-  log: Debugger,
   activity?: ActivityObserver,
 ): Response {
+  const log = Debug('@artifact/supervisor:proxyWS')
   const inUrl = new URL(req.url)
   if (!port) return new Response('missing fly-forwarded-port', { status: 400 })
 
@@ -357,6 +358,22 @@ export function proxyWS(
   }
 
   return response
+}
+
+export async function proxyForwardedRequest(
+  ctx: HonoContextLike,
+  next: NextFn,
+  port: number | null,
+  activity?: ActivityObserver,
+): Promise<Response | void> {
+  if (typeof port !== 'number') {
+    return next()
+  }
+  const request = ctx.req.raw
+  if (isWebSocketRequest(ctx.req)) {
+    return proxyWS(request, port, activity)
+  }
+  return await proxyHTTP(request, port, activity)
 }
 
 function isWebSocketRequest(req: HonoRequest): boolean {

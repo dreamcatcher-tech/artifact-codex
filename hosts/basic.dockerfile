@@ -11,11 +11,11 @@ WORKDIR /app
 
 COPY . .
 
-WORKDIR /app/host-basic
+WORKDIR /app/supervisor
 
 RUN deno cache --quiet main.ts
 
-ENV DEBUG=@artifact/host-basic*
+ENV DEBUG=@artifact/supervisor*
 ENV DEBUG_COLORS=1
 ENV DEBUG_HIDE_DATE=1
 

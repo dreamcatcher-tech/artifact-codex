@@ -1,17 +1,18 @@
 import { mount } from '@artifact/fly-nfs'
-import { createSupervisor } from '@artifact/supervisor'
+import { createApp } from '@artifact/supervisor'
 import { createIdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
 const TIMEOUT_MS = 5 * 60 * 1000
 
 if (import.meta.main) {
-  const log = Debug('@artifact/host-basic')
+  const log = Debug('@artifact/supervisor:main')
   await mount(log, 'async')
 
   const abort = new AbortController()
   const idler = createIdleTrigger(abort, TIMEOUT_MS)
 
-  const { app } = createSupervisor(idler)
+  const { app, close } = createApp(idler)
+  abort.signal.onabort = close
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
   const flycastHostname = '0.0.0.0'

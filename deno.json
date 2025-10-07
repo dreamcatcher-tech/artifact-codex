@@ -9,8 +9,6 @@
     "agent-test",
     "shared",
     "supervisor",
-    "host-basic",
-    "host-coder",
     "fly-exec",
     "fly-nfs",
     "fly-router",

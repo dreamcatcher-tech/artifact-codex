@@ -82,5 +82,5 @@ ENV DEBUG_HIDE_DATE=1
 
 ENV PORT=8080
 
-ENTRYPOINT ["deno", "run", "-A", "--config", "/app/host-coder/deno.json"]
-CMD ["/app/host-coder/main.ts"]
+ENTRYPOINT ["deno", "run", "-A", "--config", "/app/supervisor/deno.json"]
+CMD ["/app/supervisor/main.ts"]

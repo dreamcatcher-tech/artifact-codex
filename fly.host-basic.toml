@@ -6,10 +6,10 @@ swap_size_mb   = 2048
   lazy_load_images = true
 
 [build]
-  dockerfile = 'host-basic/Dockerfile'
+  dockerfile = 'hosts/basic.dockerfile'
 
 [deploy]
-  release_command = '/app/host-basic/release.ts'
+  release_command = '/app/supervisor/release.ts'
 
 [env]
   DC_DOMAIN = 'agentic.dreamcatcher.land'

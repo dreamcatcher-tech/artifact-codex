@@ -7,6 +7,7 @@ import { logger } from '@hono/hono/logger'
 import { createLoader } from './loader.ts'
 import { createExternal, type External } from './external.ts'
 import { createInternal, type Internal } from './internal.ts'
+import { proxyForwardedRequest } from './proxy.ts'
 
 const log = Debug('@artifact/supervisor')
 
@@ -49,11 +50,12 @@ export const createApp = (idler: IdleTrigger) => {
         return agent.internal(c)
       case 'web':
         log('proxying web request for port %s', cl.port)
-        return next() //do the proxy
+        return proxyForwardedRequest(c, next, cl.port, log, idler)
     }
   })
 
-  return { app, [Symbol.asyncDispose]: agent[Symbol.asyncDispose] }
+  const close = agent[Symbol.asyncDispose]
+  return { app, close, [Symbol.asyncDispose]: close }
 }
 
 const createAgent = (idler: IdleTrigger) => {

@@ -1,45 +1,45 @@
-app = 'fly-host-coder'
+app            = 'fly-host-coder'
 primary_region = 'syd'
-swap_size_mb = 2048
+swap_size_mb   = 2048
 
 [build]
-    dockerfile = 'host-coder/Dockerfile'
+    dockerfile = 'hosts/coder.dockerfile'
 
 [env]
     # only set for the testing version
-    DC_DOMAIN = 'agentic.dreamcatcher.land'
-    DC_NFS = 'nfs-proto.flycast'
-    DC_ROUTER = 'org1-fly-router.flycast'
-    DC_EXEC = 'org1-fly-exec.flycast'
-    DC_WORKER_POOL_APP = 'org1-worker-pool'
+    DC_DOMAIN                = 'agentic.dreamcatcher.land'
+    DC_NFS                   = 'nfs-proto.flycast'
+    DC_ROUTER                = 'org1-fly-router.flycast'
+    DC_EXEC                  = 'org1-fly-exec.flycast'
+    DC_WORKER_POOL_APP       = 'org1-worker-pool'
     DC_OPENAI_PROXY_BASE_URL = 'http://org1-openai-proxy.flycast'
 
 [http_service]
-    internal_port = 8080
-    force_https = true
-    auto_stop_machines = 'suspend'
-    auto_start_machines = true
+    internal_port        = 8080
+    force_https          = true
+    auto_stop_machines   = 'suspend'
+    auto_start_machines  = true
     min_machines_running = 0
 
 [[services]]
-    protocol = 'tcp'
-    internal_port = 8080
-    auto_stop_machines = 'suspend'
-    auto_start_machines = true
+    protocol             = 'tcp'
+    internal_port        = 8080
+    auto_stop_machines   = 'suspend'
+    auto_start_machines  = true
     min_machines_running = 0
 
     [[services.ports]]
         start_port = 3000
-        end_port = 30000
-        handlers = ['tls', 'http']
+        end_port   = 30000
+        handlers   = ['tls', 'http']
 
 [[vm]]
-    memory = '256mb'
+    memory   = '256mb'
     cpu_kind = 'shared'
-    cpus = 1
+    cpus     = 1
 
 [deploy]
-    release_command = '/app/host-coder/release.ts'
+    release_command = '/app/supervisor/release.ts'
 
 [experimental]
     lazy_load_images = true
