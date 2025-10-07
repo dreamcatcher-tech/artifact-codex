@@ -6,6 +6,7 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { createIdleTrigger } from '@artifact/shared'
 import type { SupervisorEnv } from './app.ts'
 import { MCP_PORT } from '@artifact/shared'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
   const controller = new AbortController()
@@ -27,6 +28,16 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
       await close()
     },
   }
+}
+
+export async function createLoadedFixture(timeoutMs = Number.MAX_SAFE_INTEGER) {
+  const fixture = await createFixture(timeoutMs)
+  await fixture.client.callTool({
+    name: 'load',
+    arguments: { computerId: 'comp-1', agentId: 'agent-1' },
+  }) as CallToolResult
+  await fixture.client.listTools()
+  return fixture
 }
 
 const createInMemoryFetch = (app: Hono<SupervisorEnv>): FetchLike => {

@@ -1,8 +1,7 @@
 import { expect } from '@std/expect'
 import { HOST } from '@artifact/shared'
-import { createApp } from './app.ts'
+import { createLoadedFixture } from './fixture.ts'
 import NodeWS from 'ws'
-import { createIdleTrigger } from '@artifact/shared'
 
 function safe<T>(fn: () => T) {
   return () => {
@@ -33,12 +32,6 @@ function serveOn(
       return srv.finished
     },
   }
-}
-
-function startApp(listen: number) {
-  const idler = createIdleTrigger(new AbortController(), 1000)
-  const { app, close } = createApp(idler)
-  return serveOn(listen, app.fetch, close)
 }
 
 function startHTTPEcho(port: number) {
@@ -102,8 +95,9 @@ async function firstMessage(ws: NodeWS, timeoutMs = 2000): Promise<string> {
 Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
   const HTTP_PORT = 30500
   const LISTEN = 30700
+  await using fixture = await createLoadedFixture()
   await using _upstream = startHTTPEcho(HTTP_PORT)
-  await using _appSrv = startApp(LISTEN)
+  await using _appSrv = serveOn(LISTEN, fixture.app.fetch)
 
   const res = await fetch(`http://${HOST}:${LISTEN}/hello?x=1`, {
     headers: { 'Fly-Forwarded-Port': String(HTTP_PORT) },
@@ -115,8 +109,9 @@ Deno.test('ci-e2e: HTTP routing via Fly-Forwarded-Port', async () => {
 Deno.test('ci-e2e: WebSocket routing via Fly-Forwarded-Port', async () => {
   const WS_PORT = 30650
   const LISTEN = 30750
+  await using fixture = await createLoadedFixture()
   await using _upstream = startWSEcho(WS_PORT)
-  await using _appSrv = startApp(LISTEN)
+  await using _appSrv = serveOn(LISTEN, fixture.app.fetch)
   const ws = new NodeWS(`ws://${HOST}:${LISTEN}/ws`, [], {
     headers: { 'Fly-Forwarded-Port': String(WS_PORT) },
     perMessageDeflate: false,
