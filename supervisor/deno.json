@@ -7,6 +7,7 @@
   },
   "tasks": {
     "test": "deno test -A",
+    "watch": "deno test -A --watch --trace-leaks",
     "lint": "deno lint",
     "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"

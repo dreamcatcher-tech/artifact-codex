@@ -15,6 +15,7 @@ export const createLoader = (cb: () => void) => {
   let loadingPromise: Promise<void> | undefined
   let agentMcpClient: Client | undefined
   let agentMcpTools: Tool[] | undefined
+  let agentMcpTransport: StdioClientTransport | undefined
 
   const loadingMcpServer = createMcpHandler((server) => {
     server.registerTool('load', {
@@ -46,6 +47,7 @@ export const createLoader = (cb: () => void) => {
 
         agentMcpTools = tools
         agentMcpClient = client
+        agentMcpTransport = transport
         log('agent mcp client connected')
       } finally {
         loadingPromise = undefined
@@ -55,6 +57,17 @@ export const createLoader = (cb: () => void) => {
       return toStructured({ ok: true })
     })
   })
+  const close = async () => {
+    await loadingMcpServer.close()
+    if (agentMcpClient) {
+      console.log('closing agent mcp client')
+      await agentMcpClient.close()
+    }
+    if (agentMcpTransport) {
+      console.log('closing agent mcp transport')
+      await agentMcpTransport.close()
+    }
+  }
   return {
     get client() {
       if (!agentMcpClient) {
@@ -74,8 +87,7 @@ export const createLoader = (cb: () => void) => {
     get handler() {
       return loadingMcpServer.handler
     },
-    close: async () => {
-      await loadingMcpServer.close()
-    },
+    close,
+    [Symbol.asyncDispose]: close,
   }
 }
