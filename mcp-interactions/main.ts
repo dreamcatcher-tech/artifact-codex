@@ -17,10 +17,7 @@ export function createRemoteInteractionsHandlers(
     tool: string,
     args: Record<string, unknown>,
   ): Promise<CallToolResult> {
-    return await callRemoteTool(agentId, tool, args, {
-      ...opts,
-      clientName: 'interactions-proxy',
-    })
+    return await callRemoteTool(agentId, tool, args, { ...opts })
   }
 
   return {

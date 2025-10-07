@@ -71,8 +71,8 @@ const createAgent = (idler: IdleTrigger) => {
     }
   }
 
-  let external: External
-  let internal: Internal
+  let external: External | undefined
+  let internal: Internal | undefined
 
   const agent = {
     get state() {
@@ -83,20 +83,30 @@ const createAgent = (idler: IdleTrigger) => {
     },
     loader: async (c: Context) => {
       assertState(state, 'loading')
-      await loader.handler(c)
+      return loader.handler(c)
     },
     external: async (c: Context) => {
       assertState(state, 'ready')
-      await external.handler(c)
+      if (!external) {
+        throw new HTTPException(500, { message: 'External handler not ready' })
+      }
+      return external.handler(c)
     },
     internal: async (c: Context) => {
       assertState(state, 'ready')
-      await internal.handler(c)
+      if (!internal) {
+        throw new HTTPException(500, { message: 'Internal handler not ready' })
+      }
+      return internal.handler(c)
     },
     [Symbol.asyncDispose]: async () => {
       log('disposing agent in state %s', state)
       setState('shuttingDown')
-      await loader.loadingPromise
+      await external?.close()
+      external = undefined
+      await internal?.close()
+      internal = undefined
+      await loader.close()
     },
   }
   return agent
