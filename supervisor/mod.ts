@@ -1,2 +1,2 @@
 export { createApp } from './app.ts'
-export { harness } from './fixture.ts'
+export { createFixture } from './fixture.ts'

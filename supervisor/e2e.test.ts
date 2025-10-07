@@ -37,7 +37,7 @@ function serveOn(
 
 function startApp(listen: number) {
   const idler = createIdleTrigger(new AbortController(), 1000)
-  const { app, [Symbol.asyncDispose]: close } = createApp(idler)
+  const { app, close } = createApp(idler)
   return serveOn(listen, app.fetch, close)
 }
 

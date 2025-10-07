@@ -7,7 +7,7 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { createIdleTrigger } from '@artifact/shared'
 import type { SupervisorEnv } from './app.ts'
 
-export async function harness(timoutMs = Number.MAX_SAFE_INTEGER) {
+export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
   const controller = new AbortController()
   const idler = createIdleTrigger(controller, timoutMs)
   const { app, [Symbol.asyncDispose]: close } = createApp(idler)
