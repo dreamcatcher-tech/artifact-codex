@@ -39,3 +39,5 @@ export const createMcpHandler = (register: (server: McpServer) => void) => {
 
   return { handler, close }
 }
+
+export type McpHandler = ReturnType<typeof createMcpHandler>

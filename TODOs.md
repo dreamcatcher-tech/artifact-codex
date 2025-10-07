@@ -64,3 +64,6 @@ make each agent have exactly one face
 the supervisor, when proxying, should strip the cookies out, so we don't pass
 along any credentials ? altho that might be safe since you need the server
 private key to open up those bits.
+
+replace proxy with something built in to hono: codex resume
+0199b702-3218-7150-86bf-80a933247908

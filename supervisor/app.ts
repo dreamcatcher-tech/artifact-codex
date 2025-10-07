@@ -1,128 +1,160 @@
-import { Hono, type HonoRequest } from '@hono/hono'
-import { logger } from '@hono/hono/logger'
-import { cors } from '@hono/hono/cors'
-import type { Debugger } from 'debug'
-import { createMcpHandler } from './mcp-handler.ts'
-import { proxyHTTP, proxyWS } from './proxy.ts'
-import { isWebSocketRequest, portFromHeaders } from './utils.ts'
+import { Context, Hono, type HonoRequest, Next } from '@hono/hono'
 import type { IdleTrigger } from '@artifact/shared'
+import Debug from 'debug'
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { McpHandler } from './mcp-handler.ts'
+import { HTTPException } from '@hono/hono/http-exception'
 import { MCP_PORT } from '@artifact/shared'
-import { createProvisioner } from './provision.ts'
+import { portFromHeaders } from './utils.ts'
+import { logger } from '@hono/hono/logger'
 
-const IN_MEMORY_BASE_URL = new URL('http://in-memory/?mcp')
+const log = Debug('@artifact/supervisor')
 
-export interface SupervisorOptions {
-  serverName: string
-  log: Debugger
-  idler: IdleTrigger
+type SupervisorEnv = {
+  Variables: { requestKind: ClassifiedRequest }
 }
 
-export interface SupervisorServer {
-  app: Hono
-  close(): Promise<void>
-}
+export const createSupervisor = (idler: IdleTrigger) => {
+  const agent = createAgent()
 
-export const createSupervisor = (
-  { serverName, log, idler }: SupervisorOptions,
-): SupervisorServer => {
-  log = log.extend('supervisor')
-  log('init name=%s', serverName)
+  const app = new Hono<SupervisorEnv>()
 
-  // switch mcp modes here, since the proxy should be disabled until we are provisioned
-
-  const app = new Hono()
   app.use('*', logger())
   app.use('*', idler.middleware)
-  app.use(corsMiddleware)
-
-  // TODO check the auth belongs to the computer we serve
-
-  const provisioner = createProvisioner()
-  const provisionerMcpHandler = createMcpHandler(provisioner.registerTools)
 
   app.use('*', async (c, next) => {
-    if (await provisioner.isProvisioned()) {
-      return next()
-    }
-    if (!isMcpRequest(c.req)) {
-      return c.text('Awaiting provisioning mcp request', 503)
-    }
-    return await provisioner.handler(c)
+    const cl = classifyRequest(c.req)
+    c.set('requestKind', cl)
+    log('request %s %s classified as %s', c.req.method, c.req.path, cl.kind)
+    await next()
   })
 
   app.use('*', async (c, next) => {
-    if (isMcpRequest(c.req)) {
-      return next()
+    const cl = c.get('requestKind')
+    if (agent.isLoading) {
+      if (cl.kind !== 'supervisor-mcp') {
+        const message = 'Bad Request: awaiting agent loading'
+        throw new HTTPException(400, { message })
+      }
+      log('agent@  %s intercepting %s request', agent.state, cl.kind)
+      return agent.loadHandler(c.req)
     }
-
-    const forwardedPort = portFromHeaders(c.req)
-    if (forwardedPort && forwardedPort !== 443) {
-      return await proxyRequest(c.req, forwardedPort, log, idler)
-    }
-
-    // TODO buffer until the face is ready
-    // read the view from the mcp server resources
-    // if not present, return a regular thing
-    return c.text('todo: read the view from the mcp server resources')
-    // return await proxyRequest(c.req, AGENT_LOCAL_PORT, log, idler)
+    await next()
   })
 
-  // now decide if we have been provisioned or not
-  const mcp = createMcpHandler({ serverName, log, idler })
-
-  app.use('*', async (c) => {
-    if (await provisioner.isProvisioned()) {
+  app.use('*', (c, next) => {
+    const cl = c.get('requestKind')
+    switch (cl.kind) {
+      case 'supervisor-mcp':
+        log('dispatching supervisor mcp request in state %s', agent.state)
+        return agent.mcpSupervisorHandler(c.req)
+      case 'agent-mcp':
+        log('dispatching agent mcp request in state %s', agent.state)
+        return agent.mcpAgentHandler(c.req)
+      case 'web':
+        log('proxying web request for port %s', cl.port)
+        return next() //do the proxy
     }
-
-    return await mcp.handler(c)
   })
 
-  const close = async () => {
-    log('supervisor: close')
-    await provisioner.isProvisioned()
-    await provisionerMcpHandler.close()
-    await mcp.close()
-  }
-
-  return { app, close }
+  return { app, [Symbol.asyncDispose]: agent[Symbol.asyncDispose] }
 }
 
-const isMcpRequest = (req: HonoRequest) => {
+const createAgent = () => {
+  let state: AgentState = 'loading'
+
+  const setState = (nextState: AgentState) => {
+    if (state === nextState) {
+      return
+    }
+    log('agent state %s → %s', state, nextState)
+    state = nextState
+  }
+
+  return {
+    get state() {
+      return state
+    },
+    get isLoading() {
+      return state === 'loading'
+    },
+    transitionToReady: () => setState('ready'),
+    transitionToShuttingDown: () => setState('shuttingDown'),
+    loadHandler: async (req: HonoRequest) => {
+      assertState(state, 'loading')
+      // if there is already a running request, throw an error
+      if (isSupervisorMcpRequest(req)) {
+        // do stuff
+      }
+      const message = 'Bad Request: awaiting provisioning'
+      throw new HTTPException(400, { message })
+    },
+    mcpSupervisorHandler: async (req: HonoRequest) => {
+      log(
+        'supervisor mcp handler received %s %s in state %s',
+        req.method,
+        req.path,
+        state,
+      )
+      // take in any supervisor mcp requests
+    },
+    mcpAgentHandler: async (req: HonoRequest) => {
+      log(
+        'agent mcp handler received %s %s in state %s',
+        req.method,
+        req.path,
+        state,
+      )
+      // take in any operating mcp requests
+    },
+    [Symbol.asyncDispose]: async () => {
+      log('disposing agent in state %s', state)
+      setState('shuttingDown')
+      // clear out all the mcp servers
+      // shut down the agent mcp client
+      // shut down the agent mcp server
+    },
+  }
+}
+
+const classifyRequest = (req: HonoRequest): ClassifiedRequest => {
   const port = portFromHeaders(req)
-  return port === MCP_PORT
-}
-const proxyRequest = async (
-  req: HonoRequest,
-  port: number,
-  log: Debugger,
-  idler: IdleTrigger,
-) => {
-  const onActivity = (kind: string, detail: string) => {
-    // idler.touch(`proxy ${kind}: ${detail}`)
+  if (port === MCP_PORT) {
+    return { kind: 'supervisor-mcp' }
   }
-
-  const isWS = isWebSocketRequest(req)
-  if (isWS) {
-    const res = proxyWS(req.raw, port, log, onActivity)
-    return res
+  if (isAgentMcpRequest(req, port)) {
+    return { kind: 'agent-mcp' }
   }
-  const res = await proxyHTTP(req.raw, port, log, onActivity)
-  return res
+  return { kind: 'web', port }
 }
 
-export const inMemoryBaseUrl = IN_MEMORY_BASE_URL
+const isSupervisorMcpRequest = (req: HonoRequest) => {
+  return portFromHeaders(req) === MCP_PORT
+}
 
-const corsMiddleware = cors({
-  origin: '*',
-  allowMethods: ['POST', 'GET', 'DELETE', 'OPTIONS'],
-  allowHeaders: [
-    'Authorization',
-    'content-type',
-    'mcp-session-id',
-    'mcp-protocol-version',
-  ],
-  exposeHeaders: [
-    'mcp-session-id',
-    'WWW-Authenticate',
-  ],
-})
+const isAgentMcpRequest = (req: HonoRequest, port: number | null) => {
+  if (port !== null) {
+    return false
+  }
+  // Internal MCP traffic is expected to originate from machines that do not
+  // traverse Fly's edge, so there is no port header. Additional heuristics can
+  // be layered here (machine ids, auth headers, etc.) as the protocol evolves.
+  const machineId = req.header('fly-machine-id')
+  return Boolean(machineId)
+}
+
+type AgentState = 'loading' | 'ready' | 'shuttingDown'
+
+type ClassifiedRequest =
+  | { kind: 'supervisor-mcp' }
+  | { kind: 'agent-mcp' }
+  | { kind: 'web'; port: number | null }
+
+const assertState = (state: AgentState, expected: AgentState) => {
+  if (state !== expected) {
+    throw new HTTPException(500, {
+      message: `Agent state is ${state} but expected ${expected}`,
+    })
+  }
+}
