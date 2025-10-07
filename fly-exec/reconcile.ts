@@ -127,6 +127,7 @@ const baseStartInstance = async (
         DC_DOMAIN: envs.DC_DOMAIN(),
         DC_EXEC: envs.DC_EXEC(),
         DC_OPENAI_PROXY_BASE_URL: envs.DC_OPENAI_PROXY_BASE_URL(),
+        DC_COMPUTER_ID: computerId,
       },
       services: [
         {

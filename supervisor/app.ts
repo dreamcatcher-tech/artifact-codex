@@ -50,7 +50,7 @@ export const createApp = (idler: IdleTrigger) => {
         return agent.internal(c)
       case 'web':
         log('proxying web request for port %s', cl.port)
-        return proxyForwardedRequest(c, next, cl.port, log, idler)
+        return proxyForwardedRequest(c, next, cl.port, idler)
     }
   })
 

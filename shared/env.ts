@@ -64,6 +64,7 @@ export const envs = {
   DC_EXEC: () => readAppEnv('DC_EXEC'),
   DC_WORKER_POOL_APP: () => readAppEnv('DC_WORKER_POOL_APP'),
   DC_FLY_API_TOKEN: () => readAppEnv('DC_FLY_API_TOKEN'),
+  DC_COMPUTER_ID: () => readAppEnv('DC_COMPUTER_ID'),
   DC_OPENAI_PROXY_BASE_URL: () =>
     readAppEnv('DC_OPENAI_PROXY_BASE_URL', 'https://localhost'),
 }

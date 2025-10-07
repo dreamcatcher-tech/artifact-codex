@@ -3,21 +3,20 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { type CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { HOST } from './const.ts'
+import { HOST, MCP_PORT } from './const.ts'
 
 export type RemoteClientOptions = {
   /** Optional fetch implementation override (used in tests). */
   fetch?: FetchLike
-  /** Optional client name for MCP handshake/identification. */
-  clientName?: string
 }
 
-function resolveAgentToOrigin(agentId: string): URL {
+function resolveAgentUrl(agentId: string): URL {
   if (agentId === '@self') {
-    const port = Deno.env.get('PORT') ?? '8080'
-    return new URL(`http://${HOST}:${port}`)
+    return new URL(`http://${HOST}:${MCP_PORT}`)
   }
   // Default: resolve to internal DNS for the remote agent
+  // TODO need to resolve to the machine id
+  // could either kick the exec directly, or go via router
   return new URL(`http://${agentId}.internal`)
 }
 
@@ -27,13 +26,9 @@ export async function callRemoteTool(
   args: Record<string, unknown>,
   opts: RemoteClientOptions = {},
 ): Promise<CallToolResult> {
-  const origin = resolveAgentToOrigin(agentId)
-  const endpoint = withMcpPath(origin)
-  const client = new Client({
-    name: opts.clientName ?? 'mcp-proxy',
-    version: '0.0.1',
-  })
-  const transport = new StreamableHTTPClientTransport(endpoint, opts)
+  const url = resolveAgentUrl(agentId)
+  const client = new Client({ name: 'mcp-proxy', version: '0.0.1' })
+  const transport = new StreamableHTTPClientTransport(url, opts)
   await client.connect(transport)
   try {
     const result = await client.callTool({ name: tool, arguments: args })
