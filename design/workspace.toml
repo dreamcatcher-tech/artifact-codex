@@ -13,7 +13,7 @@ format = "v1"
     # Branches are created per workspace operation; prefix and suffix are optional.
     prefix  = "ws/"
     suffix  = "-session"
-    pattern = "{pr efix}{agent}{suffix}"
+    pattern = "{prefix}{agent}{suffix}"
 
 [environment.packages]
   # Packages expected to be pre-installed in the provisioned workspace image.

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from '@hono/hono'
 
-export function createIdleTrigger(abort: AbortController, timeoutMs: number) {
+export function createIdleTrigger(ac: AbortController, timeoutMs: number) {
   let timer: number | undefined
   let nextId = 0
   const activeBusy = new Set<number>()
@@ -20,7 +20,7 @@ export function createIdleTrigger(abort: AbortController, timeoutMs: number) {
     if (activeBusy.size === 0) {
       clearTimer()
       timer = setTimeout(() => {
-        abort.abort()
+        ac.abort()
       }, timeoutMs)
     }
   }
@@ -46,7 +46,11 @@ export function createIdleTrigger(abort: AbortController, timeoutMs: number) {
     idle(id)
   }
 
-  return { busy, idle, middleware, touch }
+  const abort = () => {
+    ac.abort()
+  }
+
+  return { busy, idle, middleware, touch, abort }
 }
 
 export type IdleTrigger = ReturnType<typeof createIdleTrigger>

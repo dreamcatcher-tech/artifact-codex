@@ -1,7 +1,8 @@
+import { z } from 'zod'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { type CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { HOST } from './const.ts'
 
 export type RemoteClientOptions = {
@@ -20,18 +21,6 @@ function resolveAgentToOrigin(agentId: string): URL {
   return new URL(`http://${agentId}.internal`)
 }
 
-/** Ensure the URL targets the MCP endpoint via `?mcp` query param. */
-function withMcpPath(origin: URL): URL {
-  const url = new URL(origin.toString())
-  const params = url.searchParams
-  if (!params.has('mcp')) params.set('mcp', '')
-  url.search = params.toString()
-  return url
-}
-
-/**
- * Call a remote MCP tool hosted at the agent's `?mcp` endpoint.
- */
 export async function callRemoteTool(
   agentId: string,
   tool: string,
@@ -69,4 +58,39 @@ export function toStructured(
 export function toError(err: unknown): CallToolResult {
   const msg = err instanceof Error ? err.message : String(err)
   return { content: [{ type: 'text', text: msg }], isError: true }
+}
+
+export type ToolConfig = {
+  title: string
+  description: string
+  inputSchema: z.ZodRawShape
+  outputSchema: z.ZodRawShape
+}
+
+export const INTERACTION_TOOLS: Record<string, ToolConfig> = {
+  interaction_start: {
+    title: 'Start Interaction',
+    description: 'Queue a new interaction.',
+    inputSchema: { input: z.string() },
+    outputSchema: { interactionId: z.string() },
+  },
+  interaction_await: {
+    title: 'Await Interaction',
+    description:
+      'Await the result of a previously queued interaction. Returns the echoed value or an error when the agent throws.',
+    inputSchema: { interactionId: z.string() },
+    outputSchema: { value: z.string() },
+  },
+  interaction_cancel: {
+    title: 'Cancel Interaction',
+    description: 'Cancel a pending interaction by id.',
+    inputSchema: { interactionId: z.string() },
+    outputSchema: { cancelled: z.boolean(), wasActive: z.boolean() },
+  },
+  interaction_status: {
+    title: 'Get Interaction Status',
+    description: 'Get the status of a previously queued interaction.',
+    inputSchema: { interactionId: z.string() },
+    outputSchema: { state: z.enum(['pending', 'completed', 'cancelled']) },
+  },
 }

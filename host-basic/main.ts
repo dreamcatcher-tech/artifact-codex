@@ -10,8 +10,8 @@ if (import.meta.main) {
 
   const abort = new AbortController()
   const idler = createIdleTrigger(abort, TIMEOUT_MS)
-  const options = { serverName: 'host-basic', log, idler }
-  const { app } = createSupervisor(options)
+
+  const { app } = createSupervisor(idler)
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
   const flycastHostname = '0.0.0.0'
