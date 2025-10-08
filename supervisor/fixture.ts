@@ -19,9 +19,7 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
     fetch,
   })
   await client.connect(transport)
-  const load = async (
-    { computerId = 'comp-1', agentId = 'agent-1' }: LoadArgs = {},
-  ) => {
+  const load = async (computerId = 'comp-1', agentId = 'agent-1') => {
     await client.callTool({
       name: 'load',
       arguments: { computerId, agentId },
@@ -40,15 +38,13 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
   }
 }
 
-type LoadArgs = { computerId?: string; agentId?: string }
-
 export async function createLoadedFixture(timeoutMs = Number.MAX_SAFE_INTEGER) {
   const fixture = await createFixture(timeoutMs)
   await fixture.load()
   return fixture
 }
 
-const createInMemoryFetch = (app: Hono<SupervisorEnv>): FetchLike => {
+export const createInMemoryFetch = (app: Hono<SupervisorEnv>): FetchLike => {
   const fetch: FetchLike = (url, init) => {
     const request = new Request(url, init as RequestInit)
     request.headers.set('Fly-Forwarded-Port', String(MCP_PORT))

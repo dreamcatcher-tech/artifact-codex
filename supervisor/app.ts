@@ -66,7 +66,7 @@ const createAgent = (idler: IdleTrigger) => {
     log('agent state %s → %s', state, nextState)
     state = nextState
     if (state === 'ready') {
-      external = createExternal(loader.client, loader.tools, idler)
+      external = createExternal(loader.client, idler)
       internal = createInternal()
     }
   }
@@ -82,21 +82,15 @@ const createAgent = (idler: IdleTrigger) => {
       return state === 'loading'
     },
     loader: (c: Context) => {
-      assertState(state, 'loading')
+      assertState(state, 'loading', loader)
       return loader.handler(c)
     },
     external: (c: Context) => {
-      assertState(state, 'ready')
-      if (!external) {
-        throw new HTTPException(500, { message: 'External handler not ready' })
-      }
+      assertState(state, 'ready', external)
       return external.handler(c)
     },
     internal: (c: Context) => {
-      assertState(state, 'ready')
-      if (!internal) {
-        throw new HTTPException(500, { message: 'Internal handler not ready' })
-      }
+      assertState(state, 'ready', internal)
       return internal.handler(c)
     },
     [Symbol.asyncDispose]: async () => {
@@ -139,7 +133,11 @@ type ClassifiedRequest =
   | { kind: 'agent-mcp' }
   | { kind: 'web'; port: number | null }
 
-const assertState = (state: AgentState, expected: AgentState) => {
+function assertState<T>(
+  state: AgentState,
+  expected: AgentState,
+  handler: T | undefined,
+): asserts handler is T {
   if (state === 'shuttingDown') {
     throw new HTTPException(500, { message: 'Agent is shutting down' })
   }
@@ -147,6 +145,9 @@ const assertState = (state: AgentState, expected: AgentState) => {
     throw new HTTPException(500, {
       message: `Agent state is ${state} but expected ${expected}`,
     })
+  }
+  if (handler === undefined) {
+    throw new HTTPException(500, { message: 'Handler is not ready' })
   }
 }
 

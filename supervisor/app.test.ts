@@ -1,6 +1,6 @@
 import { expect } from '@std/expect'
-import { createFixture } from './fixture.ts'
-import { INTERACTION_TOOLS } from '@artifact/shared'
+import { createFixture, createLoadedFixture } from './fixture.ts'
+import { INTERACTION_TOOLS, isTextContent } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 const agentId = 'agent-1'
@@ -38,4 +38,17 @@ Deno.test('app routes MCP traffic to the agent once the loader completes', async
     arguments: { agentId, interactionId },
   }) as { structuredContent: { value: string } }
   expect(awaited.structuredContent.value).toBe('hello')
+})
+
+Deno.test('app proxies agent resources through supervisor', async () => {
+  await using fixture = await createLoadedFixture()
+  const { client } = fixture
+
+  const { resources } = await client.listResources({})
+  const resourceNames = resources.map((resource) => resource.name)
+  expect(resourceNames).toContain('views')
+
+  const read = await client.readResource({ uri: 'mcp://views' })
+  const textContent = read.contents.find(isTextContent)
+  expect(textContent?.mimeType).toBe('application/json')
 })

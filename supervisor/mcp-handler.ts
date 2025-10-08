@@ -7,7 +7,9 @@ const { name, version } = deno
 
 const log = Debug('@artifact/supervisor:mcp')
 
-export const createMcpHandler = (register: (server: McpServer) => void) => {
+type Register = (server: McpServer) => Promise<void> | void
+
+export const createMcpHandler = (register: Register) => {
   const servers = new Set<McpServer>()
 
   const handler = async (c: Context) => {
@@ -15,7 +17,7 @@ export const createMcpHandler = (register: (server: McpServer) => void) => {
     const server = new McpServer({ name, version })
     servers.add(server)
 
-    register(server)
+    await register(server)
 
     const transport = new StreamableHTTPTransport()
     transport.onclose = () => {
