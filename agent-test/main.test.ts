@@ -1,30 +1,15 @@
-import { INTERACTION_TOOLS, spawnStdioMcpServer } from '@artifact/shared'
+import {
+  INTERACTION_TOOL_NAMES,
+  requireStructured,
+  spawnStdioMcpServer,
+  type InteractionAwait,
+  type InteractionCancel,
+  type InteractionStart,
+  type InteractionStatus,
+  type ToolResult,
+} from '@artifact/shared'
 import { expect } from '@std/expect'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-
-type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
-  structuredContent?: T
-}
-
-type InteractionStart = { interactionId: string }
-type InteractionAwait = { value: string }
-type InteractionCancel = { cancelled: boolean; wasActive: boolean }
-type InteractionStatus = { state: 'pending' | 'completed' | 'cancelled' }
-
-const TOOL_NAMES = Object.keys(INTERACTION_TOOLS)
-
-function requireStructured<T extends Record<string, unknown>>(
-  result: ToolResult<T>,
-): T {
-  if (!result || typeof result !== 'object') {
-    throw new Error('tool result missing structured content')
-  }
-  const structured = result.structuredContent
-  if (!structured || typeof structured !== 'object') {
-    throw new Error('tool result missing structured content')
-  }
-  return structured
-}
 
 async function spawnInitializedServer() {
   const server = await spawnStdioMcpServer()
@@ -36,7 +21,7 @@ Deno.test('stdio exposes agent interaction tools', async () => {
   await using srv = await spawnInitializedServer()
   const list = await srv.client.listTools({})
   const names = list.tools.map((tool) => tool.name)
-  for (const name of TOOL_NAMES) {
+  for (const name of INTERACTION_TOOL_NAMES) {
     expect(names).toContain(name)
   }
 })

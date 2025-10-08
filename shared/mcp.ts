@@ -106,6 +106,39 @@ export const INTERACTION_TOOLS: Record<string, ToolConfig> = {
     title: 'Get Interaction Status',
     description: 'Get the status of a previously queued interaction.',
     inputSchema: { interactionId: z.string() },
-    outputSchema: { state: z.enum(['pending', 'completed', 'cancelled']) },
+    outputSchema: {
+      state: z.enum(['pending', 'completed', 'cancelled', 'rejected']),
+    },
   },
+}
+
+export type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
+  structuredContent?: T
+}
+
+export type InteractionStart = { interactionId: string }
+export type InteractionAwait = { value: string }
+export type InteractionCancel = {
+  cancelled: boolean
+  wasActive: boolean
+}
+export type InteractionStatus = {
+  state: 'pending' | 'completed' | 'cancelled' | 'rejected'
+}
+
+export const INTERACTION_TOOL_NAMES = Object.keys(
+  INTERACTION_TOOLS,
+) as Array<keyof typeof INTERACTION_TOOLS>
+
+export function requireStructured<T extends Record<string, unknown>>(
+  result: ToolResult<T>,
+): T {
+  if (!result || typeof result !== 'object') {
+    throw new Error('tool result missing structured content')
+  }
+  const structured = result.structuredContent
+  if (!structured || typeof structured !== 'object') {
+    throw new Error('tool result missing structured content')
+  }
+  return structured
 }
