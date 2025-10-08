@@ -19,10 +19,20 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
     fetch,
   })
   await client.connect(transport)
+  const load = async (
+    { computerId = 'comp-1', agentId = 'agent-1' }: LoadArgs = {},
+  ) => {
+    await client.callTool({
+      name: 'load',
+      arguments: { computerId, agentId },
+    }) as CallToolResult
+    await client.listTools()
+  }
   return {
     app,
     fetch,
     client,
+    load,
     [Symbol.asyncDispose]: async () => {
       await client.close()
       await close()
@@ -30,13 +40,11 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
   }
 }
 
+type LoadArgs = { computerId?: string; agentId?: string }
+
 export async function createLoadedFixture(timeoutMs = Number.MAX_SAFE_INTEGER) {
   const fixture = await createFixture(timeoutMs)
-  await fixture.client.callTool({
-    name: 'load',
-    arguments: { computerId: 'comp-1', agentId: 'agent-1' },
-  }) as CallToolResult
-  await fixture.client.listTools()
+  await fixture.load()
   return fixture
 }
 

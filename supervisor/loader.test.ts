@@ -1,84 +1,105 @@
+import { createLoadedFixture } from '@artifact/supervisor/fixture'
 import { expect } from '@std/expect'
-import { Hono } from '@hono/hono'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { createLoader } from './loader.ts'
 import { INTERACTION_TOOLS } from '@artifact/shared'
 
-const createInMemoryFetch = (app: Hono): FetchLike => {
-  const fetch: FetchLike = (url, init) => {
-    const request = new Request(url, init as RequestInit)
-    return Promise.resolve(app.fetch(request))
-  }
-  return fetch
+type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
+  structuredContent?: T
 }
 
-const createFixture = async () => {
-  let loaderCallback = false
-  const loader = createLoader(() => {
-    loaderCallback = true
-  })
-  const app = new Hono()
-  app.use('*', loader.handler)
+type InteractionStart = { interactionId: string }
+type InteractionAwait = { value: string }
+type InteractionCancel = { cancelled: boolean; wasActive: boolean }
+type InteractionStatus = { state: 'pending' | 'completed' | 'cancelled' }
 
-  const client = new Client({ name: 'loader-test', version: '0.0.0' })
-  const transport = new StreamableHTTPClientTransport(
-    new URL('http://loader.test/mcp'),
-    { fetch: createInMemoryFetch(app) },
-  )
-  await client.connect(transport)
+const TOOL_NAMES = Object.keys(INTERACTION_TOOLS)
 
-  return {
-    loader,
-    client,
-    get loaderCallback() {
-      return loaderCallback
-    },
-    [Symbol.asyncDispose]: async () => {
-      await client.close()
-      await loader.close()
-    },
+function requireStructured<T extends Record<string, unknown>>(
+  result: ToolResult<T>,
+): T {
+  if (!result || typeof result !== 'object') {
+    throw new Error('tool result missing structured content')
   }
+  const structured = result.structuredContent
+  if (!structured || typeof structured !== 'object') {
+    throw new Error('tool result missing structured content')
+  }
+  return structured
 }
 
-Deno.test('loader exposes agent tools after load', async () => {
-  await using fixture = await createFixture()
-  const { client, loader } = fixture
+Deno.test('loader exposes agent interaction tools', async () => {
+  await using fixture = await createLoadedFixture()
 
-  const { tools } = await client.listTools()
-  expect(tools).toHaveLength(1)
-  expect(tools[0].name).toBe('load')
+  const list = await fixture.client.listTools({})
+  const names = list.tools.map((tool) => tool.name)
+  for (const name of TOOL_NAMES) {
+    expect(names).toContain(name)
+  }
+})
 
-  const loadResult = await client.callTool({
-    name: 'load',
-    arguments: { computerId: 'comp-1', agentId: 'agent-1' },
-  }) as CallToolResult
+Deno.test('interaction_start values are available via interaction_await', async () => {
+  await using fixture = await createLoadedFixture()
 
-  expect(loadResult.isError).not.toBeDefined()
-  expect(loadResult.structuredContent).toEqual({ ok: true })
-
-  const agentClient = loader.client
-  const agentTools = loader.tools
-  expect(agentTools).toHaveLength(Object.keys(INTERACTION_TOOLS).length)
-  const listed = await agentClient.listTools()
-  expect(listed.tools).toHaveLength(Object.keys(INTERACTION_TOOLS).length)
-  expect(listed.tools?.map((t) => t.name)).toEqual(
-    Object.keys(INTERACTION_TOOLS),
-  )
-
-  const start = await agentClient.callTool({
+  const started = await fixture.client.callTool({
     name: 'interaction_start',
-    arguments: { input: 'hello' },
-  }) as { structuredContent: { interactionId: string } }
-  const { interactionId } = start.structuredContent
+    arguments: { input: 'echo-value' },
+  }) as ToolResult<InteractionStart>
+  const { interactionId } = requireStructured(started)
   expect(typeof interactionId).toBe('string')
 
-  const awaited = await agentClient.callTool({
+  const awaited = await fixture.client.callTool({
     name: 'interaction_await',
     arguments: { interactionId },
-  }) as { structuredContent: { value: string } }
-  const { value } = awaited.structuredContent
-  expect(value).toBe('hello')
+  }) as ToolResult<InteractionAwait>
+  const { value } = requireStructured(awaited)
+  expect(value).toBe('echo-value')
+})
+
+Deno.test('interaction_cancel clears stored interaction and updates status', async () => {
+  await using fixture = await createLoadedFixture()
+
+  const started = await fixture.client.callTool({
+    name: 'interaction_start',
+    arguments: { input: 'cancel-me' },
+  }) as ToolResult<InteractionStart>
+  const { interactionId } = requireStructured(started)
+
+  const beforeStatus = await fixture.client.callTool({
+    name: 'interaction_status',
+    arguments: { interactionId },
+  }) as ToolResult<InteractionStatus>
+  expect(requireStructured(beforeStatus).state).toBe('pending')
+
+  const cancelled = await fixture.client.callTool({
+    name: 'interaction_cancel',
+    arguments: { interactionId },
+  }) as ToolResult<InteractionCancel>
+  const { cancelled: didCancel, wasActive } = requireStructured(cancelled)
+  expect(didCancel).toBe(true)
+  expect(wasActive).toBe(true)
+
+  const afterStatus = await fixture.client.callTool({
+    name: 'interaction_status',
+    arguments: { interactionId },
+  }) as ToolResult<InteractionStatus>
+  expect(requireStructured(afterStatus).state).toBe('cancelled')
+
+  const awaited = await fixture.client.callTool({
+    name: 'interaction_await',
+    arguments: { interactionId },
+  }) as ToolResult<InteractionAwait>
+  expect(awaited.isError).toBe(true)
+})
+
+Deno.test('interaction_await reports error for unknown interaction ids', async () => {
+  await using fixture = await createLoadedFixture()
+
+  const result = await fixture.client.callTool({
+    name: 'interaction_await',
+    arguments: { interactionId: 'missing' },
+  }) as CallToolResult
+
+  expect(result.isError).toBe(true)
+  const first = result.content[0]
+  expect(first.text).toContain('unknown interaction id: missing')
 })

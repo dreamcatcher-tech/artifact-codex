@@ -81,18 +81,18 @@ const createAgent = (idler: IdleTrigger) => {
     get isLoading() {
       return state === 'loading'
     },
-    loader: async (c: Context) => {
+    loader: (c: Context) => {
       assertState(state, 'loading')
       return loader.handler(c)
     },
-    external: async (c: Context) => {
+    external: (c: Context) => {
       assertState(state, 'ready')
       if (!external) {
         throw new HTTPException(500, { message: 'External handler not ready' })
       }
       return external.handler(c)
     },
-    internal: async (c: Context) => {
+    internal: (c: Context) => {
       assertState(state, 'ready')
       if (!internal) {
         throw new HTTPException(500, { message: 'Internal handler not ready' })

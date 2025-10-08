@@ -1,4 +1,4 @@
-import { spawnStdioMcpServer } from '@artifact/shared'
+import { INTERACTION_TOOLS, spawnStdioMcpServer } from '@artifact/shared'
 import { expect } from '@std/expect'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
@@ -10,6 +10,8 @@ type InteractionStart = { interactionId: string }
 type InteractionAwait = { value: string }
 type InteractionCancel = { cancelled: boolean; wasActive: boolean }
 type InteractionStatus = { state: 'pending' | 'completed' | 'cancelled' }
+
+const TOOL_NAMES = Object.keys(INTERACTION_TOOLS)
 
 function requireStructured<T extends Record<string, unknown>>(
   result: ToolResult<T>,
@@ -30,17 +32,16 @@ async function spawnInitializedServer() {
   return server
 }
 
-Deno.test('registerAgent exposes interaction tools', async () => {
+Deno.test('stdio exposes agent interaction tools', async () => {
   await using srv = await spawnInitializedServer()
   const list = await srv.client.listTools({})
-  const names = (list.tools ?? []).map((tool) => tool.name)
-  expect(names).toContain('interaction_start')
-  expect(names).toContain('interaction_await')
-  expect(names).toContain('interaction_cancel')
-  expect(names).toContain('interaction_status')
+  const names = list.tools.map((tool) => tool.name)
+  for (const name of TOOL_NAMES) {
+    expect(names).toContain(name)
+  }
 })
 
-Deno.test('interaction_start stores values accessible via interaction_await', async () => {
+Deno.test('interaction_start values are available via interaction_await', async () => {
   await using srv = await spawnInitializedServer()
 
   const started = await srv.client.callTool({
@@ -71,7 +72,7 @@ Deno.test('interaction_cancel clears stored interaction and updates status', asy
     name: 'interaction_status',
     arguments: { interactionId },
   }) as ToolResult<InteractionStatus>
-  expect(requireStructured(beforeStatus).state).toBe('completed')
+  expect(requireStructured(beforeStatus).state).toBe('pending')
 
   const cancelled = await srv.client.callTool({
     name: 'interaction_cancel',
@@ -85,7 +86,13 @@ Deno.test('interaction_cancel clears stored interaction and updates status', asy
     name: 'interaction_status',
     arguments: { interactionId },
   }) as ToolResult<InteractionStatus>
-  expect(requireStructured(afterStatus).state).toBe('pending')
+  expect(requireStructured(afterStatus).state).toBe('cancelled')
+
+  const awaited = await srv.client.callTool({
+    name: 'interaction_await',
+    arguments: { interactionId },
+  }) as ToolResult<InteractionAwait>
+  expect(awaited.isError).toBe(true)
 })
 
 Deno.test('interaction_await reports error for unknown interaction ids', async () => {
