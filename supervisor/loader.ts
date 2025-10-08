@@ -31,7 +31,7 @@ export const createLoader = (cb: () => void) => {
       // has to go load from the disk to learn what agent to load
 
       const projectRoot = new URL('..', import.meta.url).pathname
-      const file = join(projectRoot, 'agent-test/main.ts')
+      const file = join(projectRoot, 'agent-codex/main.ts')
       try {
         const transport = new StdioClientTransport({
           command: 'deno',

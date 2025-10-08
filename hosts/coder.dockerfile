@@ -76,7 +76,7 @@ RUN deno install --quiet
 
 WORKDIR /workspace
 
-ENV DEBUG=@artifact/host-*
+ENV DEBUG=@artifact/*
 ENV DEBUG_COLORS=1
 ENV DEBUG_HIDE_DATE=1
 

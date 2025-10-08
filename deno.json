@@ -12,6 +12,7 @@
     "fly-openai"
   ],
   "tasks": {
+    "inspect": "npx -y @modelcontextprotocol/inspector",
     "ok": "deno task --filter='@artifact/' ok",
     "deploy-host-basic": "flyctl deploy -c fly.host-basic.toml",
     "deploy-host-coder": "flyctl deploy -c fly.host-coder.toml",
