@@ -1,11 +1,11 @@
 import {
   INTERACTION_TOOL_NAMES,
-  requireStructured,
-  spawnStdioMcpServer,
   type InteractionAwait,
   type InteractionCancel,
   type InteractionStart,
   type InteractionStatus,
+  requireStructured,
+  spawnStdioMcpServer,
   type ToolResult,
 } from '@artifact/shared'
 import { expect } from '@std/expect'
