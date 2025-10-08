@@ -190,52 +190,49 @@ Deno.test('cancel interaction sends tmux interrupt when active', async () => {
 
 Deno.test('mcp server exposes interaction tools and resolves via notify', async () => {
   const notifyDir = await Deno.makeTempDir()
-  try {
-    await using srv = await spawnStdioMcpServer({
-      env: {
-        OPENAI_API_KEY: 'test-key',
-        CODEX_AGENT_NOTIFY_DIR: notifyDir,
-        CODEX_AGENT_LAUNCH: 'disabled',
-      },
-    })
+  await using srv = await spawnStdioMcpServer({
+    env: {
+      OPENAI_API_KEY: 'test-key',
+      CODEX_AGENT_NOTIFY_DIR: notifyDir,
+      CODEX_AGENT_LAUNCH: 'disabled',
+    },
+    dispose: () => Deno.remove(notifyDir, { recursive: true }),
+  })
 
-    const listed = await srv.client.listTools({})
-    const names = listed.tools.map((tool) => tool.name)
-    for (const name of INTERACTION_TOOL_NAMES) {
-      expect(names).toContain(name)
-    }
-
-    const started = await srv.client.callTool({
-      name: 'interaction_start',
-      arguments: { agentId, input: 'build project' },
-    }) as ToolResult<InteractionStart>
-    const { interactionId } = requireStructured(started)
-    expect(typeof interactionId).toBe('string')
-
-    const payload =
-      '{"type":"agent-turn-complete","turn-id":"t42","input-messages":["build project"],"last-assistant-message":"done"}'
-    await Deno.writeTextFile(join(notifyDir, 'notify.json'), payload)
-
-    const awaited = await srv.client.callTool({
-      name: 'interaction_await',
-      arguments: { agentId, interactionId },
-    }) as ToolResult<InteractionAwait>
-    expect(requireStructured(awaited).value).toBe(payload)
-
-    const status = await srv.client.callTool({
-      name: 'interaction_status',
-      arguments: { agentId, interactionId },
-    }) as ToolResult<InteractionStatus>
-    expect(requireStructured(status).state).toBe('completed')
-
-    const cancelled = await srv.client.callTool({
-      name: 'interaction_cancel',
-      arguments: { agentId, interactionId },
-    }) as ToolResult<InteractionCancel>
-    expect(requireStructured(cancelled).cancelled).toBe(false)
-  } finally {
-    await Deno.remove(notifyDir, { recursive: true })
+  const listed = await srv.client.listTools({})
+  const names = listed.tools.map((tool) => tool.name)
+  for (const name of INTERACTION_TOOL_NAMES) {
+    expect(names).toContain(name)
   }
+
+  const started = await srv.client.callTool({
+    name: 'interaction_start',
+    arguments: { agentId, input: 'build project' },
+  }) as ToolResult<InteractionStart>
+  const { interactionId } = requireStructured(started)
+  expect(typeof interactionId).toBe('string')
+
+  const payload =
+    '{"type":"agent-turn-complete","turn-id":"t42","input-messages":["build project"],"last-assistant-message":"done"}'
+  await Deno.writeTextFile(join(notifyDir, 'notify.json'), payload)
+
+  const awaited = await srv.client.callTool({
+    name: 'interaction_await',
+    arguments: { agentId, interactionId },
+  }) as ToolResult<InteractionAwait>
+  expect(requireStructured(awaited).value).toBe(payload)
+
+  const status = await srv.client.callTool({
+    name: 'interaction_status',
+    arguments: { agentId, interactionId },
+  }) as ToolResult<InteractionStatus>
+  expect(requireStructured(status).state).toBe('completed')
+
+  const cancelled = await srv.client.callTool({
+    name: 'interaction_cancel',
+    arguments: { agentId, interactionId },
+  }) as ToolResult<InteractionCancel>
+  expect(requireStructured(cancelled).cancelled).toBe(false)
 })
 
 async function pathExists(path: string) {

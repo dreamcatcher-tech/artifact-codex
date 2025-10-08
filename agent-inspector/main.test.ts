@@ -109,9 +109,7 @@ Deno.test('interaction_await reports error for unknown interaction id', async ()
     arguments: { agentId, interactionId: 'missing' },
   })
   expect(result.isError).toBe(true)
-  const payload = Array.isArray(result.content)
-    ? result.content[0]
-    : undefined
+  const payload = Array.isArray(result.content) ? result.content[0] : undefined
   expect(payload?.type).toBe('text')
   expect(String(payload?.text ?? '')).toContain(
     'unknown interaction id: missing',

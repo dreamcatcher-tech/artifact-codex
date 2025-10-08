@@ -4,12 +4,12 @@ import {
   AGENT_HOME,
   AGENT_TOML,
   AGENT_WORKSPACE,
+  type AgentOptions,
+  type AgentView,
   HOST,
   INTERACTION_TOOLS,
   launchTmuxTerminal,
   toStructured,
-  type AgentOptions,
-  type AgentView,
 } from '@artifact/shared'
 import type { InteractionStatus } from '@artifact/shared'
 import { join } from '@std/path'
@@ -95,7 +95,7 @@ export function registerAgent(server: McpServer) {
         return
       }
 
-      const env = {
+      const env: Record<string, string> = {
         ...readEnvSafe(),
         HOST,
         ALLOWED_ORIGINS: '*',
@@ -170,7 +170,7 @@ export function registerAgent(server: McpServer) {
   ): InteractionRecord | undefined => interactions.get(id)
 
   const startInteraction = (
-    input: string,
+    _input: string,
   ): { interactionId: string; record: InteractionRecord } => {
     const interactionId = String(interactionSeq++)
     const record: InteractionRecord = {
@@ -181,11 +181,11 @@ export function registerAgent(server: McpServer) {
     const promise = (async () => {
       try {
         await ensureLaunch()
-        if (record.state === 'cancelled') {
+        if (resolveInteraction(interactionId)?.state === 'cancelled') {
           throw new Error(`interaction cancelled: ${interactionId}`)
         }
         await waitForCancelWindow()
-        if (record.state === 'cancelled') {
+        if (resolveInteraction(interactionId)?.state === 'cancelled') {
           throw new Error(`interaction cancelled: ${interactionId}`)
         }
         record.state = 'completed'
