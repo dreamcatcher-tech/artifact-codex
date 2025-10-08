@@ -1,3 +1,8 @@
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { waitForPidExit } from './mcp.ts'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+
 export type SpawnOptions = {
   /**
    * Command to run. Defaults to `deno`.
@@ -25,10 +30,6 @@ export type StdioMcpServer = {
   close: () => void
   [Symbol.asyncDispose]: () => Promise<void>
 }
-
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { waitForPidExit } from './mcp.ts'
 
 export async function spawnStdioMcpServer(
   opts: SpawnOptions = {},
@@ -77,4 +78,23 @@ export async function spawnStdioMcpServer(
     close,
     [Symbol.asyncDispose]: close,
   }
+}
+
+type TextContent = {
+  text: string
+  mimeType?: string
+}
+export function isTextContent(content: unknown): content is TextContent {
+  return Boolean(
+    content && typeof content === 'object' &&
+      typeof (content as { text?: unknown }).text === 'string',
+  )
+}
+
+export function readErrorText(result: CallToolResult): string {
+  const entry = Array.isArray(result.content) ? result.content[0] : undefined
+  if (entry && entry.type === 'text' && typeof entry.text === 'string') {
+    return entry.text
+  }
+  return ''
 }

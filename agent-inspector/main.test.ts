@@ -1,21 +1,13 @@
 import {
   INTERACTION_TOOL_NAMES,
-  type InteractionAwait,
-  type InteractionCancel,
-  type InteractionStart,
-  type InteractionStatus,
-  requireStructured,
+  isTextContent,
+  readErrorText,
   spawnStdioMcpServer,
-  type ToolResult,
 } from '@artifact/shared'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { expect } from '@std/expect'
 
 const agentId = 'agent-inspector'
-
-type TextContent = {
-  text: string
-  mimeType?: string
-}
 
 async function prepareEnv(
   config: Record<string, unknown> = { test: true },
@@ -36,13 +28,6 @@ async function prepareEnv(
   return { env, dispose }
 }
 
-function isTextContent(content: unknown): content is TextContent {
-  return Boolean(
-    content && typeof content === 'object' &&
-      typeof (content as { text?: unknown }).text === 'string',
-  )
-}
-
 Deno.test('stdio exposes agent interaction tools', async () => {
   const { env, dispose } = await prepareEnv()
   await using srv = await spawnStdioMcpServer({ env, dispose })
@@ -53,55 +38,42 @@ Deno.test('stdio exposes agent interaction tools', async () => {
   }
 })
 
-Deno.test('interaction_start awaits ready state', async () => {
+Deno.test('interaction_start rejects requests', async () => {
   const { env, dispose } = await prepareEnv()
   await using srv = await spawnStdioMcpServer({ env, dispose })
   const started = await srv.client.callTool({
     name: 'interaction_start',
     arguments: { agentId, input: 'launch inspector' },
-  }) as ToolResult<InteractionStart>
-  const { interactionId } = requireStructured(started)
-  expect(typeof interactionId).toBe('string')
-
-  const awaited = await srv.client.callTool({
-    name: 'interaction_await',
-    arguments: { agentId, interactionId },
-  }) as ToolResult<InteractionAwait>
-  const { value } = requireStructured(awaited)
-  expect(value).toBe('ready')
+  })
+  expect(started.isError).toBe(true)
+  expect(readErrorText(started as CallToolResult)).toContain(
+    'does not support interactions',
+  )
 })
 
-Deno.test('interaction_cancel marks interaction as cancelled', async () => {
+Deno.test('interaction_cancel rejects requests', async () => {
   const { env, dispose } = await prepareEnv()
   await using srv = await spawnStdioMcpServer({ env, dispose })
-  const started = await srv.client.callTool({
-    name: 'interaction_start',
-    arguments: { agentId, input: 'noop' },
-  }) as ToolResult<InteractionStart>
-  const { interactionId } = requireStructured(started)
-
   const cancelled = await srv.client.callTool({
     name: 'interaction_cancel',
-    arguments: { agentId, interactionId },
-  }) as ToolResult<InteractionCancel>
-  const { cancelled: didCancel, wasActive } = requireStructured(cancelled)
-  expect(didCancel).toBe(true)
-  expect(wasActive).toBe(true)
+    arguments: { agentId, interactionId: 'noop' },
+  })
+  expect(cancelled.isError).toBe(true)
+  expect(readErrorText(cancelled as CallToolResult)).toContain(
+    'does not support interactions',
+  )
 
   const status = await srv.client.callTool({
     name: 'interaction_status',
-    arguments: { agentId, interactionId },
-  }) as ToolResult<InteractionStatus>
-  expect(requireStructured(status).state).toBe('cancelled')
-
-  const awaited = await srv.client.callTool({
-    name: 'interaction_await',
-    arguments: { agentId, interactionId },
+    arguments: { agentId, interactionId: 'noop' },
   })
-  expect(awaited.isError).toBe(true)
+  expect(status.isError).toBe(true)
+  expect(readErrorText(status as CallToolResult)).toContain(
+    'does not support interactions',
+  )
 })
 
-Deno.test('interaction_await reports error for unknown interaction id', async () => {
+Deno.test('interaction_await rejects requests', async () => {
   const { env, dispose } = await prepareEnv()
   await using srv = await spawnStdioMcpServer({ env, dispose })
   const result = await srv.client.callTool({
@@ -109,10 +81,8 @@ Deno.test('interaction_await reports error for unknown interaction id', async ()
     arguments: { agentId, interactionId: 'missing' },
   })
   expect(result.isError).toBe(true)
-  const payload = Array.isArray(result.content) ? result.content[0] : undefined
-  expect(payload?.type).toBe('text')
-  expect(String(payload?.text ?? '')).toContain(
-    'unknown interaction id: missing',
+  expect(readErrorText(result as CallToolResult)).toContain(
+    'does not support interactions',
   )
 })
 

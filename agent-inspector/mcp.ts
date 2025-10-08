@@ -1,5 +1,4 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import {
   AGENT_HOME,
   AGENT_TOML,
@@ -9,9 +8,7 @@ import {
   HOST,
   INTERACTION_TOOLS,
   launchTmuxTerminal,
-  toStructured,
 } from '@artifact/shared'
-import type { InteractionStatus } from '@artifact/shared'
 import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 
@@ -30,13 +27,6 @@ type InspectorAgentOptions = AgentOptions & {
   config?: Record<string, unknown>
 }
 
-type InteractionRecord = {
-  state: InteractionStatus['state']
-  promise: Promise<string>
-  result?: string
-  error?: Error
-}
-
 export function registerAgent(server: McpServer) {
   const optionsPromise = resolveAgentOptions()
 
@@ -53,9 +43,6 @@ export function registerAgent(server: McpServer) {
   let views: AgentView[] = []
   let launchPromise: Promise<void> | null = null
   let launchError: Error | null = null
-
-  const interactions = new Map<string, InteractionRecord>()
-  let interactionSeq = 0
 
   const ensureLaunch = async () => {
     if (launchError) throw launchError
@@ -165,113 +152,37 @@ export function registerAgent(server: McpServer) {
     }
   }
 
-  const resolveInteraction = (
-    id: string,
-  ): InteractionRecord | undefined => interactions.get(id)
-
-  const startInteraction = (
-    _input: string,
-  ): { interactionId: string; record: InteractionRecord } => {
-    const interactionId = String(interactionSeq++)
-    const record: InteractionRecord = {
-      state: 'pending',
-      promise: Promise.resolve(''),
-    }
-
-    const promise = (async () => {
-      try {
-        await ensureLaunch()
-        if (resolveInteraction(interactionId)?.state === 'cancelled') {
-          throw new Error(`interaction cancelled: ${interactionId}`)
-        }
-        await waitForCancelWindow()
-        if (resolveInteraction(interactionId)?.state === 'cancelled') {
-          throw new Error(`interaction cancelled: ${interactionId}`)
-        }
-        record.state = 'completed'
-        record.result = 'ready'
-        return record.result
-      } catch (error) {
-        if (record.state !== 'cancelled') {
-          record.state = 'completed'
-        }
-        const err = error instanceof Error ? error : new Error(String(error))
-        record.error = err
-        throw err
-      }
-    })()
-    promise.catch(() => {
-      // Avoid unhandled rejection noise; actual error surfaced via record.error
-    })
-    record.promise = promise
-
-    interactions.set(interactionId, record)
-    return { interactionId, record }
-  }
-
-  const awaitInteraction = async (
-    interactionId: string,
-  ): Promise<CallToolResult> => {
-    const record = resolveInteraction(interactionId)
-    if (!record) throw new Error(`unknown interaction id: ${interactionId}`)
-    if (record.state === 'cancelled') {
-      interactions.delete(interactionId)
-      throw record.error ?? new Error(`interaction cancelled: ${interactionId}`)
-    }
-    try {
-      const value = await record.promise
-      interactions.delete(interactionId)
-      return toStructured({ value })
-    } catch (error) {
-      interactions.delete(interactionId)
-      throw error
-    }
-  }
-
-  const cancelInteraction = (interactionId: string): CallToolResult => {
-    const record = resolveInteraction(interactionId)
-    if (!record) {
-      return toStructured({ cancelled: false, wasActive: false })
-    }
-    record.state = 'cancelled'
-    if (!record.error) {
-      record.error = new Error(`interaction cancelled: ${interactionId}`)
-    }
-    interactions.set(interactionId, record)
-    return toStructured({ cancelled: true, wasActive: true })
-  }
-
-  const statusInteraction = (interactionId: string): CallToolResult => {
-    const record = resolveInteraction(interactionId)
-    const state = record?.state ?? 'pending'
-    return toStructured({ state })
-  }
-
   server.registerTool(
     'interaction_start',
     INTERACTION_TOOLS.interaction_start,
-    ({ agentId: _agentId, input }) => {
-      const { interactionId } = startInteraction(input)
-      return toStructured({ interactionId })
+    async () => {
+      await ensureLaunch()
+      throw new Error('agent-inspector does not support interactions')
     },
   )
 
   server.registerTool(
     'interaction_await',
     INTERACTION_TOOLS.interaction_await,
-    ({ agentId: _agentId, interactionId }) => awaitInteraction(interactionId),
+    () => {
+      throw new Error('agent-inspector does not support interactions')
+    },
   )
 
   server.registerTool(
     'interaction_cancel',
     INTERACTION_TOOLS.interaction_cancel,
-    ({ agentId: _agentId, interactionId }) => cancelInteraction(interactionId),
+    () => {
+      throw new Error('agent-inspector does not support interactions')
+    },
   )
 
   server.registerTool(
     'interaction_status',
     INTERACTION_TOOLS.interaction_status,
-    ({ agentId: _agentId, interactionId }) => statusInteraction(interactionId),
+    () => {
+      throw new Error('agent-inspector does not support interactions')
+    },
   )
 
   server.registerResource(
@@ -506,8 +417,4 @@ function readEnvSafe(): Record<string, string> {
   } catch {
     return {}
   }
-}
-
-async function waitForCancelWindow() {
-  await new Promise((resolve) => setTimeout(resolve))
 }

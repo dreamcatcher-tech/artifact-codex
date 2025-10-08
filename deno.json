@@ -1,8 +1,5 @@
 {
   "workspace": [
-    "mcp-agents",
-    "mcp-computers",
-    "mcp-interactions",
     "agent-cmd",
     "agent-codex",
     "agent-inspector",
