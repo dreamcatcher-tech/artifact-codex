@@ -1,15 +1,12 @@
-import { spawnStdioMcpServer } from '@artifact/shared'
+import { requireStructured, spawnStdioMcpServer } from '@artifact/shared'
+import type {
+  InteractionAwait,
+  InteractionCancel,
+  InteractionStart,
+  InteractionStatus,
+  ToolResult,
+} from '@artifact/shared'
 import { expect } from '@std/expect'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-
-type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
-  structuredContent?: T
-}
-
-type InteractionStart = { interactionId: string }
-type InteractionAwait = { value: string }
-type InteractionCancel = { cancelled: boolean; wasActive: boolean }
-type InteractionStatus = { state: 'pending' | 'completed' | 'cancelled' }
 
 type TextContent = {
   uri: string
@@ -20,19 +17,6 @@ type TextContent = {
 const viewsResourceName = 'views'
 const viewsResourceUri = 'mcp://views'
 const agentId = 'agent-cmd'
-
-function requireStructured<T extends Record<string, unknown>>(
-  result: ToolResult<T>,
-): T {
-  if (!result || typeof result !== 'object') {
-    throw new Error('tool result missing structured content')
-  }
-  const structured = result.structuredContent
-  if (!structured || typeof structured !== 'object') {
-    throw new Error('tool result missing structured content')
-  }
-  return structured
-}
 
 Deno.test('interaction_start followed by interaction_await returns ok', async () => {
   await using srv = await spawnStdioMcpServer()

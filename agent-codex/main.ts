@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Agent, AgentView } from '@artifact/shared'
+import type { AgentView } from '@artifact/shared'
 import { HOST, launchTmuxTerminal, sendKeysViaTmux } from '@artifact/shared'
 import { startNotifyWatcher } from './notify_watcher.ts'
 import {
@@ -29,7 +29,7 @@ type LaunchState = {
   tmuxSession?: string
 }
 
-export function startAgentCodex(opts: CodexFaceOptions = {}): Agent {
+export function startAgentCodex(opts: CodexFaceOptions = {}) {
   console.log('startAgentCodex:', opts)
   const startedAt = new Date()
   let closed = false

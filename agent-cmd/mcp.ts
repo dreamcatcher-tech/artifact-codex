@@ -28,7 +28,7 @@ type CmdConfig = {
 }
 
 type InteractionRecord = {
-  state: InteractionStatus
+  state: InteractionStatus['state']
   promise: Promise<string>
   result?: string
   error?: Error
