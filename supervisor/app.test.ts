@@ -3,6 +3,8 @@ import { createFixture } from './fixture.ts'
 import { INTERACTION_TOOLS } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+const agentId = 'agent-1'
+
 Deno.test('app routes MCP traffic to the agent once the loader completes', async () => {
   await using fixture = await createFixture()
   const { client } = fixture
@@ -13,7 +15,7 @@ Deno.test('app routes MCP traffic to the agent once the loader completes', async
 
   const loadResult = await client.callTool({
     name: 'load',
-    arguments: { computerId: 'comp-1', agentId: 'agent-1' },
+    arguments: { computerId: 'comp-1', agentId },
   }) as CallToolResult
   expect(loadResult.isError).not.toBeDefined()
   expect(loadResult.structuredContent).toEqual({ ok: true })
@@ -26,14 +28,14 @@ Deno.test('app routes MCP traffic to the agent once the loader completes', async
 
   const start = await client.callTool({
     name: 'interaction_start',
-    arguments: { input: 'hello' },
+    arguments: { agentId, input: 'hello' },
   }) as { structuredContent: { interactionId: string } }
   const { interactionId } = start.structuredContent
   expect(typeof interactionId).toBe('string')
 
   const awaited = await client.callTool({
     name: 'interaction_await',
-    arguments: { interactionId },
+    arguments: { agentId, interactionId },
   }) as { structuredContent: { value: string } }
   expect(awaited.structuredContent.value).toBe('hello')
 })

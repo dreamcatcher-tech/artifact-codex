@@ -6,6 +6,7 @@ import {
   AGENT_WORKSPACE,
   HOST,
   INTERACTION_TOOLS,
+  type InteractionStatus,
   launchTmuxTerminal,
   parseWritable,
   sendKeysViaTmux,
@@ -16,8 +17,8 @@ import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 
 const DEFAULT_TTYD_PORT = 10000
-const VIEWS_RESOURCE_NAME = 'agent-cmd/views'
-const VIEWS_RESOURCE_URI = 'mcp://agent-cmd/views'
+const VIEWS_RESOURCE_NAME = 'views'
+const VIEWS_RESOURCE_URI = 'mcp://views'
 
 type CmdConfig = {
   command: string[]
@@ -26,27 +27,21 @@ type CmdConfig = {
   writeable: boolean
 }
 
-type InteractionState = 'pending' | 'completed' | 'cancelled'
-
 type InteractionRecord = {
-  state: InteractionState
+  state: InteractionStatus
   promise: Promise<string>
   result?: string
   error?: Error
 }
 
-type RegisterAgentOptions = AgentOptions
-
-export function registerAgent(
-  server: McpServer,
-  options?: RegisterAgentOptions,
-) {
-  const optionsPromise = options
-    ? Promise.resolve(options)
+export function registerAgent(server: McpServer) {
+  const globalOptions = (globalThis as { options?: AgentOptions }).options
+  const optionsPromise: Promise<AgentOptions> = globalOptions
+    ? Promise.resolve(globalOptions)
     : resolveAgentOptionsFromFs()
-  let cachedOptions: AgentOptions | null = null
+  let cachedOptions: AgentOptions | undefined
 
-  const getOptions = async () => {
+  const getOptions = async (): Promise<AgentOptions> => {
     if (!cachedOptions) {
       cachedOptions = await optionsPromise
     }
@@ -214,8 +209,8 @@ export function registerAgent(
   server.registerTool(
     'interaction_start',
     INTERACTION_TOOLS.interaction_start,
-    (params) => {
-      const { interactionId } = startInteraction(params.input)
+    ({ agentId: _agentId, input }) => {
+      const { interactionId } = startInteraction(input)
       return toStructured({ interactionId })
     },
   )
@@ -223,22 +218,22 @@ export function registerAgent(
   server.registerTool(
     'interaction_await',
     INTERACTION_TOOLS.interaction_await,
-    (params) => awaitInteraction(params.interactionId),
+    ({ agentId: _agentId, interactionId }) => awaitInteraction(interactionId),
   )
 
   server.registerTool(
     'interaction_cancel',
     INTERACTION_TOOLS.interaction_cancel,
-    (params) => cancelInteraction(params.interactionId),
+    ({ agentId: _agentId, interactionId }) => cancelInteraction(interactionId),
   )
 
   server.registerTool(
     'interaction_status',
     INTERACTION_TOOLS.interaction_status,
-    (params) => statusInteraction(params.interactionId),
+    ({ agentId: _agentId, interactionId }) => statusInteraction(interactionId),
   )
 
-  server.resource(
+  server.registerResource(
     VIEWS_RESOURCE_NAME,
     VIEWS_RESOURCE_URI,
     {
@@ -258,7 +253,6 @@ export function registerAgent(
       }
     },
   )
-  server.sendResourceListChanged()
 
   addEventListener('unload', () => {
     destroy().catch(() => {

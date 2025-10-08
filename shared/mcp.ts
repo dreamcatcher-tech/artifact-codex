@@ -86,26 +86,26 @@ export const INTERACTION_TOOLS: Record<string, ToolConfig> = {
   interaction_start: {
     title: 'Start Interaction',
     description: 'Queue a new interaction.',
-    inputSchema: { input: z.string() },
+    inputSchema: { agentId: z.string(), input: z.string() },
     outputSchema: { interactionId: z.string() },
   },
   interaction_await: {
     title: 'Await Interaction',
     description:
       'Await the result of a previously queued interaction. Returns the echoed value or an error when the agent throws.',
-    inputSchema: { interactionId: z.string() },
+    inputSchema: { agentId: z.string(), interactionId: z.string() },
     outputSchema: { value: z.string() },
   },
   interaction_cancel: {
     title: 'Cancel Interaction',
     description: 'Cancel a pending interaction by id.',
-    inputSchema: { interactionId: z.string() },
+    inputSchema: { agentId: z.string(), interactionId: z.string() },
     outputSchema: { cancelled: z.boolean(), wasActive: z.boolean() },
   },
   interaction_status: {
     title: 'Get Interaction Status',
     description: 'Get the status of a previously queued interaction.',
-    inputSchema: { interactionId: z.string() },
+    inputSchema: { agentId: z.string(), interactionId: z.string() },
     outputSchema: {
       state: z.enum(['pending', 'completed', 'cancelled', 'rejected']),
     },

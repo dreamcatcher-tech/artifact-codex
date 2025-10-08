@@ -15,19 +15,19 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_start',
     INTERACTION_TOOLS.interaction_start,
-    (params) => {
-      if (params.input === 'error') {
+    ({ agentId: _agentId, input }) => {
+      if (input === 'error') {
         throw new Error('Test error')
       }
       const interactionId = String(interactionIdSequence++)
-      if (params.input === 'reject') {
+      if (input === 'reject') {
         interactions.set(interactionId, {
-          error: new Error(params.input),
+          error: new Error(input),
           state: 'pending',
         })
       } else {
         interactions.set(interactionId, {
-          value: params.input,
+          value: input,
           state: 'pending',
         })
       }
@@ -37,23 +37,23 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_await',
     INTERACTION_TOOLS.interaction_await,
-    (params) => {
-      const interaction = interactions.get(params.interactionId)
+    ({ agentId: _agentId, interactionId }) => {
+      const interaction = interactions.get(interactionId)
       if (!interaction) {
-        throw new Error(`unknown interaction id: ${params.interactionId}`)
+        throw new Error(`unknown interaction id: ${interactionId}`)
       }
       const { value, error } = interaction
       if (!value) {
-        throw new Error(`corrupted interaction id: ${params.interactionId}`)
+        throw new Error(`corrupted interaction id: ${interactionId}`)
       }
       if (error) {
-        interactions.set(params.interactionId, {
+        interactions.set(interactionId, {
           ...interaction,
           state: 'rejected',
         })
         throw error
       }
-      interactions.set(params.interactionId, {
+      interactions.set(interactionId, {
         ...interaction,
         state: 'completed',
       })
@@ -77,10 +77,10 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_cancel',
     INTERACTION_TOOLS.interaction_cancel,
-    (params) => {
-      const wasActive = interactions.delete(params.interactionId)
-      interactions.set(params.interactionId, {
-        ...interactions.get(params.interactionId)!,
+    ({ agentId: _agentId, interactionId }) => {
+      const wasActive = interactions.delete(interactionId)
+      interactions.set(interactionId, {
+        ...interactions.get(interactionId)!,
         state: 'cancelled',
       })
       return toStructured({ cancelled: true, wasActive })
@@ -89,10 +89,10 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_status',
     INTERACTION_TOOLS.interaction_status,
-    (params) => {
-      const interaction = interactions.get(params.interactionId)
+    ({ agentId: _agentId, interactionId }) => {
+      const interaction = interactions.get(interactionId)
       if (!interaction) {
-        throw new Error(`unknown interaction id: ${params.interactionId}`)
+        throw new Error(`unknown interaction id: ${interactionId}`)
       }
       return toStructured({
         state: interaction.state,
