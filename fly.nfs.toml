@@ -1,27 +1,26 @@
-app = 'nfs-proto'
+app            = 'nfs-proto'
 primary_region = 'syd'
 
 [build]
   dockerfile = 'fly-nfs/Dockerfile'
 
 [[services]]
-  internal_port = 2049
-  protocol = 'tcp'
-  auto_stop_machines = 'suspend'
-  auto_start_machines = true
+  internal_port        = 2049
+  protocol             = 'tcp'
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
   min_machines_running = 0
 
   [[services.ports]]
     port = 2049
 
-[deploy]
-  release_command = '/self-mount-check.sh'
-
 [[vm]]
-  memory = '256mb'
+  memory   = '256mb'
   cpu_kind = 'shared'
-  cpus = 1
+  cpus     = 1
 
 [[mounts]]
-  source = 'nfsdata'
+  source      = 'nfsdata'
   destination = '/data'
+
+  # TODO make a release command to check the mount works before deploying

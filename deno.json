@@ -13,12 +13,12 @@
   ],
   "tasks": {
     "ok": "deno task --filter='@artifact/' ok",
-    "deploy-host-basic": "fly deploy -c fly.host-basic.toml",
-    "deploy-host-coder": "fly deploy -c fly.host-coder.toml",
-    "deploy-exec": "fly deploy -c fly.exec.toml",
-    "deploy-nfs": "fly deploy -c fly.nfs.toml",
-    "deploy-openai": "fly deploy -c fly.openai.toml",
-    "deploy-router": "fly deploy -c fly.router.toml",
+    "deploy-host-basic": "flyctl deploy -c fly.host-basic.toml",
+    "deploy-host-coder": "flyctl deploy -c fly.host-coder.toml",
+    "deploy-exec": "flyctl deploy -c fly.exec.toml",
+    "deploy-nfs": "flyctl deploy -c fly.nfs.toml",
+    "deploy-openai": "flyctl deploy -c fly.openai.toml",
+    "deploy-router": "flyctl deploy -c fly.router.toml",
     "base": { "dependencies": ["deploy-nfs", "deploy-openai"] },
     "compute": { "dependencies": ["deploy-exec", "deploy-router"] },
     "agents": {

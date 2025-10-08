@@ -16,12 +16,13 @@ RUN ln -sf /proc/self/mounts /etc/mtab
 # Volume mountpoint (Fly will mount here)
 RUN mkdir -p /data
 
-COPY fly-nfs/ganesha.conf /etc/ganesha/ganesha.conf
-COPY fly-nfs/entrypoint.sh /entrypoint.sh
-COPY fly-nfs/scripts/self-mount-check.sh /self-mount-check.sh
-COPY scripts/mount-nfs.sh /usr/local/bin/mount-nfs.sh
-RUN chmod +x /entrypoint.sh
-RUN chmod +x /self-mount-check.sh
-RUN chmod +x /usr/local/bin/mount-nfs.sh
+WORKDIR /app
 
-CMD ["/entrypoint.sh"]
+COPY . .
+
+WORKDIR /app/fly-nfs
+
+# Copy ganesha config from build context into container
+COPY fly-nfs/ganesha.conf /etc/ganesha/ganesha.conf
+
+CMD ["/app/fly-nfs/entrypoint.sh"]
