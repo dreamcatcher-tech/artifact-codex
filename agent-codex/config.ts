@@ -1,13 +1,35 @@
 import { dirname, fromFileUrl, join, resolve } from '@std/path'
-import { type AgentOptions, envs } from '@artifact/shared'
+import { type AgentOptions, type AgentView, envs } from '@artifact/shared'
 
 export type CodexConfig = {
-  test?: boolean
   env?: Record<string, string>
   getEnv?: (key: string) => string | undefined
   launch?: 'tmux' | 'disabled'
+  notifyDir?: string
 }
-export type CodexFaceOptions = AgentOptions & { config?: CodexConfig }
+export type CodexLaunchArgs = {
+  configDir: string
+  workspace: string
+  host: string
+  tmuxSession: string
+}
+
+export type CodexLaunchResult = {
+  child?: Deno.ChildProcess
+  pid?: number
+  views: AgentView[]
+}
+
+export type CodexOverrides = {
+  sendKeys?: (session: string, input: string) => Promise<void>
+  sendCancel?: (session: string) => Promise<void>
+  launchProcess?: (args: CodexLaunchArgs) => Promise<CodexLaunchResult>
+}
+
+export type CodexAgentOptions = AgentOptions & {
+  config?: CodexConfig
+  overrides?: CodexOverrides
+}
 
 const MODULE_DIR = dirname(fromFileUrl(import.meta.url))
 const REPO_ROOT = dirname(MODULE_DIR)
@@ -15,7 +37,7 @@ const TEMPLATE_PATH = join(MODULE_DIR, 'codex.config.toml')
 const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
 const NOTIFY_MARKER_LINE = 'notify = "__CODEX_NOTIFY__"'
 const DREAMCATCHER_DIR = '.dreamcatcher'
-const FACE_HOME_BUCKET = 'agent-codex'
+const AGENT_HOME_BUCKET = 'agent-codex'
 const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY'
 
 const TEMPLATE_REWRITES: Record<string, string> = {
@@ -25,7 +47,6 @@ const TEMPLATE_REWRITES: Record<string, string> = {
     'main.ts',
   ),
   '__MCP_AGENTS_COMMAND__': join(REPO_ROOT, 'mcp-agents', 'main.ts'),
-  '__MCP_FACES_COMMAND__': join(REPO_ROOT, 'mcp-faces', 'main.ts'),
   '__MCP_INTERACTIONS_COMMAND__': join(
     REPO_ROOT,
     'mcp-interactions',
@@ -40,7 +61,7 @@ export type LaunchPreparation = {
 }
 
 export async function prepareLaunchDirectories(
-  opts: CodexFaceOptions,
+  opts: CodexAgentOptions,
 ): Promise<LaunchPreparation | undefined> {
   const workspace = opts.workspace
   if (!workspace) return undefined
@@ -61,7 +82,7 @@ function resolveHomePath(
     return join(
       workspace,
       DREAMCATCHER_DIR,
-      FACE_HOME_BUCKET,
+      AGENT_HOME_BUCKET,
       crypto.randomUUID(),
     )
   }
@@ -134,7 +155,7 @@ function ensureNotifyBlock(template: string, configDir: string): string {
 }
 
 function createEnvResolver(
-  opts: CodexFaceOptions,
+  opts: CodexAgentOptions,
 ): (key: string) => string | undefined {
   const cfg = opts.config
   if (cfg?.getEnv) {
@@ -147,7 +168,7 @@ function createEnvResolver(
   return (key: string) => Deno.env.get(key)
 }
 
-async function writeAuthFile(configDir: string, opts: CodexFaceOptions) {
+async function writeAuthFile(configDir: string, opts: CodexAgentOptions) {
   const getEnv = createEnvResolver(opts)
   const apiKey = getEnv(OPENAI_API_KEY_ENV)
   if (!apiKey) {

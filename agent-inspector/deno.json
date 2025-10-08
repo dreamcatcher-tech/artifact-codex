@@ -1,6 +1,7 @@
 {
   "name": "@artifact/agent-inspector",
-  "exports": "./main.ts",
+  "version": "0.0.1",
+  "exports": "./mod.ts",
   "tasks": {
     "dev": "deno run -A dev.ts",
     "watch": "deno test -A --watch",

@@ -1,149 +1,239 @@
+import {
+  INTERACTION_TOOL_NAMES,
+  type InteractionAwait,
+  type InteractionCancel,
+  type InteractionStart,
+  type InteractionStatus,
+  requireStructured,
+  spawnStdioMcpServer,
+  type ToolResult,
+} from '@artifact/shared'
 import { expect } from '@std/expect'
-import { startAgentCodex } from './main.ts'
-import { dirname, fromFileUrl, join } from '@std/path'
-import { envs } from '@artifact/shared'
+import { join } from '@std/path'
+import { createCodexAgent } from './codex.ts'
+import type { CodexAgent } from './codex.ts'
+import type { CodexLaunchResult } from './config.ts'
+
+const agentId = 'agent-codex'
 
 Deno.test('destroy removes home directory when prepared', async () => {
   const workspace = await Deno.makeTempDir()
-  const face = startAgentCodex({
-    workspace,
-    config: {
-      getEnv: (key) => key === 'OPENAI_API_KEY' ? 'test-key' : undefined,
-      launch: 'disabled',
-    },
-  })
-  let destroyed = false
+  let agent: CodexAgent | undefined
   try {
-    const statusBefore = await face.status()
-    const home = statusBefore.home
-    if (!home) {
-      throw new Error('expected home directory')
-    }
+    agent = createCodexAgent({
+      workspace,
+      config: {
+        env: { OPENAI_API_KEY: 'test-key' },
+        launch: 'disabled',
+      },
+    })
+    const status = await agent.status()
+    const home = status.home
+    if (!home) throw new Error('expected home directory')
     expect(await pathExists(home)).toBe(true)
-    await face.destroy()
-    destroyed = true
+    await agent.destroy()
     expect(await pathExists(home)).toBe(false)
   } finally {
-    if (!destroyed) {
-      try {
-        await face.destroy()
-      } catch {
-        // ignore
-      }
+    try {
+      await agent?.destroy()
+    } catch {
+      // ignore
     }
     await Deno.remove(workspace, { recursive: true })
   }
 })
 
-Deno.test('config writes notify block before tables', async () => {
-  const workspace = await Deno.makeTempDir()
-  const face = startAgentCodex({
-    workspace,
-    config: {
-      getEnv: (key) => key === 'OPENAI_API_KEY' ? 'test-key' : undefined,
-      launch: 'disabled',
-    },
+Deno.test('interaction resolves after notification is written', async () => {
+  const notifyDir = await Deno.makeTempDir()
+  const agent = createCodexAgent({
+    config: { notifyDir, launch: 'disabled' },
   })
-  let destroyed = false
   try {
-    const statusBefore = await face.status()
-    const home = statusBefore.home
-    if (!home) {
-      throw new Error('expected home directory')
-    }
-    const configPath = join(home, 'config.toml')
-    const text = await Deno.readTextFile(configPath)
-    const notifyMatches = text.match(/notify\s*=\s*\[/g) ?? []
-    expect(notifyMatches.length).toBe(1)
-    const notifyIndex = text.indexOf('\nnotify = [')
-    const firstTableIndex = text.indexOf('\n[')
-    expect(notifyIndex).toBeGreaterThan(-1)
-    expect(firstTableIndex).toBeGreaterThan(-1)
-    expect(notifyIndex).toBeLessThan(firstTableIndex)
-    expect(text.includes('__CODEX_NOTIFY__')).toBe(false)
-    expect(text.includes('__MCP_COMPUTERS_COMMAND__')).toBe(false)
-    expect(text.includes('__MCP_AGENTS_COMMAND__')).toBe(false)
-    expect(text.includes('__MCP_FACES_COMMAND__')).toBe(false)
-    expect(text.includes('__MCP_INTERACTIONS_COMMAND__')).toBe(false)
-    expect(text.includes('__OPENAI_PROXY_BASE_URL__')).toBe(false)
-    expect(text.includes(`base_url = "${envs.DC_OPENAI_PROXY_BASE_URL()}"`))
-      .toBe(true)
-
-    const moduleDir = dirname(fromFileUrl(import.meta.url))
-    const repoRoot = dirname(moduleDir)
-    const expectedCommands = [
-      join(repoRoot, 'mcp-computers', 'main.ts'),
-      join(repoRoot, 'mcp-agents', 'main.ts'),
-      join(repoRoot, 'mcp-faces', 'main.ts'),
-      join(repoRoot, 'mcp-interactions', 'main.ts'),
-    ]
-    for (const target of expectedCommands) {
-      expect(text.includes(`command = "${target}"`)).toBe(true)
-    }
-    await face.destroy()
-    destroyed = true
+    const interactionId = await agent.startInteraction('run tests')
+    const payload =
+      '{"type":"agent-turn-complete","turn-id":"t1","input-messages":["run tests"],"last-assistant-message":"done"}'
+    await Deno.writeTextFile(join(notifyDir, 'notify.json'), payload)
+    const value = await agent.awaitInteraction(interactionId)
+    expect(value).toBe(payload)
+    const status = await agent.status()
+    expect(status.notifications).toBe(1)
+    expect(status.lastNotificationRaw).toBe(payload)
   } finally {
-    if (!destroyed) {
-      try {
-        await face.destroy()
-      } catch {
-        // ignore
-      }
-    }
+    await agent.destroy()
+    await Deno.remove(notifyDir, { recursive: true })
+  }
+})
+
+Deno.test('cancelled interactions reject and status reports cancellation', async () => {
+  const notifyDir = await Deno.makeTempDir()
+  const agent = createCodexAgent({
+    config: { notifyDir, launch: 'disabled' },
+  })
+  try {
+    const interactionId = await agent.startInteraction('noop')
+    const { cancelled, wasActive } = await agent.cancelInteraction(
+      interactionId,
+    )
+    expect(cancelled).toBe(true)
+    expect(wasActive).toBe(true)
+    expect(agent.interactionStatus(interactionId)).toBe('cancelled')
+    const awaited = await agent.awaitInteraction(interactionId).catch((err) =>
+      err
+    )
+    expect(awaited).toBeInstanceOf(Error)
+  } finally {
+    await agent.destroy()
+    await Deno.remove(notifyDir, { recursive: true })
+  }
+})
+
+Deno.test('queues interactions and runs them in arrival order', async () => {
+  const workspace = await Deno.makeTempDir()
+  let agent: CodexAgent | undefined
+  try {
+    const sendCalls: string[] = []
+    agent = createCodexAgent({
+      workspace,
+      config: {
+        env: { OPENAI_API_KEY: 'test-key' },
+        launch: 'tmux',
+      },
+      overrides: {
+        sendKeys: async (_session, input) => {
+          sendCalls.push(input)
+        },
+        launchProcess: async ({ host }): Promise<CodexLaunchResult> => ({
+          pid: 101,
+          views: [{
+            name: 'terminal',
+            port: 1234,
+            protocol: 'http',
+            url: `http://${host}:1234`,
+          }],
+        }),
+      },
+    })
+    const status = await agent.status()
+    const home = status.home
+    if (!home) throw new Error('expected home directory')
+
+    const first = await agent.startInteraction('first command')
+    const second = await agent.startInteraction('second command')
+    expect(sendCalls).toEqual(['first command'])
+
+    const payload1 =
+      '{"type":"agent-turn-complete","turn-id":"one","input-messages":["first command"],"last-assistant-message":"done"}'
+    await Deno.writeTextFile(join(home, 'notify.json'), payload1)
+    await agent.awaitInteraction(first)
+    await delay(10)
+    expect(sendCalls).toEqual(['first command', 'second command'])
+
+    const payload2 =
+      '{"type":"agent-turn-complete","turn-id":"two","input-messages":["second command"],"last-assistant-message":"done"}'
+    await Deno.writeTextFile(join(home, 'notify.json'), payload2)
+    await agent.awaitInteraction(second)
+  } finally {
+    await agent?.destroy()
     await Deno.remove(workspace, { recursive: true })
   }
 })
 
-Deno.test('start returns object with required methods', async () => {
-  const face = startAgentCodex()
+Deno.test('cancel interaction sends tmux interrupt when active', async () => {
+  const workspace = await Deno.makeTempDir()
+  let agent: CodexAgent | undefined
   try {
-    expect(typeof face.interaction).toBe('function')
-    expect(typeof face.awaitInteraction).toBe('function')
-    expect(typeof face.destroy).toBe('function')
-    expect(typeof face.status).toBe('function')
-    const s = await face.status()
-    expect(s.closed).toBe(false)
-    expect(s.interactions).toBe(0)
-    expect(typeof s.startedAt).toBe('string')
+    const cancelSessions: string[] = []
+    agent = createCodexAgent({
+      workspace,
+      config: {
+        env: { OPENAI_API_KEY: 'test-key' },
+        launch: 'tmux',
+      },
+      overrides: {
+        sendKeys: async () => {},
+        sendCancel: async (session) => {
+          cancelSessions.push(session)
+        },
+        launchProcess: async (
+          { host, tmuxSession: _tmuxSession },
+        ): Promise<CodexLaunchResult> => ({
+          pid: 202,
+          views: [{
+            name: 'terminal',
+            port: 5678,
+            protocol: 'http',
+            url: `http://${host}:5678`,
+          }],
+          child: undefined,
+        }),
+      },
+    })
+
+    await agent.status()
+    const interactionId = await agent.startInteraction('long running')
+    const cancelResult = await agent.cancelInteraction(interactionId)
+    expect(cancelResult.cancelled).toBe(true)
+    expect(cancelResult.wasActive).toBe(true)
+    expect(cancelSessions.length).toBe(1)
+
+    const awaited = await agent.awaitInteraction(interactionId).catch((err) =>
+      err
+    )
+    expect(awaited).toBeInstanceOf(Error)
   } finally {
-    await face.destroy()
+    await agent?.destroy()
+    await Deno.remove(workspace, { recursive: true })
   }
 })
 
-Deno.test('interaction resolves awaitInteraction', async () => {
-  const dir = await Deno.makeTempDir()
-  const face = startAgentCodex({ config: { notifyDir: dir } })
+Deno.test('mcp server exposes interaction tools and resolves via notify', async () => {
+  const notifyDir = await Deno.makeTempDir()
   try {
-    const id = '0'
-    face.interaction(id, 'hello')
+    await using srv = await spawnStdioMcpServer({
+      env: {
+        OPENAI_API_KEY: 'test-key',
+        CODEX_AGENT_NOTIFY_DIR: notifyDir,
+        CODEX_AGENT_LAUNCH: 'disabled',
+      },
+    })
+
+    const listed = await srv.client.listTools({})
+    const names = listed.tools.map((tool) => tool.name)
+    for (const name of INTERACTION_TOOL_NAMES) {
+      expect(names).toContain(name)
+    }
+
+    const started = await srv.client.callTool({
+      name: 'interaction_start',
+      arguments: { agentId, input: 'build project' },
+    }) as ToolResult<InteractionStart>
+    const { interactionId } = requireStructured(started)
+    expect(typeof interactionId).toBe('string')
 
     const payload =
-      '{"type":"agent-turn-complete","turn-id":"t1","input-messages":["hello"],"last-assistant-message":"ok"}'
-    await Deno.writeTextFile(join(dir, 'notify.json'), payload)
+      '{"type":"agent-turn-complete","turn-id":"t42","input-messages":["build project"],"last-assistant-message":"done"}'
+    await Deno.writeTextFile(join(notifyDir, 'notify.json'), payload)
 
-    const res = await face.awaitInteraction(id)
-    expect(res).toBe(payload)
+    const awaited = await srv.client.callTool({
+      name: 'interaction_await',
+      arguments: { agentId, interactionId },
+    }) as ToolResult<InteractionAwait>
+    expect(requireStructured(awaited).value).toBe(payload)
 
-    const s = await face.status()
-    expect(s.interactions).toBe(1)
-    expect(s.lastInteractionId).toBe(id)
-    expect(s.notifications).toBe(1)
-    expect(s.lastNotificationRaw).toBe(payload)
+    const status = await srv.client.callTool({
+      name: 'interaction_status',
+      arguments: { agentId, interactionId },
+    }) as ToolResult<InteractionStatus>
+    expect(requireStructured(status).state).toBe('completed')
+
+    const cancelled = await srv.client.callTool({
+      name: 'interaction_cancel',
+      arguments: { agentId, interactionId },
+    }) as ToolResult<InteractionCancel>
+    expect(requireStructured(cancelled).cancelled).toBe(false)
   } finally {
-    await face.destroy()
+    await Deno.remove(notifyDir, { recursive: true })
   }
-})
-
-Deno.test('close makes face reject new interactions and sets closed', async () => {
-  const face = startAgentCodex()
-  await face.destroy()
-  const s1 = await face.status()
-  expect(s1.closed).toBe(true)
-  expect(() => face.interaction('1', 'x')).toThrow()
-  // idempotent
-  await face.destroy()
-  const s2 = await face.status()
-  expect(s2.closed).toBe(true)
 })
 
 async function pathExists(path: string) {
@@ -154,4 +244,8 @@ async function pathExists(path: string) {
     if (err instanceof Deno.errors.NotFound) return false
     throw err
   }
+}
+
+async function delay(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms))
 }

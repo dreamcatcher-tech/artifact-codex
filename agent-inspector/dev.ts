@@ -1,28 +1,24 @@
 #!/usr/bin/env -S deno run -A
-import { startAgentInspector } from './main.ts'
-import { HOST } from '@artifact/shared'
+import { startAgent, type AgentOptions } from '@artifact/shared'
 import { dirname, fromFileUrl } from '@std/path'
+import { registerAgent } from './mcp.ts'
+import deno from './deno.json' with { type: 'json' }
 
 async function main() {
   const workspace = dirname(dirname(fromFileUrl(import.meta.url)))
-  console.log('Workspace:', workspace)
-
   const home = await Deno.makeTempDir({ prefix: 'agent-inspector-' })
-  console.log('Home:', home)
 
-  const face = startAgentInspector({ workspace, home })
+  console.log(`Workspace: ${workspace}`)
+  console.log(`Home: ${home}`)
+  console.log('Launching agent-inspector (tmux + inspector UI)...')
 
-  console.log('Starting Face Inspector in dev mode...')
-  const s = await face.status() // resolves when loading completes
+  const options: AgentOptions = { workspace, home }
+  ;(globalThis as { options?: AgentOptions }).options = options
 
-  for (const v of s.views || []) {
-    console.log(`- ${v.name}: ${v.protocol}://${HOST}:${v.port}`)
-  }
-
-  console.log('Face Inspector ready. Press Ctrl+C to exit.')
+  await startAgent(deno.name, deno.version, registerAgent)
 }
 
-main().catch((err) => {
-  console.error(err)
+main().catch((error) => {
+  console.error(error instanceof Error ? error.stack ?? error.message : error)
   Deno.exit(1)
 })

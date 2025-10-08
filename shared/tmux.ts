@@ -19,6 +19,7 @@ export interface LaunchTmuxTerminalOptions {
   env?: Record<string, string>
   shell?: string
   writeable?: boolean
+  tmuxEnv?: Record<string, string>
 }
 
 export interface LaunchTmuxTerminalResult {
@@ -53,12 +54,15 @@ export async function launchTmuxTerminal(
   const shell = options.shell ?? Deno.env.get('SHELL') ?? '/usr/bin/bash'
   const writeable = Boolean(options.writeable)
 
+  await applyTmuxEnvironment(options.tmuxEnv)
+
   const createdSession = await ensureTmuxSession({
     session,
     shell,
     cwd,
     env,
   })
+  await applyTmuxEnvironment(options.tmuxEnv, session)
   if (createdSession) {
     const quoted = shellQuote(command)
     await sendRawKeys(session, quoted, { cwd, env })
@@ -101,6 +105,39 @@ export async function sendKeysViaTmux(
 export function parseWritable(value: string | undefined): boolean {
   if (!value) return false
   return TRUTHY.has(value.trim().toLowerCase())
+}
+
+async function applyTmuxEnvironment(
+  env: Record<string, string> | undefined,
+  session?: string,
+): Promise<void> {
+  if (!env) return
+  const entries = Object.entries(env).filter(([, value]) =>
+    typeof value === 'string' && value.length > 0
+  )
+  if (entries.length === 0) return
+  for (const [key, value] of entries) {
+    const args = [
+      '-L',
+      SHARED_TMUX_SOCKET,
+      'set-environment',
+    ]
+    if (session) {
+      args.push('-t', session)
+    } else {
+      args.push('-g')
+    }
+    args.push(key, value)
+    try {
+      await run('tmux', {
+        args,
+        stdout: 'null',
+        stderr: 'null',
+      })
+    } catch {
+      // ignore failures; tmux will fall back to server environment
+    }
+  }
 }
 
 function shellQuote(args: string[]): string {

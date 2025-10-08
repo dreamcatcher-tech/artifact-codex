@@ -42,7 +42,10 @@ RUN apt-get install -y --no-install-recommends \
     docker.io \
     python3 \
     python3-pip \
-    python3-venv
+    python3-venv \
+    tmux \
+    ttyd \
+    lsof
 
 RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     apt-get update && \
