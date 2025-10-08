@@ -99,18 +99,19 @@ Deno.test('queues interactions and runs them in arrival order', async () => {
         launch: 'tmux',
       },
       overrides: {
-        sendKeys: async (_session, input) => {
+        sendKeys: (_session, input) => {
           sendCalls.push(input)
         },
-        launchProcess: async ({ host }): Promise<CodexLaunchResult> => ({
-          pid: 101,
-          views: [{
-            name: 'terminal',
-            port: 1234,
-            protocol: 'http',
-            url: `http://${host}:1234`,
-          }],
-        }),
+        launchProcess: ({ host }): Promise<CodexLaunchResult> =>
+          Promise.resolve({
+            pid: 101,
+            views: [{
+              name: 'terminal',
+              port: 1234,
+              protocol: 'http',
+              url: `http://${host}:1234`,
+            }],
+          }),
       },
     })
     const status = await agent.status()
@@ -150,22 +151,23 @@ Deno.test('cancel interaction sends tmux interrupt when active', async () => {
         launch: 'tmux',
       },
       overrides: {
-        sendKeys: async () => {},
-        sendCancel: async (session) => {
+        sendKeys: () => {},
+        sendCancel: (session) => {
           cancelSessions.push(session)
         },
-        launchProcess: async (
+        launchProcess: (
           { host, tmuxSession: _tmuxSession },
-        ): Promise<CodexLaunchResult> => ({
-          pid: 202,
-          views: [{
-            name: 'terminal',
-            port: 5678,
-            protocol: 'http',
-            url: `http://${host}:5678`,
-          }],
-          child: undefined,
-        }),
+        ): Promise<CodexLaunchResult> =>
+          Promise.resolve({
+            pid: 202,
+            views: [{
+              name: 'terminal',
+              port: 5678,
+              protocol: 'http',
+              url: `http://${host}:5678`,
+            }],
+            child: undefined,
+          }),
       },
     })
 

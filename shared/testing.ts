@@ -12,6 +12,10 @@ export type SpawnOptions = {
    * Environment overrides to pass to the child process.
    */
   env?: Record<string, string>
+  /**
+   * Optional disposer invoked when the spawned server is torn down.
+   */
+  dispose?: () => void | Promise<void>
 }
 
 export type StdioMcpServer = {
@@ -51,10 +55,20 @@ export async function spawnStdioMcpServer(
   const client = new Client({ name: 'test-client', version: '0.1.0' })
   await client.connect(transport)
 
+  let disposed = false
   async function close() {
+    if (disposed) return
+    disposed = true
     const { pid } = transport
     await client.close()
     await waitForPidExit(pid)
+    if (opts.dispose) {
+      try {
+        await opts.dispose()
+      } catch {
+        // swallow disposer errors to keep shutdown resilient
+      }
+    }
   }
 
   return {

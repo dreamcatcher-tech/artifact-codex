@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run -A
-import { startAgent, type AgentOptions } from '@artifact/shared'
+import { startAgent } from '@artifact/shared'
 import { dirname, fromFileUrl } from '@std/path'
 import { registerAgent } from './mcp.ts'
 import deno from './deno.json' with { type: 'json' }
@@ -12,8 +12,8 @@ async function main() {
   console.log(`Home: ${home}`)
   console.log('Launching agent-inspector (tmux + inspector UI)...')
 
-  const options: AgentOptions = { workspace, home }
-  ;(globalThis as { options?: AgentOptions }).options = options
+  Deno.env.set('AGENT_INSPECTOR_WORKSPACE', workspace)
+  Deno.env.set('AGENT_INSPECTOR_HOME', home)
 
   await startAgent(deno.name, deno.version, registerAgent)
 }

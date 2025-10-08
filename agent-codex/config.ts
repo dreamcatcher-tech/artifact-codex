@@ -21,8 +21,8 @@ export type CodexLaunchResult = {
 }
 
 export type CodexOverrides = {
-  sendKeys?: (session: string, input: string) => Promise<void>
-  sendCancel?: (session: string) => Promise<void>
+  sendKeys?: (session: string, input: string) => void
+  sendCancel?: (session: string) => void
   launchProcess?: (args: CodexLaunchArgs) => Promise<CodexLaunchResult>
 }
 
