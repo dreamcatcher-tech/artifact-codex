@@ -1,3 +1,4 @@
+import type { Context } from '@hono/hono'
 import Debug from 'debug'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -78,7 +79,12 @@ export const createLoader = (
       if (agentMcpClient) {
         throw new Error('Agent mcp client already loaded')
       }
-      return loadingMcpServer.handler
+      return async (c: Context) => {
+        if (c.req.path === '/ping') {
+          return c.text('pong')
+        }
+        return await loadingMcpServer.handler(c)
+      }
     },
     close,
     [Symbol.asyncDispose]: close,
