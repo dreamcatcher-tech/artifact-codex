@@ -1,33 +1,29 @@
 import { expect } from '@std/expect'
-import { delay } from 'jsr:@std/async/delay'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import { proxyResources } from './resources.ts'
-import type { ResourceMetadata } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { isTextContent } from '@artifact/shared'
+import { proxyViewsResource } from './resources.ts'
+import {
+  isTextContent,
+  VIEWS_RESOURCE_METADATA,
+  VIEWS_RESOURCE_NAME,
+  VIEWS_RESOURCE_URI,
+} from '@artifact/shared'
 
 Deno.test('c1 -> s1 -----(proxy)---> c2 -> s2', async () => {
   const upstreamServer = new McpServer({ name: 'upstream', version: '0.0.0' })
 
-  let alphaVersion = 1
-  let betaVersion = 1
+  let viewsVersion = 1
 
-  const alphaMeta: ResourceMetadata = {
-    title: 'Alpha',
-    description: 'Alpha resource',
-    mimeType: 'text/plain',
-  }
-
-  const alphaRegistration = upstreamServer.registerResource(
-    'alpha',
-    'mcp://alpha',
-    alphaMeta,
+  const viewsRegistration = upstreamServer.registerResource(
+    VIEWS_RESOURCE_NAME,
+    VIEWS_RESOURCE_URI,
+    VIEWS_RESOURCE_METADATA,
     () => ({
       contents: [{
-        uri: 'mcp://alpha',
-        mimeType: 'text/plain',
-        text: `alpha-${alphaVersion}`,
+        uri: VIEWS_RESOURCE_URI,
+        mimeType: VIEWS_RESOURCE_METADATA.mimeType,
+        text: `views-${viewsVersion}`,
       }],
     }),
   )
@@ -40,7 +36,7 @@ Deno.test('c1 -> s1 -----(proxy)---> c2 -> s2', async () => {
   await upstreamClient.connect(upClientTransport)
 
   const proxyServer = new McpServer({ name: 'proxy', version: '0.0.0' })
-  const registerProxy = proxyResources(upstreamClient)
+  const registerProxy = proxyViewsResource(upstreamClient)
   await registerProxy(proxyServer)
 
   const [testClientTransport, proxyServerTransport] = InMemoryTransport
@@ -54,83 +50,32 @@ Deno.test('c1 -> s1 -----(proxy)---> c2 -> s2', async () => {
 
   const list1 = await proxyClient.listResources({})
   expect(list1.resources).toHaveLength(1)
-  expect(list1.resources[0].name).toBe('alpha')
+  expect(list1.resources[0].name).toBe('views')
 
-  const read1 = await proxyClient.readResource({ uri: 'mcp://alpha' })
+  const read1 = await proxyClient.readResource({ uri: VIEWS_RESOURCE_URI })
   const content1 = read1.contents.find(isTextContent)
-  if (!content1) throw new Error('missing text content')
-  expect(content1.text).toBe('alpha-1')
+  expect(content1?.text).toBe('views-1')
 
-  alphaVersion = 2
-  alphaRegistration.update({
+  viewsVersion = 2
+  viewsRegistration.update({
     metadata: {
-      ...alphaMeta,
-      description: 'Alpha resource (updated)',
+      ...VIEWS_RESOURCE_METADATA,
+      description: 'Views resource (updated)',
     },
     callback: () => ({
       contents: [{
-        uri: 'mcp://alpha',
-        mimeType: 'text/plain',
-        text: `alpha-${alphaVersion}`,
+        uri: VIEWS_RESOURCE_URI,
+        mimeType: VIEWS_RESOURCE_METADATA.mimeType,
+        text: `views-${viewsVersion}`,
       }],
     }),
   })
 
   const list2 = await proxyClient.listResources({})
-  const alpha = list2.resources.find((resource) => resource.name === 'alpha')
-  expect(alpha?.description).toBe('Alpha resource (updated)')
+  expect(list2.resources).toHaveLength(1)
+  expect(list2.resources[0].name).toBe('views')
 
-  const read2 = await proxyClient.readResource({ uri: 'mcp://alpha' })
+  const read2 = await proxyClient.readResource({ uri: VIEWS_RESOURCE_URI })
   const content2 = read2.contents.find(isTextContent)
-  expect(content2?.text).toBe('alpha-2')
-
-  const betaRegistration = upstreamServer.registerResource(
-    'beta',
-    'mcp://beta',
-    {
-      title: 'Beta',
-      description: 'Beta resource',
-      mimeType: 'text/plain',
-    },
-    () => ({
-      contents: [{
-        uri: 'mcp://beta',
-        mimeType: 'text/plain',
-        text: `beta-${betaVersion}`,
-      }],
-    }),
-  )
-
-  const list3 = await proxyClient.listResources({})
-  expect(list3.resources).toHaveLength(2)
-  expect(list3.resources.map((resource) => resource.name))
-    .toEqual(['alpha', 'beta'])
-
-  betaVersion = 2
-  betaRegistration.update({
-    callback: () => ({
-      contents: [{
-        uri: 'mcp://beta',
-        mimeType: 'text/plain',
-        text: `beta-${betaVersion}`,
-      }],
-    }),
-  })
-
-  const read3 = await proxyClient.readResource({ uri: 'mcp://beta' })
-  const content3 = read3.contents.find(isTextContent)
-  expect(content3?.text).toBe('beta-2')
-
-  alphaRegistration.remove()
-
-  const list4 = await proxyClient.listResources({})
-  expect(list4.resources).toHaveLength(1)
-  expect(list4.resources[0].name).toBe('beta')
-
-  // TODO check that closing the upstream client closes the proxy server
-  await proxyClient.close()
-  await proxyServer.close()
-  await upstreamClient.close()
-  await proxyServer.close()
-  await upstreamServer.close()
+  expect(content2?.text).toBe('views-2')
 })

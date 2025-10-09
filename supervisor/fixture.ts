@@ -7,11 +7,16 @@ import { createIdleTrigger } from '@artifact/shared'
 import type { SupervisorEnv } from './app.ts'
 import { MCP_PORT } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { join } from 'node:path'
+import type { AgentResolver } from './loader.ts'
 
-export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
+export async function createFixture(
+  { timeoutMs = Number.MAX_SAFE_INTEGER, agentResolver = testAgentResolver } =
+    {},
+) {
   const controller = new AbortController()
-  const idler = createIdleTrigger(controller, timoutMs)
-  const { app, [Symbol.asyncDispose]: close } = createApp(idler)
+  const idler = createIdleTrigger(controller, timeoutMs)
+  const { app, [Symbol.asyncDispose]: close } = createApp(idler, agentResolver)
 
   const fetch = createInMemoryFetch(app)
   const client = new Client({ name: 'test-client', version: '0.0.0' })
@@ -38,8 +43,11 @@ export async function createFixture(timoutMs = Number.MAX_SAFE_INTEGER) {
   }
 }
 
-export async function createLoadedFixture(timeoutMs = Number.MAX_SAFE_INTEGER) {
-  const fixture = await createFixture(timeoutMs)
+export async function createLoadedFixture(
+  { timeoutMs = Number.MAX_SAFE_INTEGER, agentResolver = testAgentResolver } =
+    {},
+) {
+  const fixture = await createFixture({ timeoutMs, agentResolver })
   await fixture.load()
   return fixture
 }
@@ -51,4 +59,15 @@ export const createInMemoryFetch = (app: Hono<SupervisorEnv>): FetchLike => {
     return Promise.resolve(app.fetch(request))
   }
   return fetch
+}
+
+export const testAgentResolver: AgentResolver = () => {
+  const cwd = join(import.meta.dirname!, '..', 'agent-test')
+  const file = join(cwd, 'main.ts')
+  return Promise.resolve({
+    command: 'deno',
+    args: ['run', '-A', file],
+    env: {},
+    cwd,
+  })
 }

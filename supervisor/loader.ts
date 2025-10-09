@@ -4,22 +4,22 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { toStructured, waitForPidExit } from '@artifact/shared'
 import { createMcpHandler } from './mcp-handler.ts'
 import { z } from 'zod'
-import { join } from '@std/path'
 import deno from './deno.json' with { type: 'json' }
 const { name, version } = deno
 
 const log = Debug('@artifact/supervisor:loader')
 
-type AgentResolver = (computerId: string, agentId: string) => Promise<{
+export type AgentResolver = (computerId: string, agentId: string) => Promise<{
   command: string
   args: string[]
   env: Record<string, string>
   cwd: string
 }>
 
-export const createLoader = (cb: () => void, agentResolver?: AgentResolver) => {
-  if (!agentResolver) agentResolver = fsAgentResolver
-
+export const createLoader = (
+  cb: () => void,
+  agentResolver = fsAgentResolver,
+) => {
   let loadingPromise: Promise<void> | undefined
   let agentMcpClient: Client | undefined
   let transport: StdioClientTransport | undefined
@@ -85,14 +85,8 @@ export const createLoader = (cb: () => void, agentResolver?: AgentResolver) => {
   }
 }
 
-const fsAgentResolver: AgentResolver = async (computerId, agentId) => {
-  const projectRoot = new URL('..', import.meta.url).pathname
-  const codexFolder = join(projectRoot, 'agent-codex')
-  const file = join(codexFolder, 'main.ts')
-  return {
-    command: 'deno',
-    args: ['run', '-A', file],
-    env: {},
-    cwd: codexFolder,
-  }
+const fsAgentResolver: AgentResolver = (computerId, agentId) => {
+  // load up the agent from the filesystem
+  // resolve what the command to run the agent is
+  throw new Error('Not implemented: ' + computerId + ' ' + agentId)
 }

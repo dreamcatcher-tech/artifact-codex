@@ -3,11 +3,11 @@ import type { IdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
 import { HTTPException } from '@hono/hono/http-exception'
 import { MCP_PORT } from '@artifact/shared'
-import { logger } from '@hono/hono/logger'
-import { createLoader } from './loader.ts'
+import { type AgentResolver, createLoader } from './loader.ts'
 import { createExternal, type External } from './external.ts'
 import { createInternal, type Internal } from './internal.ts'
 import { proxyForwardedRequest } from './proxy.ts'
+// import { logger } from '@hono/hono/logger'
 
 const log = Debug('@artifact/supervisor')
 
@@ -15,12 +15,15 @@ export type SupervisorEnv = {
   Variables: { requestKind: ClassifiedRequest }
 }
 
-export const createApp = (idler: IdleTrigger) => {
-  const agent = createAgent(idler)
+export const createApp = (
+  idler: IdleTrigger,
+  agentResolver?: AgentResolver,
+) => {
+  const agent = createAgent(idler, agentResolver)
 
   const app = new Hono<SupervisorEnv>()
 
-  app.use('*', logger())
+  // app.use('*', logger())
   app.use('*', idler.middleware)
 
   app.use('*', async (c, next) => {
@@ -58,9 +61,9 @@ export const createApp = (idler: IdleTrigger) => {
   return { app, close, [Symbol.asyncDispose]: close }
 }
 
-const createAgent = (idler: IdleTrigger) => {
+const createAgent = (idler: IdleTrigger, agentResolver?: AgentResolver) => {
   let state: AgentState = 'loading'
-  const loader = createLoader(() => setState('ready'))
+  const loader = createLoader(() => setState('ready'), agentResolver)
 
   const setState = (nextState: AgentState) => {
     log('agent state %s → %s', state, nextState)

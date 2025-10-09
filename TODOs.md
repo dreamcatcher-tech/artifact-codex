@@ -70,3 +70,6 @@ replace proxy with something built in to hono:
 
 replace the openai proxy with something running on the host:
 `codex resume 0199c063-78f0-7390-9100-7c247b6a8b2f`
+
+loader for agents should run a smoke test to make sure they supply the required
+tools and the required resources

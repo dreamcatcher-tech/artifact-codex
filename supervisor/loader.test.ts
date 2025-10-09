@@ -15,8 +15,7 @@ const agentId = 'agent-1'
 
 Deno.test('loader exposes agent interaction tools', async () => {
   await using fixture = await createLoadedFixture()
-
-  const list = await fixture.client.listTools({})
+  const list = await fixture.client.listTools()
   const names = list.tools.map((tool) => tool.name)
   for (const name of INTERACTION_TOOL_NAMES) {
     expect(names).toContain(name)

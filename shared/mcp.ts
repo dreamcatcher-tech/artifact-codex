@@ -142,3 +142,11 @@ export function requireStructured<T extends Record<string, unknown>>(
   }
   return structured
 }
+
+export const VIEWS_RESOURCE_NAME = 'views'
+export const VIEWS_RESOURCE_URI = 'mcp://views'
+export const VIEWS_RESOURCE_METADATA = {
+  description: 'Lists the active views exposed by the agent process',
+  mimeType: 'application/json',
+  title: 'Agent Views',
+}

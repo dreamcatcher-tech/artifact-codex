@@ -99,4 +99,20 @@ export function registerAgent(server: McpServer) {
       })
     },
   )
+  server.registerResource(
+    'views',
+    'mcp://views',
+    {
+      title: 'Agent Views',
+      description: 'Static view list for agent-test.',
+      mimeType: 'application/json',
+    },
+    () => ({
+      contents: [{
+        uri: 'mcp://views',
+        mimeType: 'application/json',
+        text: JSON.stringify({ views: [] }, null, 2),
+      }],
+    }),
+  )
 }
