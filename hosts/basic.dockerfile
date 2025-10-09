@@ -15,7 +15,7 @@ WORKDIR /app/supervisor
 
 RUN deno cache --quiet main.ts
 
-ENV DEBUG=@artifact/supervisor*
+ENV DEBUG=@artifact/*
 ENV DEBUG_COLORS=1
 ENV DEBUG_HIDE_DATE=1
 

@@ -1,5 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { INTERACTION_TOOLS, toStructured } from '@artifact/shared'
+import {
+  INTERACTION_TOOLS,
+  toStructured,
+  VIEWS_RESOURCE_NAME,
+  VIEWS_RESOURCE_URI,
+} from '@artifact/shared'
 
 export function registerAgent(server: McpServer) {
   let interactionIdSequence = 0
@@ -100,8 +105,8 @@ export function registerAgent(server: McpServer) {
     },
   )
   server.registerResource(
-    'views',
-    'mcp://views',
+    VIEWS_RESOURCE_NAME,
+    VIEWS_RESOURCE_URI,
     {
       title: 'Agent Views',
       description: 'Static view list for agent-test.',
@@ -109,7 +114,7 @@ export function registerAgent(server: McpServer) {
     },
     () => ({
       contents: [{
-        uri: 'mcp://views',
+        uri: VIEWS_RESOURCE_URI,
         mimeType: 'application/json',
         text: JSON.stringify({ views: [] }, null, 2),
       }],

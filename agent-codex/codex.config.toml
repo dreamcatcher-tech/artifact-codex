@@ -1,14 +1,16 @@
-model = "gpt-5"
-model_provider = "openai"
+model                  = "gpt-5"
+model_provider         = "openai"
 model_reasoning_effort = "low"
-model_verbosity = "low"
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
+model_verbosity        = "low"
+approval_policy        = "never"
+sandbox_mode           = "danger-full-access"
+
+experimental_use_rmcp_client = true
 
 notify = "__CODEX_NOTIFY__"
 
 [model_providers.openai]
-  name = "OpenAI"
+  name     = "OpenAI"
   base_url = "__OPENAI_PROXY_BASE_URL__"
   wire_api = "responses"
 
@@ -18,12 +20,12 @@ notify = "__CODEX_NOTIFY__"
 
 [mcp_servers.mcp-computers]
   command = "__MCP_COMPUTERS_COMMAND__"
-  args = []
+  args    = []
 
 [mcp_servers.mcp-agents]
   command = "__MCP_AGENTS_COMMAND__"
-  args = []
+  args    = []
 
 [mcp_servers.mcp-interactions]
   command = "__MCP_INTERACTIONS_COMMAND__"
-  args = []
+  args    = []
