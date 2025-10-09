@@ -19,6 +19,7 @@ import {
 
 const TEST_COMPUTER_HEADER = 'x-artifact-test-user'
 const TEST_COMPUTER_ID = 'test-computer'
+const PRESERVING_REDIRECT = 307
 
 type CreateAppOptions = {
   baseDomain?: string
@@ -42,7 +43,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
     if (!auth?.userId) {
-      return c.text('Unauthorized', 401)
+      return c.redirect(envs.DC_CLERK_SIGN_UP_URL(), PRESERVING_REDIRECT)
     }
     c.set('userId', auth.userId)
     const client = c.get('clerk')
@@ -128,7 +129,7 @@ function redirectToAgent(
 ): Response {
   const incoming = new URL(c.req.url)
   incoming.hostname = `${agent}--${computer}.${baseDomain}`
-  return c.redirect(incoming.toString(), 307)
+  return c.redirect(incoming.toString(), PRESERVING_REDIRECT)
 }
 
 function redirectToComputer(
@@ -138,7 +139,7 @@ function redirectToComputer(
 ): Response {
   const incoming = new URL(c.req.url)
   incoming.hostname = `${computer}.${baseDomain}`
-  return c.redirect(incoming.toString(), 307)
+  return c.redirect(incoming.toString(), PRESERVING_REDIRECT)
 }
 
 function replayToWorkerApp(

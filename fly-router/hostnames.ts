@@ -1,8 +1,15 @@
+function normalizeHostname(value: string): string {
+  return value.toLowerCase()
+}
+
 export function assertHostname(hostname: string, baseDomain: string): void {
-  if (hostname === baseDomain) {
+  const normalizedHostname = normalizeHostname(hostname)
+  const normalizedBaseDomain = normalizeHostname(baseDomain)
+
+  if (normalizedHostname === normalizedBaseDomain) {
     return
   }
-  if (!hostname.endsWith(`.${baseDomain}`)) {
+  if (!normalizedHostname.endsWith(`.${normalizedBaseDomain}`)) {
     throw new Error(`hostname mismatch: ${hostname} !endsWith ${baseDomain}`)
   }
 }
@@ -10,13 +17,15 @@ export function assertHostname(hostname: string, baseDomain: string): void {
 export function isBaseDomain(urlString: string, baseDomain: string): boolean {
   const url = new URL(urlString)
   assertHostname(url.hostname, baseDomain)
-  return url.hostname === baseDomain
+  return normalizeHostname(url.hostname) === normalizeHostname(baseDomain)
 }
 
 export function getSubdomain(urlString: string, baseDomain: string): string {
   const url = new URL(urlString)
   assertHostname(url.hostname, baseDomain)
-  const rawSubdomain = url.hostname.slice(0, -baseDomain.length)
+  const normalizedHostname = normalizeHostname(url.hostname)
+  const normalizedBaseDomain = normalizeHostname(baseDomain)
+  const rawSubdomain = normalizedHostname.slice(0, -normalizedBaseDomain.length)
   const subdomain = rawSubdomain.endsWith('.')
     ? rawSubdomain.slice(0, -1)
     : rawSubdomain

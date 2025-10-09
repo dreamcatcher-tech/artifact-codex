@@ -11,22 +11,13 @@ import {
   readFlyEnv,
   REPO_CONTAINER_IMAGES,
 } from '@artifact/shared'
-import { basename, fromFileUrl, join } from '@std/path'
+import { join } from '@std/path'
 import { mount } from './nfs-mount.ts'
 
 const log = Debug('@artifact/fly-nfs:nfs-write-image-record')
 
-const agentProjectName = (moduleUrl: string) => {
-  const dirPath = fromFileUrl(new URL('.', moduleUrl))
-  const name = basename(dirPath)
-  if (!name) {
-    throw new Error('Unable to determine agent folder name')
-  }
-  return name
-}
-
 export async function writeImageRecord(
-  importMetaUrl: string,
+  name: string,
   record: Omit<ImageRecord, 'image'>,
 ): Promise<void> {
   Debug.enable('@artifact/*')
@@ -42,7 +33,6 @@ export async function writeImageRecord(
   )
   await ensureDir(containersDir)
 
-  const name = agentProjectName(importMetaUrl)
   const recordPath = join(containersDir, `${name}.json`)
 
   const { FLY_IMAGE_REF } = readFlyEnv()

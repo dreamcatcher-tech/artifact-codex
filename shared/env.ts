@@ -58,6 +58,8 @@ function readAppEnv(name: string, fallback?: string): string {
 }
 
 export const envs = {
+  DC_CLERK_SIGN_IN_URL: () => readAppEnv('DC_CLERK_SIGN_IN_URL'),
+  DC_CLERK_SIGN_UP_URL: () => readAppEnv('DC_CLERK_SIGN_UP_URL'),
   DC_NFS: () => readAppEnv('DC_NFS'),
   DC_ROUTER: () => readAppEnv('DC_ROUTER'),
   DC_DOMAIN: () => readAppEnv('DC_DOMAIN'),

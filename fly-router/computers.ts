@@ -36,6 +36,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
   const { computerDir = NFS_MOUNT_DIR, kickExecApp = baseKickExecApp } = options
 
   const upsertComputer = async (computer: string) => {
+    computer = computer.toLowerCase()
     const path = join(computerDir, computer)
 
     const agents = join(path, COMPUTER_AGENTS)
@@ -50,6 +51,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const upsertLandingAgent = async (computer: string) => {
+    computer = computer.toLowerCase()
     const path = join(computerDir, computer)
     const agents = join(path, 'agents')
 
@@ -59,6 +61,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const computerExists = async (computer: string) => {
+    computer = computer.toLowerCase()
     const path = join(computerDir, computer)
     const agents = join(path, COMPUTER_AGENTS)
     const exec = join(path, COMPUTER_EXEC)
@@ -72,6 +75,8 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const agentExists = async (computerId: string, agentId: string) => {
+    computerId = computerId.toLowerCase()
+    agentId = agentId.toLowerCase()
     const path = join(computerDir, computerId, COMPUTER_AGENTS, agentId)
     try {
       const info = await Deno.stat(path)
@@ -82,6 +87,8 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const upsertExec = async (computerId: string, agentId: string) => {
+    computerId = computerId.toLowerCase()
+    agentId = agentId.toLowerCase()
     const filename = agentId + '.json'
     const path = join(computerDir, computerId, COMPUTER_EXEC, filename)
     const { readInstance, writeInstance } = createReconciler({ computerDir })
@@ -94,6 +101,8 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const waitForMachineId = async (computerId: string, agentId: string) => {
+    computerId = computerId.toLowerCase()
+    agentId = agentId.toLowerCase()
     const path = join(computerDir, computerId, COMPUTER_EXEC, `${agentId}.json`)
     const { readInstance } = createReconciler({ computerDir })
 
@@ -115,6 +124,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const shutdownComputer = async (computerId: string) => {
+    computerId = computerId.toLowerCase()
     const { readInstance, writeInstance, getInstancePaths } = createReconciler({
       computerDir,
     })
@@ -129,6 +139,7 @@ export function createComputerManager(options: ComputerManagerOptions) {
   }
 
   const deleteComputer = async (computerId: string) => {
+    computerId = computerId.toLowerCase()
     await shutdownComputer(computerId)
     await Deno.remove(join(computerDir, computerId), { recursive: true })
   }

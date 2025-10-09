@@ -15,11 +15,28 @@ const COMPUTER_ID = 'computer-1'
 const COMPUTER_URL = `https://${COMPUTER_ID}.${BASE_DOMAIN}`
 const AGENT_ID = 'agent-1'
 const AGENT_URL = `https://${AGENT_ID}--${COMPUTER_ID}.${BASE_DOMAIN}`
+const UPPER_BASE_DOMAIN = BASE_DOMAIN.toUpperCase()
+const UPPER_BASE_URL = `https://${UPPER_BASE_DOMAIN}`
+const UPPER_COMPUTER_ID = COMPUTER_ID.toUpperCase()
+const UPPER_COMPUTER_URL = `https://${UPPER_COMPUTER_ID}.${UPPER_BASE_DOMAIN}`
+const UPPER_AGENT_ID = AGENT_ID.toUpperCase()
+const UPPER_AGENT_URL =
+  `https://${UPPER_AGENT_ID}--${UPPER_COMPUTER_ID}.${UPPER_BASE_DOMAIN}`
 
 Deno.test('assertHostname allows the base domain and matching subdomains', () => {
   expect(() => assertHostname(BASE_DOMAIN, BASE_DOMAIN)).not.toThrow()
   expect(() => assertHostname(`${COMPUTER_ID}.${BASE_DOMAIN}`, BASE_DOMAIN))
     .not.toThrow()
+})
+
+Deno.test('assertHostname treats hostnames case-insensitively', () => {
+  expect(() => assertHostname(UPPER_BASE_DOMAIN, BASE_DOMAIN)).not.toThrow()
+  expect(() =>
+    assertHostname(
+      `${UPPER_COMPUTER_ID}.${UPPER_BASE_DOMAIN}`,
+      BASE_DOMAIN,
+    )
+  ).not.toThrow()
 })
 
 Deno.test('assertHostname rejects hostnames that do not match the base domain', () => {
@@ -39,6 +56,10 @@ Deno.test('isBaseDomain recognises the bare base domain url', () => {
   expect(isBaseDomain(BASE_URL, BASE_DOMAIN)).toBe(true)
 })
 
+Deno.test('isBaseDomain treats hostnames case-insensitively', () => {
+  expect(isBaseDomain(UPPER_BASE_URL, BASE_DOMAIN)).toBe(true)
+})
+
 Deno.test('isBaseDomain returns false for non-base hostnames that share the suffix', () => {
   expect(isBaseDomain(COMPUTER_URL, BASE_DOMAIN)).toBe(false)
 })
@@ -55,6 +76,12 @@ Deno.test('getSubdomain extracts the single-segment subdomain for computer urls'
 
 Deno.test('getSubdomain extracts the combined agent and computer id for agent urls', () => {
   expect(getSubdomain(AGENT_URL, BASE_DOMAIN)).toBe(
+    `${AGENT_ID}--${COMPUTER_ID}`,
+  )
+})
+
+Deno.test('getSubdomain normalises hostnames to lowercase', () => {
+  expect(getSubdomain(UPPER_AGENT_URL, BASE_DOMAIN)).toBe(
     `${AGENT_ID}--${COMPUTER_ID}`,
   )
 })
@@ -87,8 +114,17 @@ Deno.test('getComputerId returns the computer id for agent urls', () => {
   expect(getComputerId(AGENT_URL, BASE_DOMAIN)).toBe(COMPUTER_ID)
 })
 
+Deno.test('getComputerId normalises hostnames to lowercase', () => {
+  expect(getComputerId(UPPER_AGENT_URL, BASE_DOMAIN)).toBe(COMPUTER_ID)
+  expect(getComputerId(UPPER_COMPUTER_URL, BASE_DOMAIN)).toBe(COMPUTER_ID)
+})
+
 Deno.test('getAgentId returns the agent id for agent urls', () => {
   expect(getAgentId(AGENT_URL, BASE_DOMAIN)).toBe(AGENT_ID)
+})
+
+Deno.test('getAgentId normalises hostnames to lowercase', () => {
+  expect(getAgentId(UPPER_AGENT_URL, BASE_DOMAIN)).toBe(AGENT_ID)
 })
 
 Deno.test('getAgentId rejects computer urls that lack agent information', () => {
@@ -102,6 +138,11 @@ Deno.test('isComputerDomain returns true only for computer urls', () => {
   expect(isComputerDomain(AGENT_URL, BASE_DOMAIN)).toBe(false)
 })
 
+Deno.test('isComputerDomain treats hostnames case-insensitively', () => {
+  expect(isComputerDomain(UPPER_COMPUTER_URL, BASE_DOMAIN)).toBe(true)
+  expect(isComputerDomain(UPPER_AGENT_URL, BASE_DOMAIN)).toBe(false)
+})
+
 Deno.test('isComputerDomain propagates errors from invalid hostnames', () => {
   expect(() => isComputerDomain(BASE_URL, BASE_DOMAIN)).toThrow(
     'subdomain is empty',
@@ -113,4 +154,8 @@ Deno.test('isAgentDomain returns true for agent urls and throws otherwise', () =
   expect(() => isAgentDomain(COMPUTER_URL, BASE_DOMAIN)).toThrow(
     'subdomain does not contain --',
   )
+})
+
+Deno.test('isAgentDomain treats hostnames case-insensitively', () => {
+  expect(isAgentDomain(UPPER_AGENT_URL, BASE_DOMAIN)).toBe(true)
 })

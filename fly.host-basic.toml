@@ -1,6 +1,6 @@
-app            = 'org1-fly-host-basic'
+app = 'org1-fly-host-basic'
 primary_region = 'syd'
-swap_size_mb   = 2048
+swap_size_mb = 2048
 
 [experimental]
   lazy_load_images = true
@@ -9,41 +9,41 @@ swap_size_mb   = 2048
   dockerfile = 'hosts/basic.dockerfile'
 
 [deploy]
-  release_command = '/app/supervisor/release.ts'
+  release_command = '/app/supervisor/release.ts host-basic'
 
 [env]
   DC_DOMAIN = 'agentic.dreamcatcher.land'
-  DC_NFS    = 'nfs-proto.flycast'
+  DC_NFS = 'nfs-proto.flycast'
 
 [http_service]
-  internal_port        = 8080
-  force_https          = true
-  auto_stop_machines   = 'suspend'
-  auto_start_machines  = true
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
   min_machines_running = 0
 
 [[services]]
-  protocol             = 'tcp'
-  internal_port        = 8080
-  auto_stop_machines   = 'suspend'
-  auto_start_machines  = true
+  protocol = 'tcp'
+  internal_port = 8080
+  auto_stop_machines = 'suspend'
+  auto_start_machines = true
   min_machines_running = 0
 
   [[services.ports]]
     start_port = 3000
-    end_port   = 30000
-    handlers   = ['tls', 'http']
+    end_port = 30000
+    handlers = ['tls', 'http']
 
 # mcp supervisor service
 [[services]]
-  protocol      = 'tcp'
+  protocol = 'tcp'
   internal_port = 8080
 
   [[services.ports]]
-    port     = 442
+    port = 442
     handlers = ['tls', 'http']
 
 [[vm]]
-  memory   = '256mb'
+  memory = '256mb'
   cpu_kind = 'shared'
-  cpus     = 1
+  cpus = 1
