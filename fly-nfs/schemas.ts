@@ -11,9 +11,9 @@ export const imageRecordSchema = z.object({
 export type ImageRecord = z.infer<typeof imageRecordSchema>
 
 export const execInstanceSchema = z.object({
-  /** state requested by the computer */
+  /** state requested by the software */
   software: z.enum(['running', 'stopped']),
-  /** the status of the instance from the hardware perspective */
+  /** the state of the instance from the hardware perspective */
   hardware: z.enum(['queued', 'starting', 'running', 'stopping']),
   /** the container image to use for the instance */
   record: imageRecordSchema,

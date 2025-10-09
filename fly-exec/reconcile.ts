@@ -23,6 +23,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
   } = options
 
   const reconcile = async (computerId: string): Promise<number> => {
+    computerId = computerId.toLowerCase()
     const paths = await getInstancePaths(computerId)
 
     const promises: Promise<boolean>[] = []
@@ -35,6 +36,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
   }
 
   const getInstancePaths = async (computerId: string): Promise<string[]> => {
+    computerId = computerId.toLowerCase()
     const path = join(computerDir, computerId, COMPUTER_EXEC)
     const paths = []
     for await (const entry of Deno.readDir(path)) {
@@ -54,6 +56,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
   }
 
   const syncInstance = async (path: string, computerId: string) => {
+    computerId = computerId.toLowerCase()
     const instance = await readInstance(path)
     const { software, hardware } = instance
     log('syncInstance', path, { software, hardware })
@@ -102,6 +105,7 @@ const baseStartInstance = async (
   instance: ExecInstance,
   computerId: string,
 ) => {
+  computerId = computerId.toLowerCase()
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
   const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
@@ -161,6 +165,7 @@ const baseStartInstance = async (
 }
 
 const baseStopInstance = async (instance: ExecInstance, computerId: string) => {
+  computerId = computerId.toLowerCase()
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
   const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
