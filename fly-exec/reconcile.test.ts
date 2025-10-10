@@ -89,6 +89,7 @@ Deno.test('reconcile starts queued instance', async () => {
       expect(agentId).toBe('worker')
       return Promise.resolve()
     },
+    listMachineIds: () => Promise.resolve(new Set()),
   })
 
   await writeInstance(setup.instancePath, {
@@ -125,6 +126,7 @@ Deno.test('reconcile stops running instance', async () => {
       expect(computerId).toBe('computer-stop')
       return Promise.resolve()
     },
+    listMachineIds: () => Promise.resolve(new Set(['machine-existing'])),
   })
 
   await writeInstance(setup.instancePath, {
@@ -142,5 +144,37 @@ Deno.test('reconcile stops running instance', async () => {
   const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(1)
   expect(stopCalls.length).toBe(1)
+  expect(await setup.instanceExists()).toBe(false)
+})
+
+Deno.test('reconcile removes instance when machine is missing', async () => {
+  await using setup = await createTestSetup({ computerId: 'computer-missing' })
+  await setup.ensureAgentDirectory()
+
+  const stopCalls: HostInstance[] = []
+  const { reconcile, writeInstance } = createReconciler({
+    computerDir: setup.root,
+    stopInstance: (instance) => {
+      stopCalls.push(structuredClone(instance))
+      return Promise.resolve()
+    },
+    listMachineIds: () => Promise.resolve(new Set()),
+  })
+
+  await writeInstance(setup.instancePath, {
+    software: 'running',
+    hardware: 'running',
+    record: {
+      image: 'registry/image:latest',
+      cpu_kind: 'shared',
+      cpus: 1,
+      memory_mb: 1024,
+    },
+    machineId: 'machine-missing',
+  })
+
+  const changeCount = await reconcile(setup.computerId)
+  expect(changeCount).toBe(1)
+  expect(stopCalls.length).toBe(0)
   expect(await setup.instanceExists()).toBe(false)
 })

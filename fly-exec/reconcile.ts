@@ -16,7 +16,7 @@ import Debug from 'debug'
 
 const log = Debug('@artifact/fly-exec:reconcile')
 
-const PING_INTERVAL_MS = 100
+const PING_INTERVAL_MS = 400
 const PING_TIMEOUT_MS = 60_000
 
 type ReconcilerOptions = {
@@ -31,6 +31,7 @@ type ReconcilerOptions = {
     computerId: string,
     agentId: string,
   ) => Promise<void>
+  listMachineIds?: () => Promise<Set<string>>
 }
 
 export const createReconciler = (options: ReconcilerOptions = {}) => {
@@ -39,15 +40,17 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     startInstance = baseStartInstance,
     stopInstance = baseStopInstance,
     loadAgent = baseLoadAgent,
+    listMachineIds = baseListMachineIds,
   } = options
 
   const reconcile = async (computerId: string): Promise<number> => {
     computerId = computerId.toLowerCase()
     const paths = await getInstancePaths(computerId)
+    const machineIds = await listMachineIds()
 
     const promises: Promise<boolean>[] = []
     for (const path of paths) {
-      promises.push(syncInstance(path, computerId))
+      promises.push(syncInstance(path, computerId, machineIds))
     }
     const results = await Promise.all(promises)
     const changeCount = results.filter(Boolean).length
@@ -74,13 +77,22 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     return instance
   }
 
-  const syncInstance = async (path: string, computerId: string) => {
-    computerId = computerId.toLowerCase()
+  const syncInstance = async (
+    path: string,
+    computerId: string,
+    machineIds: Set<string>,
+  ) => {
     const instance = await readInstance(path)
     const agentId = basename(path, '.json')
     log('syncInstance', path, instance.software, instance.hardware)
-
     let changed = false
+
+    if (instance.machineId && !machineIds.has(instance.machineId)) {
+      log('syncInstance missing machineId', path, instance.machineId)
+      await deleteInstance(path)
+      changed = true
+      return changed
+    }
 
     if (instance.software === 'running') {
       if (instance.hardware === 'queued') {
@@ -206,16 +218,16 @@ const baseLoadAgent = async (
     try {
       const response = await fetch(pingUrl)
       if (response.ok) {
-        log('ping completed', pingUrl)
+        log('ping completed', pingUrl, Date.now() - start, 'ms')
         break
       }
     } catch {
       // ignore
     }
-    await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
     if (Date.now() - start > PING_TIMEOUT_MS) {
       throw new Error('Timed out waiting for agent ping response')
     }
+    await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
   }
 
   const client = new Client({ name: 'exec', version: '0.0.0' })
@@ -232,4 +244,18 @@ const baseLoadAgent = async (
     throw new Error('Failed to load agent')
   }
   log('baseLoadAgent success', result)
+}
+
+const baseListMachineIds = async () => {
+  const apiKey = envs.DC_FLY_API_TOKEN()
+  const app_name = envs.DC_WORKER_POOL_APP()
+  const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
+  const result = await fly.apps.machines.list(app_name)
+  const ids = new Set<string>()
+  for (const machine of result) {
+    if (machine.id) {
+      ids.add(machine.id)
+    }
+  }
+  return ids
 }
