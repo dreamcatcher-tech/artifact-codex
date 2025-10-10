@@ -27,22 +27,21 @@ export const createApp = (
   app.use('*', idler.middleware)
 
   app.use('*', async (c, next) => {
+    if (agent.isLoading) {
+      log('agent.isLoading intercepting request', c.req.method, c.req.path)
+      return agent.loader(c)
+    }
+    return await next()
+  })
+
+  app.use('*', async (c, next) => {
     const cl = classifyRequest(c.req)
     c.set('requestKind', cl)
     log('request %s %s classified as %s', c.req.method, c.req.path, cl.kind)
     await next()
   })
 
-  app.use('*', async (c, next) => {
-    const cl = c.get('requestKind')
-    if (agent.isLoading) {
-      log('agent@  %s intercepting %s request', agent.state, cl.kind)
-      return agent.loader(c)
-    }
-    await next()
-  })
-
-  app.use('*', (c, next) => {
+  app.use('*', (c) => {
     const cl = c.get('requestKind')
     switch (cl.kind) {
       case 'supervisor-mcp':
@@ -53,8 +52,18 @@ export const createApp = (
         return agent.internal(c)
       case 'web':
         log('proxying web request for port %s', cl.port)
-        return proxyForwardedRequest(c, next, cl.port, idler)
+        // if the request is on the default port, pick the default view
+        return proxyForwardedRequest(c, cl.port, idler)
     }
+  })
+
+  app.onError((error: Error, c: Context) => {
+    if (error instanceof HTTPException) {
+      log('error %s %s', c.req.method, c.req.path, error.cause)
+      // Get the custom response
+      return error.getResponse()
+    }
+    return c.text('Internal Server Error', 500)
   })
 
   const close = agent[Symbol.asyncDispose]
@@ -124,7 +133,7 @@ const isAgentMcpRequest = (req: HonoRequest, port: number | null) => {
   if (port !== null) {
     return false
   }
-  // if no port, and came from local machine, and has auth header
+  // TODO if no port, and came from local machine, and has auth header
   const machineId = req.header('fly-machine-id')
   return Boolean(machineId)
 }

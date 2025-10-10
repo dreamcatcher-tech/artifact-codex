@@ -1,6 +1,7 @@
 import Debug from 'debug'
 import { HOST, type IdleTrigger } from '@artifact/shared'
 import type { HonoRequest } from '@hono/hono'
+import { HTTPException } from '@hono/hono/http-exception'
 
 type ActivityKind = 'http' | 'ws'
 type ActivityObserver =
@@ -362,12 +363,11 @@ export function proxyWS(
 
 export async function proxyForwardedRequest(
   ctx: HonoContextLike,
-  next: NextFn,
   port: number | null,
   activity?: ActivityObserver,
 ): Promise<Response | void> {
   if (typeof port !== 'number') {
-    return next()
+    throw new HTTPException(500, { message: `typeof port !== 'number'` })
   }
   const request = ctx.req.raw
   if (isWebSocketRequest(ctx.req)) {
