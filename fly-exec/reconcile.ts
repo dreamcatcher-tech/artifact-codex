@@ -208,4 +208,5 @@ const baseLoadAgent = async (
     log('baseLoadAgent failed', result)
     throw new Error('Failed to load agent')
   }
+  log('baseLoadAgent success', result)
 }
