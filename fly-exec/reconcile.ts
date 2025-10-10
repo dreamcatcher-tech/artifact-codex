@@ -206,16 +206,16 @@ const baseLoadAgent = async (
     try {
       const response = await fetch(pingUrl)
       if (response.ok) {
+        log('ping completed', pingUrl)
         break
       }
     } catch {
       // ignore
     }
+    await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
     if (Date.now() - start > PING_TIMEOUT_MS) {
       throw new Error('Timed out waiting for agent ping response')
     }
-    log('ping completed', pingUrl)
-    await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
   }
 
   const client = new Client({ name: 'exec', version: '0.0.0' })

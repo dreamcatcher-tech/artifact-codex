@@ -3,6 +3,7 @@ import Debug from 'debug'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { toStructured, waitForPidExit } from '@artifact/shared'
+import { join } from '@std/path'
 import { createMcpHandler } from './mcp-handler.ts'
 import { z } from 'zod'
 import deno from './deno.json' with { type: 'json' }
@@ -92,7 +93,14 @@ export const createLoader = (
 }
 
 const fsAgentResolver: AgentResolver = (computerId, agentId) => {
-  // load up the agent from the filesystem
-  // resolve what the command to run the agent is
-  throw new Error('Not implemented: ' + computerId + ' ' + agentId)
+  log('fsAgentResolver defaulting to codex', computerId, agentId)
+
+  const cwd = join(import.meta.dirname!, '..', 'agent-codex')
+  const file = join(cwd, 'main.ts')
+  return Promise.resolve({
+    command: 'deno',
+    args: ['run', '-A', file],
+    env: {},
+    cwd,
+  })
 }
