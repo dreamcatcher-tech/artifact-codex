@@ -10,15 +10,26 @@ export const imageRecordSchema = z.object({
 
 export type ImageRecord = z.infer<typeof imageRecordSchema>
 
-export const execInstanceSchema = z.object({
+export const hostInstanceSchema = z.object({
   /** state requested by the software */
   software: z.enum(['running', 'stopped']),
   /** the state of the instance from the hardware perspective */
-  hardware: z.enum(['queued', 'starting', 'running', 'stopping']),
+  hardware: z.enum([
+    /** hardware reconciliation is queued */
+    'queued',
+    /** hardware reconciliation is starting */
+    'starting',
+    /** waiting to load an agent in a running instance */
+    'loadable',
+    /** the instance is running and serving requests */
+    'running',
+    /** the instance is stopping and will be deleted */
+    'stopping',
+  ]),
   /** the container image to use for the instance */
   record: imageRecordSchema,
   /** the machine id of the machine that is serving this instance */
   machineId: z.string().optional(),
 })
 
-export type ExecInstance = z.infer<typeof execInstanceSchema>
+export type HostInstance = z.infer<typeof hostInstanceSchema>

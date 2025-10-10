@@ -2,7 +2,7 @@ import { mount } from '@artifact/fly-nfs'
 import { createApp } from '@artifact/supervisor'
 import { createIdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
-const TIMEOUT_MS = 5 * 60 * 1000
+const TIMEOUT_MS = 60 * 60 * 1000 // 1 hour
 
 if (import.meta.main) {
   const log = Debug('@artifact/supervisor:main')

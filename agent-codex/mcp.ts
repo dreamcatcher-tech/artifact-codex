@@ -11,9 +11,7 @@ import { CodexAgent, createCodexAgent } from './codex.ts'
 import type { CodexAgentOptions, CodexConfig } from './config.ts'
 import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
-
-const VIEWS_RESOURCE_NAME = 'views'
-const VIEWS_RESOURCE_URI = 'mcp://views'
+import { VIEWS_RESOURCE_NAME, VIEWS_RESOURCE_URI } from '@artifact/shared'
 
 export function registerAgent(server: McpServer) {
   const optionsPromise = resolveAgentOptions()
@@ -84,7 +82,7 @@ export function registerAgent(server: McpServer) {
       description: 'Lists current views exposed by agent-codex.',
       mimeType: 'application/json',
     },
-    async (_uri) => {
+    async (_) => {
       const agent = await getAgent()
       const views = agent.getViews()
       return {

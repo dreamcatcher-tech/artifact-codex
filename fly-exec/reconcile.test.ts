@@ -2,7 +2,7 @@ import { expect } from '@std/expect'
 import { join } from '@std/path'
 import { COMPUTER_AGENTS, COMPUTER_EXEC } from '@artifact/shared'
 import { createReconciler } from './reconcile.ts'
-import type { ExecInstance } from '@artifact/fly-nfs/schemas'
+import type { HostInstance } from '@artifact/fly-nfs/schemas'
 
 class ReconcileTestSetup implements AsyncDisposable {
   readonly computerDir: string
@@ -66,7 +66,10 @@ Deno.test('reconcile starts queued instance', async () => {
   await using setup = await createTestSetup({ computerId: 'computer-start' })
   await setup.ensureAgentDirectory()
 
-  const startCalls: ExecInstance[] = []
+  const startCalls: HostInstance[] = []
+  const loadAgentCalls: Array<
+    { machineId: string; computerId: string; agentId: string }
+  > = []
   const {
     reconcile,
     writeInstance,
@@ -78,6 +81,13 @@ Deno.test('reconcile starts queued instance', async () => {
       expect(instance.hardware).toBe('starting')
       expect(computerId).toBe('computer-start')
       return Promise.resolve('machine-123')
+    },
+    loadAgent: (machineId, computerId, agentId) => {
+      loadAgentCalls.push({ machineId, computerId, agentId })
+      expect(machineId).toBe('machine-123')
+      expect(computerId).toBe('computer-start')
+      expect(agentId).toBe('worker')
+      return Promise.resolve()
     },
   })
 
@@ -95,6 +105,7 @@ Deno.test('reconcile starts queued instance', async () => {
   const changeCount = await reconcile(setup.computerId)
   expect(changeCount).toBe(1)
   expect(startCalls.length).toBe(1)
+  expect(loadAgentCalls.length).toBe(1)
 
   const updated = await readInstance(setup.instancePath)
   expect(updated.hardware).toBe('running')
@@ -105,7 +116,7 @@ Deno.test('reconcile stops running instance', async () => {
   await using setup = await createTestSetup({ computerId: 'computer-stop' })
   await setup.ensureAgentDirectory()
 
-  const stopCalls: ExecInstance[] = []
+  const stopCalls: HostInstance[] = []
   const { reconcile, writeInstance } = createReconciler({
     computerDir: setup.root,
     stopInstance: (instance, computerId) => {

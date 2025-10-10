@@ -73,3 +73,6 @@ replace the openai proxy with something running on the host:
 
 loader for agents should run a smoke test to make sure they supply the required
 tools and the required resources
+
+in fly-exec, detect if the replay was because the machine was not available. Use
+the fly-preferred-instance-unavailable header to detect this.

@@ -24,3 +24,35 @@ export const AGENT_HOME = 'home'
 export const AGENT_WORKSPACE = 'workspace'
 
 export const REPO_CONTAINER_IMAGES = 'container-images'
+
+export const SERVICE_VIEW_DEFAULT = {
+  internal_port: 8080,
+  protocol: 'tcp',
+  ports: [{
+    force_https: true,
+    port: 80,
+    handlers: ['http'],
+  }, {
+    port: 443,
+    handlers: ['tls', 'http'],
+  }],
+}
+
+export const SERVICE_VIEW_BROAD_PORTS = {
+  internal_port: 8080,
+  protocol: 'tcp',
+  ports: [{
+    start_port: 3000,
+    end_port: 30000,
+    handlers: ['tls', 'http'],
+  }],
+}
+
+export const SERVICE_AGENT_CONTROL = {
+  internal_port: 8080,
+  protocol: 'tcp',
+  ports: [{
+    port: 442,
+    handlers: ['tls', 'http'],
+  }],
+}

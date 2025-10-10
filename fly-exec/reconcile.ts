@@ -1,6 +1,16 @@
-import { ExecInstance, execInstanceSchema } from '@artifact/fly-nfs/schemas'
-import { join } from '@std/path'
-import { COMPUTER_EXEC, envs, NFS_MOUNT_DIR } from '@artifact/shared'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { HostInstance, hostInstanceSchema } from '@artifact/fly-nfs/schemas'
+import { basename, join } from '@std/path'
+import {
+  COMPUTER_EXEC,
+  envs,
+  NFS_MOUNT_DIR,
+  SERVICE_AGENT_CONTROL,
+  SERVICE_VIEW_BROAD_PORTS,
+  SERVICE_VIEW_DEFAULT,
+} from '@artifact/shared'
 import { FlyIoClient } from '@alexarena/fly-io-client'
 import Debug from 'debug'
 
@@ -9,10 +19,15 @@ const log = Debug('@artifact/fly-exec:reconcile')
 type ReconcilerOptions = {
   computerDir?: string
   startInstance?: (
-    instance: ExecInstance,
+    instance: HostInstance,
     computerId: string,
   ) => Promise<string>
-  stopInstance?: (instance: ExecInstance, computerId: string) => Promise<void>
+  stopInstance?: (instance: HostInstance, computerId: string) => Promise<void>
+  loadAgent?: (
+    machineId: string,
+    computerId: string,
+    agentId: string,
+  ) => Promise<void>
 }
 
 export const createReconciler = (options: ReconcilerOptions = {}) => {
@@ -20,6 +35,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     computerDir = NFS_MOUNT_DIR,
     startInstance = baseStartInstance,
     stopInstance = baseStopInstance,
+    loadAgent = baseLoadAgent,
   } = options
 
   const reconcile = async (computerId: string): Promise<number> => {
@@ -42,48 +58,64 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     for await (const entry of Deno.readDir(path)) {
       if (entry.isDirectory) continue
       if (!entry.name.toLowerCase().endsWith('.json')) continue
-      const filePath = join(path, entry.name)
+      const filePath = join(path, entry.name.toLowerCase())
       paths.push(filePath)
     }
     return paths
   }
 
-  const readInstance = async (filePath: string): Promise<ExecInstance> => {
+  const readInstance = async (filePath: string): Promise<HostInstance> => {
     const string = await Deno.readTextFile(filePath)
     const json = JSON.parse(string)
-    const instance = execInstanceSchema.parse(json)
+    const instance = hostInstanceSchema.parse(json)
     return instance
   }
 
   const syncInstance = async (path: string, computerId: string) => {
     computerId = computerId.toLowerCase()
     const instance = await readInstance(path)
-    const { software, hardware } = instance
-    log('syncInstance', path, { software, hardware })
+    const agentId = basename(path, '.json')
+    log('syncInstance', path, instance.software, instance.hardware)
 
-    if (software === 'running' && hardware === 'queued') {
-      instance.hardware = 'starting'
-      await writeInstance(path, instance)
+    let changed = false
 
-      const machineId = await startInstance(instance, computerId)
-      instance.machineId = machineId
-      instance.hardware = 'running'
-      await writeInstance(path, instance)
-      return true
+    if (instance.software === 'running') {
+      if (instance.hardware === 'queued') {
+        instance.hardware = 'starting'
+        await writeInstance(path, instance)
+
+        const machineId = await startInstance(instance, computerId)
+        instance.machineId = machineId
+        instance.hardware = 'loadable'
+        await writeInstance(path, instance)
+        changed = true
+      }
+
+      if (instance.hardware === 'loadable') {
+        if (!instance.machineId) {
+          throw new Error('machineId is required to load an agent')
+        }
+        await loadAgent(instance.machineId, computerId, agentId)
+        instance.hardware = 'running'
+        await writeInstance(path, instance)
+        changed = true
+      }
     }
 
-    if (software === 'stopped' && hardware === 'running') {
-      instance.hardware = 'stopping'
-      await writeInstance(path, instance)
-      await stopInstance(instance, computerId)
-      await deleteInstance(path)
-      return true
+    if (instance.software === 'stopped') {
+      if (instance.hardware === 'running') {
+        instance.hardware = 'stopping'
+        await writeInstance(path, instance)
+        await stopInstance(instance, computerId)
+        await deleteInstance(path)
+        changed = true
+      }
     }
-    return false
+    return changed
   }
 
-  const writeInstance = async (path: string, instance: ExecInstance) => {
-    const record = execInstanceSchema.parse(instance)
+  const writeInstance = async (path: string, instance: HostInstance) => {
+    const record = hostInstanceSchema.parse(instance)
     const body = JSON.stringify(record, null, 2) + '\n'
     await Deno.writeTextFile(path, body)
   }
@@ -102,7 +134,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
 }
 
 const baseStartInstance = async (
-  instance: ExecInstance,
+  instance: HostInstance,
   computerId: string,
 ) => {
   computerId = computerId.toLowerCase()
@@ -111,15 +143,12 @@ const baseStartInstance = async (
   const fly = new FlyIoClient({ apiKey, maxRetries: 30 })
 
   const { image, cpu_kind, cpus, memory_mb } = instance.record
+  log('baseStartInstance', { app_name, image, cpu_kind, cpus, memory_mb })
   const result = await fly.apps.machines.create(app_name, {
     config: {
       auto_destroy: true,
-      restart: {
-        policy: 'no',
-      },
-      init: {
-        swap_size_mb: 2048,
-      },
+      restart: { policy: 'no' },
+      init: { swap_size_mb: 2048 },
       guest: { cpu_kind, cpus, memory_mb },
       image,
       metadata: {
@@ -133,27 +162,9 @@ const baseStartInstance = async (
         DC_OPENAI_PROXY_BASE_URL: envs.DC_OPENAI_PROXY_BASE_URL(),
       },
       services: [
-        {
-          internal_port: 8080,
-          protocol: 'tcp',
-          ports: [{
-            start_port: 3000,
-            end_port: 30000,
-            handlers: ['tls', 'http'],
-          }],
-        },
-        {
-          internal_port: 8080,
-          protocol: 'tcp',
-          ports: [{
-            force_https: true,
-            port: 80,
-            handlers: ['http'],
-          }, {
-            port: 443,
-            handlers: ['tls', 'http'],
-          }],
-        },
+        SERVICE_AGENT_CONTROL,
+        SERVICE_VIEW_DEFAULT,
+        SERVICE_VIEW_BROAD_PORTS,
       ],
     },
   })
@@ -164,7 +175,7 @@ const baseStartInstance = async (
   return result.id
 }
 
-const baseStopInstance = async (instance: ExecInstance, computerId: string) => {
+const baseStopInstance = async (instance: HostInstance, computerId: string) => {
   computerId = computerId.toLowerCase()
   const apiKey = envs.DC_FLY_API_TOKEN()
   const app_name = envs.DC_WORKER_POOL_APP()
@@ -175,4 +186,25 @@ const baseStopInstance = async (instance: ExecInstance, computerId: string) => {
   }
   await fly.apps.machines.destroy(machine_id, { app_name, force: true })
   log('machine destroyed', { machine_id, computerId })
+}
+
+const baseLoadAgent = async (
+  machineId: string,
+  computerId: string,
+  agentId: string,
+) => {
+  const dns = `${machineId}.vm.${envs.DC_WORKER_POOL_APP()}.internal`
+  log('baseLoadAgent', { dns, computerId, agentId })
+
+  const client = new Client({ name: 'exec', version: '0.0.0' })
+  const transport = new StreamableHTTPClientTransport(new URL(dns))
+  await client.connect(transport)
+  const result = await client.callTool({
+    name: 'load',
+    arguments: { computerId, agentId },
+  }) as CallToolResult
+  if (!result.structuredContent?.ok) {
+    log('baseLoadAgent failed', result)
+    throw new Error('Failed to load agent')
+  }
 }
