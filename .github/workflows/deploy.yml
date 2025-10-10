@@ -11,12 +11,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run validation suite
+        run: deno task ok
+
   deploy:
+    name: Deploy ${{ matrix.task }}
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    strategy:
+      matrix:
+        task:
+          - deploy-nfs
+          - deploy-openai
+          - deploy-host-basic
+          - deploy-host-coder
+          - deploy-exec
+          - deploy-router
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -29,8 +56,5 @@ jobs:
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@1.5
 
-      - name: Run validation suite
-        run: deno task ok
-
-      - name: Deploy all Fly apps
-        run: deno task all
+      - name: Deploy ${{ matrix.task }}
+        run: deno task ${{ matrix.task }}
