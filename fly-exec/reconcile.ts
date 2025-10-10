@@ -208,22 +208,21 @@ const baseLoadAgent = async (
       if (response.ok) {
         break
       }
-      log('ping waiting', {
-        status: response.status,
-        statusText: response.statusText,
-      })
-    } catch (error) {
-      log('ping error', error)
+    } catch {
+      // ignore
     }
     if (Date.now() - start > PING_TIMEOUT_MS) {
       throw new Error('Timed out waiting for agent ping response')
     }
+    log('ping completed', pingUrl)
     await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
   }
 
   const client = new Client({ name: 'exec', version: '0.0.0' })
   const transport = new StreamableHTTPClientTransport(new URL(url))
   await client.connect(transport)
+  const tools = await client.listTools()
+  log('baseLoadAgent tools', tools)
   const result = await client.callTool({
     name: 'load',
     arguments: { computerId, agentId },

@@ -173,8 +173,10 @@ async function baseKickExecApp(computerId: string) {
   log('kicking exec app:', url)
   const result = await fetch(url, { method: 'POST' })
   if (!result.ok) {
+    log('failed to kick exec app', result)
     throw new Error('Failed to kick exec app')
   }
+  log('kicked exec app', result)
 }
 
 async function makeAgentFolder(path: string) {
