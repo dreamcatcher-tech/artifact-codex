@@ -16,6 +16,9 @@ import Debug from 'debug'
 
 const log = Debug('@artifact/fly-exec:reconcile')
 
+const PING_INTERVAL_MS = 100
+const PING_TIMEOUT_MS = 60_000
+
 type ReconcilerOptions = {
   computerDir?: string
   startInstance?: (
@@ -196,6 +199,27 @@ const baseLoadAgent = async (
   const poolApp = envs.DC_WORKER_POOL_APP()
   const url = `http://${machineId}.vm.${poolApp}.internal:8080`
   log('baseLoadAgent', { url, computerId, agentId })
+
+  const pingUrl = new URL('/ping', url)
+  const start = Date.now()
+  while (true) {
+    try {
+      const response = await fetch(pingUrl)
+      if (response.ok) {
+        break
+      }
+      log('ping waiting', {
+        status: response.status,
+        statusText: response.statusText,
+      })
+    } catch (error) {
+      log('ping error', error)
+    }
+    if (Date.now() - start > PING_TIMEOUT_MS) {
+      throw new Error('Timed out waiting for agent ping response')
+    }
+    await new Promise((resolve) => setTimeout(resolve, PING_INTERVAL_MS))
+  }
 
   const client = new Client({ name: 'exec', version: '0.0.0' })
   const transport = new StreamableHTTPClientTransport(new URL(url))
