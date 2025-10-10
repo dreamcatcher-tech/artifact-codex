@@ -63,7 +63,6 @@ export function isComputerDomain(
   baseDomain: string,
 ): boolean {
   const subdomain = getSubdomain(urlString, baseDomain)
-  console.log('subdomain', subdomain)
 
   if (subdomain.includes('--')) {
     return false
@@ -73,7 +72,6 @@ export function isComputerDomain(
 
 export function isAgentDomain(urlString: string, baseDomain: string): boolean {
   const subdomain = getSubdomain(urlString, baseDomain)
-  console.log('subdomain', subdomain)
   if (!subdomain.includes('--')) {
     throw new Error('subdomain does not contain --')
   }

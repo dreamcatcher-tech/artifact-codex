@@ -193,11 +193,11 @@ const baseLoadAgent = async (
   computerId: string,
   agentId: string,
 ) => {
-  const dns = `${machineId}.vm.${envs.DC_WORKER_POOL_APP()}.internal`
-  log('baseLoadAgent', { dns, computerId, agentId })
+  const url = `http://${machineId}.vm.${envs.DC_WORKER_POOL_APP()}.internal`
+  log('baseLoadAgent', { url, computerId, agentId })
 
   const client = new Client({ name: 'exec', version: '0.0.0' })
-  const transport = new StreamableHTTPClientTransport(new URL(dns))
+  const transport = new StreamableHTTPClientTransport(new URL(url))
   await client.connect(transport)
   const result = await client.callTool({
     name: 'load',
