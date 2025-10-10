@@ -15,8 +15,12 @@ if (import.meta.main) {
   abort.signal.onabort = close
 
   const port = Number(Deno.env.get('PORT') ?? '8080')
-  const flycastHostname = '0.0.0.0'
-  log('starting host-basic server on :%d', port)
+  // const flycastHostname = '0.0.0.0'
+  const fly6pnHostname = '[::]' // in fly, grabs the ipv4 address too
+
+  log('starting supervisor server on :%d', port)
   const { signal } = abort
-  Deno.serve({ port, hostname: flycastHostname, signal }, app.fetch)
+
+  // Deno.serve({ port, hostname: flycastHostname, signal }, app.fetch)
+  Deno.serve({ port, hostname: fly6pnHostname, signal }, app.fetch)
 }
