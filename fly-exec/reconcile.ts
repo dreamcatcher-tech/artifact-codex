@@ -193,7 +193,8 @@ const baseLoadAgent = async (
   computerId: string,
   agentId: string,
 ) => {
-  const url = `http://${machineId}.vm.${envs.DC_WORKER_POOL_APP()}.internal`
+  const poolApp = envs.DC_WORKER_POOL_APP()
+  const url = `http://${machineId}.vm.${poolApp}.internal:8080`
   log('baseLoadAgent', { url, computerId, agentId })
 
   const client = new Client({ name: 'exec', version: '0.0.0' })
