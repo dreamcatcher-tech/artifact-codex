@@ -9,6 +9,9 @@ logs can be targetted to a specific machine too:
 any time you need to specify a config, you can also specify the app name: ``fly
 logs --app <app-name> --no-tail`
 
+logs can sometimes be delayed by up to 5 minutes, so if you are not seeing the
+logs you expect, use a delay command to burn some time before you check again.
+
 Any time you are contemplating some way of interacting with the fly.io
 infrastructure, or attempting something new in deno, use the net to search for
 the latest information, since both the deno project and the fly.io platform

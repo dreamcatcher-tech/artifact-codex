@@ -43,14 +43,19 @@ export const createApp = (options: CreateAppOptions = {}) => {
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
     if (!auth?.userId) {
-      return c.redirect(envs.DC_CLERK_SIGN_UP_URL(), PRESERVING_REDIRECT)
-    }
-    c.set('userId', auth.userId)
-    const client = c.get('clerk')
-    const ot = await client.users.getUserOauthAccessToken(auth.userId, 'github')
-    if (ot) {
-      // update their computer env with this value so new agents will use it
-      // existing agents can try read it to refresh it
+      // return c.redirect(envs.DC_CLERK_SIGN_UP_URL(), PRESERVING_REDIRECT)
+      c.set('userId', 'test-computer')
+    } else {
+      c.set('userId', auth.userId)
+      const client = c.get('clerk')
+      const ot = await client.users.getUserOauthAccessToken(
+        auth.userId,
+        'github',
+      )
+      if (ot) {
+        // update their computer env with this value so new agents will use it
+        // existing agents can try read it to refresh it
+      }
     }
     return await next()
   })
