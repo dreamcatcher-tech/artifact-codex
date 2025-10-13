@@ -1,5 +1,5 @@
 import { Context, Hono, type HonoRequest } from '@hono/hono'
-import type { IdleTrigger } from '@artifact/shared'
+import type { AgentView, IdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
 import { HTTPException } from '@hono/hono/http-exception'
 import { agentViewSchema, MCP_PORT, VIEWS_RESOURCE_URI } from '@artifact/shared'
@@ -109,7 +109,17 @@ const createAgent = (idler: IdleTrigger, agentResolver?: AgentResolver) => {
       if (typeof textContent !== 'string') {
         throw new HTTPException(500, { message: 'views resource missing' })
       }
-      const data = JSON.parse(textContent)
+      const data = JSON.parse(textContent) as { views: AgentView[] }
+      if (!data || !Array.isArray(data.views)) {
+        throw new HTTPException(503, {
+          message: 'Agent views resource malformed or missing',
+        })
+      }
+      if (data.views.length === 0) {
+        throw new HTTPException(503, {
+          message: 'Agent has no active views yet',
+        })
+      }
       const view = agentViewSchema.parse(data.views[0])
       return view.port
     },
