@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { waitForPidExit } from './mcp.ts'
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import { join } from '@std/path'
 
 export type SpawnOptions = {
   /**
@@ -84,6 +84,7 @@ type TextContent = {
   text: string
   mimeType?: string
 }
+
 export function isTextContent(content: unknown): content is TextContent {
   return Boolean(
     content && typeof content === 'object' &&
@@ -91,10 +92,33 @@ export function isTextContent(content: unknown): content is TextContent {
   )
 }
 
-export function readErrorText(result: CallToolResult): string {
-  const entry = Array.isArray(result.content) ? result.content[0] : undefined
-  if (entry && entry.type === 'text' && typeof entry.text === 'string') {
-    return entry.text
+export async function createTempHostFs(prefix?: string) {
+  const tempRoot = await Deno.makeTempDir({ prefix })
+  const workspaceDir = join(tempRoot, 'workspace')
+  const homeDir = join(tempRoot, 'home')
+  const notifyDir = join(tempRoot, 'notify')
+  await Promise.all([
+    Deno.mkdir(workspaceDir, { recursive: true }),
+    Deno.mkdir(homeDir, { recursive: true }),
+    Deno.mkdir(notifyDir, { recursive: true }),
+  ])
+
+  return {
+    workspaceDir,
+    homeDir,
+    notifyDir,
+    [Symbol.asyncDispose]: async () => {
+      await cleanupTempDir(tempRoot)
+    },
   }
-  return ''
+}
+
+export async function cleanupTempDir(path: string) {
+  try {
+    await Deno.remove(path, { recursive: true })
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`Failed to clean up temp dir ${path}: ${message}`)
+  }
 }

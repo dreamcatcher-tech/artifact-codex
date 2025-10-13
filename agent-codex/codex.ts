@@ -536,7 +536,6 @@ async function launchCodexProcess(
 ): Promise<CodexLaunchResult> {
   const { configDir, workspace, host, tmuxSession } = args
   const env: Record<string, string> = {
-    ...readEnvSafe(),
     CODEX_HOME: configDir,
     SESSION: tmuxSession,
     TTYD_PORT: String(TTYD_PORT),
@@ -614,14 +613,6 @@ function ensureEnv(env: Record<string, string>, key: string, value: string) {
   const current = env[key]
   if (!current || current.trim().length === 0) {
     env[key] = value
-  }
-}
-
-function readEnvSafe(): Record<string, string> {
-  try {
-    return Deno.env.toObject()
-  } catch {
-    return {}
   }
 }
 

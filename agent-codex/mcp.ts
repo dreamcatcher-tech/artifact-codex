@@ -12,6 +12,7 @@ import type { CodexAgentOptions, CodexConfig } from './config.ts'
 import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 import { VIEWS_RESOURCE_NAME, VIEWS_RESOURCE_URI } from '@artifact/shared'
+import { envs } from './env.ts'
 
 export function registerAgent(server: McpServer) {
   const optionsPromise = resolveAgentOptions()
@@ -112,22 +113,14 @@ const resolveAgentOptions = (): Promise<CodexAgentOptions> => {
 }
 
 function resolveAgentOptionsFromEnv(): CodexAgentOptions | undefined {
-  const getEnv = (key: string): string | undefined => {
-    try {
-      return Deno.env.get(key) ?? undefined
-    } catch {
-      return undefined
-    }
-  }
-
-  const workspace = trimOrUndefined(getEnv('CODEX_AGENT_WORKSPACE'))
-  const home = trimOrUndefined(getEnv('CODEX_AGENT_HOME'))
-  const launchEnv = trimOrUndefined(getEnv('CODEX_AGENT_LAUNCH'))
-  const notifyDir = trimOrUndefined(getEnv('CODEX_AGENT_NOTIFY_DIR'))
+  const workspace = envs.CODEX_AGENT_WORKSPACE()
+  const home = envs.CODEX_AGENT_HOME()
+  const launchEnv = envs.CODEX_AGENT_LAUNCH()
+  const notifyDir = envs.CODEX_AGENT_NOTIFY_DIR()
 
   const cfg: CodexConfig = {}
   let hasConfig = false
-  if (launchEnv === 'tmux' || launchEnv === 'disabled') {
+  if (launchEnv) {
     cfg.launch = launchEnv
     hasConfig = true
   }
@@ -145,12 +138,6 @@ function resolveAgentOptionsFromEnv(): CodexAgentOptions | undefined {
   if (home) options.home = home
   if (hasConfig) options.config = cfg
   return options
-}
-
-function trimOrUndefined(value: string | undefined): string | undefined {
-  if (!value) return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
 }
 
 async function resolveAgentOptionsFromFs(): Promise<CodexAgentOptions> {

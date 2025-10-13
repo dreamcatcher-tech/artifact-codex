@@ -6,6 +6,8 @@
     "./fixture": "./fixture.ts"
   },
   "tasks": {
+    "dev": "DEBUG='@artifact/*' deno run -A --watch dev.ts",
+    "mcp": "DEBUG='@artifact/*' deno run -A mcp.ts",
     "test": "deno test -A",
     "watch": "deno test -A --watch --trace-leaks",
     "lint": "deno lint",

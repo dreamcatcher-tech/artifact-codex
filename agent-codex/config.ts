@@ -1,5 +1,6 @@
 import { dirname, fromFileUrl, join, resolve } from '@std/path'
 import { type AgentOptions, type AgentView, envs } from '@artifact/shared'
+import { envs as codexEnvs } from './env.ts'
 
 export type CodexConfig = {
   env?: Record<string, string>
@@ -38,7 +39,6 @@ const NOTIFY_SCRIPT = join(MODULE_DIR, 'notify.ts')
 const NOTIFY_MARKER_LINE = 'notify = "__CODEX_NOTIFY__"'
 const DREAMCATCHER_DIR = '.dreamcatcher'
 const AGENT_HOME_BUCKET = 'agent-codex'
-const OPENAI_API_KEY_ENV = 'OPENAI_API_KEY'
 
 const TEMPLATE_REWRITES: Record<string, string> = {
   '__MCP_COMPUTERS_COMMAND__': join(
@@ -69,7 +69,7 @@ export async function prepareLaunchDirectories(
   await requireDirectory(workspace, 'workspace')
   const home = resolveHomePath(opts.home, workspace)
   await ensureHomeDirectory(home)
-  await writeAuthFile(home, opts)
+  await writeAuthFile(home)
   await writeConfigTemplate(home)
   return { workspace, home }
 }
@@ -154,27 +154,9 @@ function ensureNotifyBlock(template: string, configDir: string): string {
   return replaced
 }
 
-function createEnvResolver(
-  opts: CodexAgentOptions,
-): (key: string) => string | undefined {
-  const cfg = opts.config
-  if (cfg?.getEnv) {
-    return cfg.getEnv
-  }
-  if (cfg?.env) {
-    const env = cfg.env
-    return (key: string) => env[key]
-  }
-  return (key: string) => Deno.env.get(key)
-}
-
-async function writeAuthFile(configDir: string, opts: CodexAgentOptions) {
-  const getEnv = createEnvResolver(opts)
-  const apiKey = getEnv(OPENAI_API_KEY_ENV)
-  if (!apiKey) {
-    throw new Error(`environment variable required: ${OPENAI_API_KEY_ENV}`)
-  }
-  const payload = JSON.stringify({ [OPENAI_API_KEY_ENV]: apiKey }, null, 2)
+async function writeAuthFile(configDir: string) {
+  const OPENAI_API_KEY = codexEnvs.OPENAI_API_KEY()
+  const payload = JSON.stringify({ OPENAI_API_KEY }, null, 2)
   const outPath = join(configDir, 'auth.json')
   await Deno.writeTextFile(outPath, `${payload}\n`)
 }

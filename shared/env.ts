@@ -69,4 +69,5 @@ export const envs = {
   DC_COMPUTER_ID: () => readAppEnv('DC_COMPUTER_ID'),
   DC_OPENAI_PROXY_BASE_URL: () =>
     readAppEnv('DC_OPENAI_PROXY_BASE_URL', 'https://localhost'),
+  DC_PORT: () => Number(readAppEnv('DC_PORT', '8080')),
 }

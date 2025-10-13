@@ -9,6 +9,8 @@ import process from 'node:process'
 export type RemoteClientOptions = {
   /** Optional fetch implementation override (used in tests). */
   fetch?: FetchLike
+  /** Optional resolver override for agent URLs (used in tests/tools). */
+  resolveAgentUrl?: (agentId: string) => URL
 }
 
 function pidIsAlive(id: number): boolean {
@@ -30,7 +32,7 @@ export const waitForPidExit = async (pid?: number | null) => {
   }
 }
 
-function resolveAgentUrl(agentId: string): URL {
+function baseResolver(agentId: string): URL {
   if (agentId === '@self') {
     return new URL(`http://${HOST}:${MCP_PORT}`)
   }
@@ -46,9 +48,10 @@ export async function callRemoteTool(
   args: Record<string, unknown>,
   opts: RemoteClientOptions = {},
 ): Promise<CallToolResult> {
+  const { fetch, resolveAgentUrl = baseResolver } = opts
   const url = resolveAgentUrl(agentId)
   const client = new Client({ name: 'mcp-proxy', version: '0.0.1' })
-  const transport = new StreamableHTTPClientTransport(url, opts)
+  const transport = new StreamableHTTPClientTransport(url, { fetch })
   await client.connect(transport)
   try {
     const result = await client.callTool({ name: tool, arguments: args })
@@ -73,6 +76,14 @@ export function toStructured(
 export function toError(err: unknown): CallToolResult {
   const msg = err instanceof Error ? err.message : String(err)
   return { content: [{ type: 'text', text: msg }], isError: true }
+}
+
+export function readErrorText(result: CallToolResult): string {
+  const entry = Array.isArray(result.content) ? result.content[0] : undefined
+  if (entry && entry.type === 'text' && typeof entry.text === 'string') {
+    return entry.text
+  }
+  return ''
 }
 
 export type ToolConfig = {

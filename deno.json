@@ -9,7 +9,8 @@
     "fly-exec",
     "fly-nfs",
     "fly-router",
-    "fly-openai"
+    "fly-openai",
+    "test"
   ],
   "tasks": {
     "inspect": "npx -y @modelcontextprotocol/inspector",
@@ -29,6 +30,7 @@
   },
   "imports": {
     "@alexarena/fly-io-client": "npm:@alexarena/fly-io-client@^1.0.0",
+    "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.8",
     "@hono/clerk-auth": "jsr:@hono/clerk-auth@^3.0.3",
     "@hono/hono": "jsr:@hono/hono@^4.9.8",
     "@hono/mcp": "jsr:@dreamcatcher/artifact-mcp@^0.1.3",

@@ -1,12 +1,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { z } from 'zod'
 
-export type AgentView = {
-  name: string
-  port: number
-  protocol: 'http'
-  url: string
-}
+export const agentViewSchema = z.object({
+  name: z.string(),
+  port: z.number().int().min(1).max(65535),
+  protocol: z.literal('http'),
+  url: z.string().url(),
+})
+
+export type AgentView = z.infer<typeof agentViewSchema>
 
 export type AgentOptions = {
   /** Absolute path to a workspace directory (CWD for child processes). */

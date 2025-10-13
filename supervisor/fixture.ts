@@ -9,10 +9,10 @@ import { MCP_PORT } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { join } from 'node:path'
 import type { AgentResolver } from './loader.ts'
+const defaultTimeoutMs = 2 * 60 * 1000
 
 export async function createFixture(
-  { timeoutMs = Number.MAX_SAFE_INTEGER, agentResolver = testAgentResolver } =
-    {},
+  { timeoutMs = defaultTimeoutMs, agentResolver = testAgentResolver } = {},
 ) {
   const controller = new AbortController()
   const idler = createIdleTrigger(controller, timeoutMs)
@@ -20,7 +20,7 @@ export async function createFixture(
 
   const fetch = createInMemoryFetch(app)
   const client = new Client({ name: 'test-client', version: '0.0.0' })
-  const transport = new StreamableHTTPClientTransport(new URL('abc://nope'), {
+  const transport = new StreamableHTTPClientTransport(new URL('abc://nope/'), {
     fetch,
   })
   await client.connect(transport)
@@ -29,7 +29,6 @@ export async function createFixture(
       name: 'load',
       arguments: { computerId, agentId },
     }) as CallToolResult
-    await client.listTools()
   }
   return {
     app,
@@ -44,8 +43,7 @@ export async function createFixture(
 }
 
 export async function createLoadedFixture(
-  { timeoutMs = Number.MAX_SAFE_INTEGER, agentResolver = testAgentResolver } =
-    {},
+  { timeoutMs = defaultTimeoutMs, agentResolver = testAgentResolver } = {},
 ) {
   const fixture = await createFixture({ timeoutMs, agentResolver })
   await fixture.load()

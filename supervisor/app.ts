@@ -2,12 +2,12 @@ import { Context, Hono, type HonoRequest } from '@hono/hono'
 import type { IdleTrigger } from '@artifact/shared'
 import Debug from 'debug'
 import { HTTPException } from '@hono/hono/http-exception'
-import { MCP_PORT } from '@artifact/shared'
+import { agentViewSchema, MCP_PORT, VIEWS_RESOURCE_URI } from '@artifact/shared'
 import { type AgentResolver, createLoader } from './loader.ts'
 import { createExternal, type External } from './external.ts'
 import { createInternal, type Internal } from './internal.ts'
 import { proxyForwardedRequest } from './proxy.ts'
-// import { logger } from '@hono/hono/logger'
+import { logger } from '@hono/hono/logger'
 
 const log = Debug('@artifact/supervisor')
 
@@ -23,7 +23,7 @@ export const createApp = (
 
   const app = new Hono<SupervisorEnv>()
 
-  // app.use('*', logger())
+  app.use('*', logger(log))
   app.use('*', idler.middleware)
 
   app.use('*', async (c, next) => {
@@ -31,11 +31,11 @@ export const createApp = (
       log('agent.isLoading intercepting request', c.req.method, c.req.path)
       return agent.loader(c)
     }
-    return await next()
+    await next()
   })
 
   app.use('*', async (c, next) => {
-    const cl = classifyRequest(c.req)
+    const cl = await classifyRequest(c.req, agent)
     c.set('requestKind', cl)
     log('request %s %s classified as %s', c.req.method, c.req.path, cl.kind)
     await next()
@@ -50,20 +50,19 @@ export const createApp = (
       case 'agent-mcp':
         log('dispatching internal mcp request in state %s', agent.state)
         return agent.internal(c)
-      case 'web':
+      case 'web': {
         log('proxying web request for port %s', cl.port)
-        // if the request is on the default port, pick the default view
         return proxyForwardedRequest(c, cl.port, idler)
+      }
     }
   })
 
   app.onError((error: Error, c: Context) => {
     if (error instanceof HTTPException) {
       log('error %s %s', c.req.method, c.req.path, error.cause)
-      // Get the custom response
       return error.getResponse()
     }
-    return c.text('Internal Server Error', 500)
+    return c.text('Internal Server Error: ' + error.message, 500)
   })
 
   const close = agent[Symbol.asyncDispose]
@@ -97,6 +96,23 @@ const createAgent = (idler: IdleTrigger, agentResolver?: AgentResolver) => {
       assertState(state, 'loading', loader)
       return loader.handler(c)
     },
+    get client() {
+      assertState(state, 'ready', loader.client)
+      return loader.client
+    },
+    getDefaultViewPort: async (): Promise<number> => {
+      assertState(state, 'ready', loader.client)
+      const result = await loader.client.readResource({
+        uri: VIEWS_RESOURCE_URI,
+      })
+      const textContent = result.contents[0]?.text
+      if (typeof textContent !== 'string') {
+        throw new HTTPException(500, { message: 'views resource missing' })
+      }
+      const data = JSON.parse(textContent)
+      const view = agentViewSchema.parse(data.views[0])
+      return view.port
+    },
     external: (c: Context) => {
       assertState(state, 'ready', external)
       return external.handler(c)
@@ -118,24 +134,50 @@ const createAgent = (idler: IdleTrigger, agentResolver?: AgentResolver) => {
   return agent
 }
 
-const classifyRequest = (req: HonoRequest): ClassifiedRequest => {
-  const port = portFromHeaders(req)
-  if (port === MCP_PORT) {
+type Agent = ReturnType<typeof createAgent>
+
+function parsePort(v: string | undefined): number | null {
+  if (!v) return null
+  if (!/^\d{1,5}$/.test(v)) return null
+  const n = Number(v)
+  return n >= 1 && n <= 65535 ? n : null
+}
+
+const classifyRequest = async (
+  req: HonoRequest,
+  agent: Agent,
+): Promise<ClassifiedRequest> => {
+  const forwardedPort = parsePort(req.header('fly-forwarded-port'))
+  if (forwardedPort === MCP_PORT) {
     return { kind: 'supervisor-mcp' }
   }
-  if (isAgentMcpRequest(req, port)) {
+  if (isAgentMcpRequest(req, forwardedPort)) {
     return { kind: 'agent-mcp' }
+  }
+  let port = forwardedPort
+  if (!port || port === 443) {
+    port = await agent.getDefaultViewPort()
   }
   return { kind: 'web', port }
 }
 
-const isAgentMcpRequest = (req: HonoRequest, port: number | null) => {
-  if (port !== null) {
+const isAgentMcpRequest = (req: HonoRequest, forwardedPort: number | null) => {
+  if (forwardedPort !== null) {
     return false
   }
-  // TODO if no port, and came from local machine, and has auth header
-  const machineId = req.header('fly-machine-id')
-  return Boolean(machineId)
+  if (isLocalhostRequest(req)) {
+    const marker = req.header('dc-agent-mcp')
+    return marker !== undefined
+  }
+  return false
+}
+
+const isLocalhostRequest = (req: HonoRequest) => {
+  const url = new URL(req.url)
+  const hostname = url.hostname
+  return hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1'
 }
 
 type AgentState = 'loading' | 'ready' | 'shuttingDown'
@@ -143,7 +185,7 @@ type AgentState = 'loading' | 'ready' | 'shuttingDown'
 type ClassifiedRequest =
   | { kind: 'supervisor-mcp' }
   | { kind: 'agent-mcp' }
-  | { kind: 'web'; port: number | null }
+  | { kind: 'web'; port: number }
 
 function assertState<T>(
   state: AgentState,
@@ -161,15 +203,4 @@ function assertState<T>(
   if (handler === undefined) {
     throw new HTTPException(500, { message: 'Handler is not ready' })
   }
-}
-
-function parsePort(v: string | undefined): number | null {
-  if (!v) return null
-  if (!/^\d{1,5}$/.test(v)) return null
-  const n = Number(v)
-  return n >= 1 && n <= 65535 ? n : null
-}
-
-function portFromHeaders(req: HonoRequest): number | null {
-  return parsePort(req.header('fly-forwarded-port'))
 }
