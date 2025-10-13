@@ -2,7 +2,14 @@ import type { Context } from '@hono/hono'
 import Debug from 'debug'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { toStructured, waitForPidExit } from '@artifact/shared'
+import {
+  AGENT_HOME,
+  AGENT_WORKSPACE,
+  COMPUTER_AGENTS,
+  NFS_MOUNT_DIR,
+  toStructured,
+  waitForPidExit,
+} from '@artifact/shared'
 import { join } from '@std/path'
 import { createMcpHandler } from './mcp-handler.ts'
 import { z } from 'zod'
@@ -97,10 +104,18 @@ const fsAgentResolver: AgentResolver = (computerId, agentId) => {
 
   const cwd = join(import.meta.dirname!, '..', 'agent-codex')
   const file = join(cwd, 'main.ts')
+  const computer = computerId.toLowerCase()
+  const agent = agentId.toLowerCase()
+  const agentRoot = join(NFS_MOUNT_DIR, computer, COMPUTER_AGENTS, agent)
+  const workspaceDir = join(agentRoot, AGENT_WORKSPACE)
+  const homeDir = join(agentRoot, AGENT_HOME)
   return Promise.resolve({
     command: 'deno',
     args: ['run', '-A', file],
-    env: {},
+    env: {
+      CODEX_AGENT_WORKSPACE: workspaceDir,
+      CODEX_AGENT_HOME: homeDir,
+    },
     cwd,
   })
 }
