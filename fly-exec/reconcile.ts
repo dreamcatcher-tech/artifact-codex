@@ -12,6 +12,7 @@ import {
   SERVICE_VIEW_DEFAULT,
 } from '@artifact/shared'
 import { FlyIoClient } from '@alexarena/fly-io-client'
+import { createQueue } from './queue.ts'
 import Debug from 'debug'
 
 const log = Debug('@artifact/fly-exec:reconcile')
@@ -19,7 +20,7 @@ const log = Debug('@artifact/fly-exec:reconcile')
 const PING_INTERVAL_MS = 400
 const PING_TIMEOUT_MS = 60_000
 
-type ReconcilerOptions = {
+export type ReconcilerOptions = {
   computerDir?: string
   startInstance?: (
     instance: HostInstance,
@@ -42,6 +43,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
     loadAgent = baseLoadAgent,
     listMachineIds = baseListMachineIds,
   } = options
+  const queue = createQueue<number>()
 
   const reconcile = async (computerId: string): Promise<number> => {
     computerId = computerId.toLowerCase()
@@ -140,7 +142,7 @@ export const createReconciler = (options: ReconcilerOptions = {}) => {
   }
 
   return {
-    reconcile,
+    reconcile: (id: string) => queue.enqueue(id, () => reconcile(id)),
     readInstance,
     writeInstance,
     deleteInstance,

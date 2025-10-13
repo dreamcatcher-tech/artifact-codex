@@ -37,6 +37,7 @@ export async function createFixture(
     load,
     [Symbol.asyncDispose]: async () => {
       await client.close()
+      controller.abort()
       await close()
     },
   }

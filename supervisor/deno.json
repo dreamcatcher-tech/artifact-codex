@@ -10,7 +10,7 @@
     "mcp": "DEBUG='@artifact/*' deno run -A mcp.ts",
     "test": "deno test -A",
     "watch": "deno test -A --watch --trace-leaks",
-    "lint": "deno lint",
+    "lint": "deno lint --fix",
     "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
   }

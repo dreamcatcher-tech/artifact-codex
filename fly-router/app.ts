@@ -23,9 +23,9 @@ const PRESERVING_REDIRECT = 307
 
 type CreateAppOptions = {
   baseDomain?: string
-  computerDir?: string
-  execApp?: string
   workerPoolApp?: string
+  computerDir?: string
+  kickExecApp?: (computerId: string) => Promise<void>
 }
 
 export const createApp = (options: CreateAppOptions = {}) => {

@@ -1,12 +1,10 @@
 import { Hono } from '@hono/hono'
 import { logger } from '@hono/hono/logger'
-import { createReconciler } from './reconcile.ts'
-import { createQueue } from './queue.ts'
+import { createReconciler, type ReconcilerOptions } from './reconcile.ts'
 
-export const createApp = () => {
+export const createApp = (options: ReconcilerOptions = {}) => {
   const app = new Hono()
-  const { reconcile } = createReconciler()
-  const queue = createQueue<number>()
+  const { reconcile } = createReconciler(options)
 
   app.use('*', logger())
 
@@ -21,11 +19,7 @@ export const createApp = () => {
 
   app.post('changed/:computerId', async (c) => {
     const computerId = c.req.param('computerId')
-
-    const changeCount = await queue.enqueue(
-      computerId,
-      () => reconcile(computerId),
-    )
+    const changeCount = await reconcile(computerId)
     return c.json({ changeCount })
   })
 

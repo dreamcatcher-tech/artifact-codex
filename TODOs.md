@@ -76,3 +76,6 @@ tools and the required resources
 
 in fly-exec, detect if the replay was because the machine was not available. Use
 the fly-preferred-instance-unavailable header to detect this.
+
+the env object that is used to get environment variables should be made
+injectable, so we can exercise mocks without altering real env vars.

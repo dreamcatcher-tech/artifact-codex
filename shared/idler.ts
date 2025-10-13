@@ -12,6 +12,8 @@ export function createIdleTrigger(ac: AbortController, timeoutMs: number) {
     }
   }
 
+  ac.signal.addEventListener('abort', clearTimer, { once: true })
+
   function idle(id: number) {
     if (!activeBusy.has(id)) {
       throw new Error(`idle() called with invalid or duplicate id: ${id}`)
@@ -47,6 +49,7 @@ export function createIdleTrigger(ac: AbortController, timeoutMs: number) {
   }
 
   const abort = () => {
+    clearTimer()
     ac.abort()
   }
 
