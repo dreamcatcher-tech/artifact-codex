@@ -1,8 +1,8 @@
 import { Context, Hono, type HonoRequest } from '@hono/hono'
-import type { AgentView, IdleTrigger } from '@artifact/shared'
+import type { AgentView, IdleTrigger, ToolResult } from '@artifact/shared'
 import Debug from 'debug'
 import { HTTPException } from '@hono/hono/http-exception'
-import { agentViewSchema, MCP_PORT, VIEWS_RESOURCE_URI } from '@artifact/shared'
+import { agentViewSchema, MCP_PORT, requireStructured } from '@artifact/shared'
 import { type AgentResolver, createLoader } from './loader.ts'
 import { createExternal, type External } from './external.ts'
 import { createInternal, type Internal } from './internal.ts'
@@ -102,25 +102,17 @@ const createAgent = (idler: IdleTrigger, agentResolver?: AgentResolver) => {
     },
     getDefaultViewPort: async (): Promise<number> => {
       assertState(state, 'ready', loader.client)
-      const result = await loader.client.readResource({
-        uri: VIEWS_RESOURCE_URI,
-      })
-      const textContent = result.contents[0]?.text
-      if (typeof textContent !== 'string') {
-        throw new HTTPException(500, { message: 'views resource missing' })
-      }
-      const data = JSON.parse(textContent) as { views: AgentView[] }
-      if (!data || !Array.isArray(data.views)) {
-        throw new HTTPException(503, {
-          message: 'Agent views resource malformed or missing',
-        })
-      }
-      if (data.views.length === 0) {
+      const viewsResult = await loader.client.callTool({
+        name: 'interaction_views',
+        arguments: {},
+      }) as ToolResult<{ views: AgentView[] }>
+      const { views } = requireStructured(viewsResult)
+      if (!Array.isArray(views) || views.length === 0) {
         throw new HTTPException(503, {
           message: 'Agent has no active views yet',
         })
       }
-      const view = agentViewSchema.parse(data.views[0])
+      const view = agentViewSchema.parse(views[0])
       return view.port
     },
     external: (c: Context) => {

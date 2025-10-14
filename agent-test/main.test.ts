@@ -4,6 +4,7 @@ import {
   type InteractionCancel,
   type InteractionStart,
   type InteractionStatus,
+  readErrorText,
   requireStructured,
   spawnStdioMcpServer,
   type ToolResult,
@@ -91,7 +92,6 @@ Deno.test('interaction_await reports error for unknown interaction ids', async (
   }) as CallToolResult
 
   expect(result.isError).toBe(true)
-  const first = result.content?.[0]
-  expect(first?.type).toBe('text')
-  expect(String(first?.text ?? '')).toContain('unknown interaction id: missing')
+  const error = readErrorText(result)
+  expect(error).toContain('unknown interaction id: missing')
 })

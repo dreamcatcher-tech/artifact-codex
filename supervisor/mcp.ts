@@ -1,5 +1,6 @@
 import { Command } from '@cliffy/command'
 import {
+  type AgentView,
   callRemoteTool,
   INTERACTION_TOOLS,
   InteractionAwait,
@@ -66,7 +67,7 @@ function createForwardedFetch(forwardedPort: number): FetchLike {
 
 const common = <T extends Record<string, unknown>>(
   tool: keyof typeof INTERACTION_TOOLS,
-  kind: 'id' | 'input',
+  kind: 'id' | 'input' | 'none',
 ) => {
   return async (options: GlobalFlags, ...rest: string[]) => {
     const { agentId, host, port } = options
@@ -76,9 +77,21 @@ const common = <T extends Record<string, unknown>>(
     if (kind === 'id' && (!rest[0] || rest[0].length === 0)) {
       fail('Interaction id is required.')
     }
-    const params = kind === 'id'
-      ? { interactionId: rest[0] }
-      : { input: rest.join(' ') }
+    if (kind === 'none' && rest.length > 0) {
+      fail('This command does not accept arguments.')
+    }
+    let params: Record<string, unknown> = {}
+    switch (kind) {
+      case 'id':
+        params = { interactionId: rest[0] }
+        break
+      case 'input':
+        params = { input: rest.join(' ') }
+        break
+      case 'none':
+        params = {}
+        break
+    }
     const result = await executeTool(
       agentId,
       tool,
@@ -132,6 +145,11 @@ if (import.meta.main) {
       INTERACTION_TOOLS.interaction_status.description,
     )
     .action(common<InteractionStatus>('interaction_status', 'id'))
+    .command(
+      'views',
+      INTERACTION_TOOLS.interaction_views.description,
+    )
+    .action(common<{ views: AgentView[] }>('interaction_views', 'none'))
 
   if (Deno.args.length === 0) {
     root.showHelp()

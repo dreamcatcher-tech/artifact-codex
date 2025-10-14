@@ -1,6 +1,7 @@
 import { expect } from '@std/expect'
 import { createFixture, createLoadedFixture } from './fixture.ts'
-import { INTERACTION_TOOLS, isTextContent } from '@artifact/shared'
+import { INTERACTION_TOOLS, requireStructured } from '@artifact/shared'
+import type { AgentView, ToolResult } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 const agentId = 'agent-1'
@@ -44,32 +45,18 @@ Deno.test('app proxies agent resources through supervisor', async (t) => {
   await using fixture = await createLoadedFixture()
   const { client, app } = fixture
 
-  let initialViews: Array<{ name: string; port: number }> = []
+  let initialViews: AgentView[] = []
   let serveInteractionId = ''
   const serveInput = 'serve /test-view'
-  let newView:
-    | { name: string; port: number; url?: string }
-    | undefined
+  let newView: AgentView | undefined
 
   await t.step('reads initial views', async () => {
-    const { resources } = await client.listResources({})
-    const resourceNames = resources.map((resource) => resource.name)
-    expect(resourceNames).toContain('views')
-
-    const read = await client.readResource({ uri: 'mcp://views' })
-    const textContent = read.contents.find(isTextContent)
-    expect(textContent).toBeDefined()
-    if (!textContent) {
-      throw new Error('views resource missing text content')
-    }
-    expect(textContent.mimeType).toBe('application/json')
-    if (typeof textContent.text !== 'string') {
-      throw new Error('views resource missing text payload')
-    }
-    const initialPayload = JSON.parse(textContent.text) as {
-      views?: Array<{ name: string; port: number }>
-    }
-    initialViews = initialPayload.views ?? []
+    const viewsResult = await client.callTool({
+      name: 'interaction_views',
+      arguments: {},
+    }) as ToolResult<{ views: AgentView[] }>
+    const { views } = requireStructured(viewsResult)
+    initialViews = views
   })
 
   await t.step('starts serve interaction', async () => {
@@ -90,20 +77,11 @@ Deno.test('app proxies agent resources through supervisor', async (t) => {
   })
 
   await t.step('rereads views for serve view', async () => {
-    const reread = await client.readResource({ uri: 'mcp://views' })
-    const nextTextContent = reread.contents.find(isTextContent)
-    expect(nextTextContent).toBeDefined()
-    if (!nextTextContent) {
-      throw new Error('views resource missing after serve')
-    }
-    expect(nextTextContent.mimeType).toBe('application/json')
-    if (typeof nextTextContent.text !== 'string') {
-      throw new Error('views resource missing text payload after serve')
-    }
-    const nextPayload = JSON.parse(nextTextContent.text) as {
-      views?: Array<{ name: string; port: number; url: string }>
-    }
-    const nextViews = nextPayload.views ?? []
+    const reread = await client.callTool({
+      name: 'interaction_views',
+      arguments: {},
+    }) as ToolResult<{ views: AgentView[] }>
+    const { views: nextViews } = requireStructured(reread)
     expect(nextViews.length).toBeGreaterThan(initialViews.length)
     newView = nextViews.find((view) =>
       view.name === `test-agent-${serveInteractionId}`
@@ -120,12 +98,7 @@ Deno.test('app proxies agent resources through supervisor', async (t) => {
       throw new Error('serve view missing before proxy verification')
     }
     const response = await app.fetch(
-      new Request('http://supervisor.local/proxied', {
-        headers: {
-          'Fly-Forwarded-Port': String(newView.port),
-          'x-real-ip': '127.0.0.1',
-        },
-      }),
+      new Request('http://supervisor.local/proxied'),
     )
     expect(response.status).toBe(200)
     const body = await response.json() as {

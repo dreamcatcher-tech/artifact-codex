@@ -11,7 +11,6 @@ import { CodexAgent, createCodexAgent } from './codex.ts'
 import type { CodexAgentOptions, CodexConfig } from './config.ts'
 import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
-import { VIEWS_RESOURCE_NAME, VIEWS_RESOURCE_URI } from '@artifact/shared'
 import { envs } from './env.ts'
 
 export function registerAgent(server: McpServer) {
@@ -75,24 +74,13 @@ export function registerAgent(server: McpServer) {
     },
   )
 
-  server.registerResource(
-    VIEWS_RESOURCE_NAME,
-    VIEWS_RESOURCE_URI,
-    {
-      title: 'Agent Views',
-      description: 'Lists current views exposed by agent-codex.',
-      mimeType: 'application/json',
-    },
-    async (_) => {
+  server.registerTool(
+    'interaction_views',
+    INTERACTION_TOOLS.interaction_views,
+    async () => {
       const agent = await getAgent()
       const views = agent.getViews()
-      return {
-        contents: [{
-          uri: VIEWS_RESOURCE_URI,
-          mimeType: 'application/json',
-          text: JSON.stringify({ views }, null, 2),
-        }],
-      }
+      return toStructured({ views })
     },
   )
 

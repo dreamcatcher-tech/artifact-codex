@@ -26,10 +26,10 @@ behavior and prevents regressions when we extend the router.
      the request is **agent MCP** and goes to `agent.internal`.
    - Everything else is **web**. We proxy to the forwarded port when provided.
      When there is no forwarded port (or it equals `443`), we resolve the
-     default view by calling `agent.getDefaultViewPort()`, which reads the first
-     view from the MCP `views` resource and uses its `port`. Note that there may
-     not yet be a default view instantiated, in which case an HTTPException will
-     be thrown.
+     default view by calling `agent.getDefaultViewPort()`, which calls the
+     `interaction_views` tool and uses the first view’s `port`. Note that there
+     may not yet be a default view instantiated, in which case an HTTPException
+     will be thrown.
 3. **Context** – the resulting `{ kind: ..., port? }` is stored on the Hono
    context so downstream middleware can branch without recomputing.
 
@@ -42,7 +42,7 @@ a loading response.
 - **Fly compatibility** – Fly always supplies `Fly-Forwarded-Port`; comparing it
   to `MCP_PORT` reliably spots supervisor MCP calls.
 - **Mock resilience** – local browsers and MCP tool calls arrive on the same
-  listener port. Querying the MCP `views` resource tells the supervisor which
+  listener port. Calling the `interaction_views` tool tells the supervisor which
   web port(s) the agent currently exposes (if any), so we route to the right
   place without relying on a hard-coded default.
 - **Explicit agent intent** – requiring `dc-agent-mcp` keeps agent calls opt-in
@@ -95,7 +95,7 @@ obvious inside scripts.
    `proxying web request for port 39675`).
 
 2. Hit the supervisor without a forwarded port. It will resolve the default view
-   from `mcp://views` and proxy automatically:
+   via the `interaction_views` tool and proxy automatically:
 
    ```bash
    curl -s http://localhost:8080/
@@ -111,7 +111,7 @@ obvious inside scripts.
 
    You should see the same JSON response, and the supervisor log will label the
    request as `web` with the provided port. If no view is active yet, the first
-   `curl` returns HTTP 500 complaining that the `views` resource is missing.
+   `curl` returns HTTP 503 complaining that no views are available yet.
 
 4. When finished, stop the local fixture with `Ctrl+C` (or `pkill -f deno.*dev`
    if it’s backgrounded) so follow-up runs can bind to port 8080.

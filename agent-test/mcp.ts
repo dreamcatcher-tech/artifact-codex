@@ -4,8 +4,6 @@ import {
   HOST,
   INTERACTION_TOOLS,
   toStructured,
-  VIEWS_RESOURCE_NAME,
-  VIEWS_RESOURCE_URI,
 } from '@artifact/shared'
 
 type InteractionRecord = {
@@ -190,20 +188,9 @@ export function registerAgent(server: McpServer) {
       })
     },
   )
-  server.registerResource(
-    VIEWS_RESOURCE_NAME,
-    VIEWS_RESOURCE_URI,
-    {
-      title: 'Agent Views',
-      description: 'Static view list for agent-test.',
-      mimeType: 'application/json',
-    },
-    () => ({
-      contents: [{
-        uri: VIEWS_RESOURCE_URI,
-        mimeType: 'application/json',
-        text: JSON.stringify({ views }, null, 2),
-      }],
-    }),
+  server.registerTool(
+    'interaction_views',
+    INTERACTION_TOOLS.interaction_views,
+    () => toStructured({ views }),
   )
 }

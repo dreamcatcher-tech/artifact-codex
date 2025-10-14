@@ -1,5 +1,6 @@
 import { requireStructured, spawnStdioMcpServer } from '@artifact/shared'
 import type {
+  AgentView,
   InteractionAwait,
   InteractionCancel,
   InteractionStart,
@@ -8,14 +9,6 @@ import type {
 } from '@artifact/shared'
 import { expect } from '@std/expect'
 
-type TextContent = {
-  uri: string
-  text: string
-  mimeType?: string
-}
-
-const viewsResourceName = 'views'
-const viewsResourceUri = 'mcp://views'
 const agentId = 'agent-cmd'
 
 Deno.test('interaction_start followed by interaction_await returns ok', async () => {
@@ -83,29 +76,17 @@ Deno.test('interaction_await for unknown interaction id returns error', async ()
   )
 })
 
-function isTextContent(content: unknown): content is TextContent {
-  return Boolean(
-    content && typeof content === 'object' && 'text' in content &&
-      typeof (content as { text: unknown }).text === 'string',
-  )
-}
-
-Deno.test('views resource exposes current views', async () => {
+Deno.test('interaction_views returns current views', async () => {
   await using srv = await spawnStdioMcpServer()
 
-  const listed = await srv.client.listResources({})
-  const resourceNames = (listed.resources ?? []).map((resource) =>
-    resource.name
-  )
-  expect(resourceNames).toContain(viewsResourceName)
-
-  const read = await srv.client.readResource({ uri: viewsResourceUri })
-  const textContent = read.contents.find(isTextContent)
-  if (!textContent) {
-    throw new Error('views resource missing text content')
+  const viewsResult = await srv.client.callTool({
+    name: 'interaction_views',
+    arguments: {},
+  }) as ToolResult<{ views: AgentView[] }>
+  const { views } = requireStructured(viewsResult)
+  expect(Array.isArray(views)).toBe(true)
+  for (const view of views) {
+    expect(typeof view.name).toBe('string')
+    expect(typeof view.port).toBe('number')
   }
-  expect(textContent.mimeType).toBe('application/json')
-
-  const parsed = JSON.parse(textContent.text) as { views?: unknown }
-  expect(Array.isArray(parsed.views)).toBe(true)
 })

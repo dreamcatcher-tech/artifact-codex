@@ -17,8 +17,6 @@ import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 
 const DEFAULT_TTYD_PORT = 10000
-const VIEWS_RESOURCE_NAME = 'views'
-const VIEWS_RESOURCE_URI = 'mcp://views'
 
 type CmdConfig = {
   command: string[]
@@ -232,25 +230,12 @@ export function registerAgent(server: McpServer) {
     INTERACTION_TOOLS.interaction_status,
     ({ agentId: _agentId, interactionId }) => statusInteraction(interactionId),
   )
-
-  server.registerResource(
-    VIEWS_RESOURCE_NAME,
-    VIEWS_RESOURCE_URI,
-    {
-      title: 'Agent Views',
-      description: 'Lists the active views exposed by agent-cmd.',
-      mimeType: 'application/json',
-    },
-    async (_uri) => {
+  server.registerTool(
+    'interaction_views',
+    INTERACTION_TOOLS.interaction_views,
+    async () => {
       await ensureLaunch()
-      const payload = { views }
-      return {
-        contents: [{
-          uri: VIEWS_RESOURCE_URI,
-          mimeType: 'application/json',
-          text: JSON.stringify(payload, null, 2),
-        }],
-      }
+      return toStructured({ views })
     },
   )
 

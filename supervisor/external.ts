@@ -6,13 +6,11 @@ import Debug from 'debug'
 import { type IdleTrigger, toStructured } from '@artifact/shared'
 import { INTERACTION_TOOLS } from '@artifact/shared'
 import z from 'zod'
-import { proxyViewsResource } from './resources.ts'
 
 const log = Debug('@artifact/supervisor:supervisor')
 
 export const createExternal = (client: Client, idler: IdleTrigger) => {
   const toolsPromise = client.listTools()
-  const registerResources = proxyViewsResource(client)
 
   const externalMcpServer = createMcpHandler(async (server) => {
     const { tools } = await toolsPromise
@@ -37,7 +35,6 @@ export const createExternal = (client: Client, idler: IdleTrigger) => {
       idler.abort()
       return toStructured({})
     })
-    registerResources(server)
   })
   return externalMcpServer
 }

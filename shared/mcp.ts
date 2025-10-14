@@ -4,6 +4,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { type CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { HOST, MCP_PORT } from './const.ts'
+import { agentViewSchema } from './agent.ts'
 import process from 'node:process'
 
 export type RemoteClientOptions = {
@@ -121,6 +122,14 @@ export const INTERACTION_TOOLS: Record<string, ToolConfig> = {
       state: z.enum(['pending', 'completed', 'cancelled', 'rejected']),
     },
   },
+  interaction_views: {
+    title: 'List Interaction Views',
+    description: 'Return the active agent views.',
+    inputSchema: {},
+    outputSchema: {
+      views: z.array(agentViewSchema),
+    },
+  },
 }
 
 export type ToolResult<T extends Record<string, unknown>> = CallToolResult & {
@@ -152,12 +161,4 @@ export function requireStructured<T extends Record<string, unknown>>(
     throw new Error('tool result missing structured content')
   }
   return structured
-}
-
-export const VIEWS_RESOURCE_NAME = 'views'
-export const VIEWS_RESOURCE_URI = 'mcp://views'
-export const VIEWS_RESOURCE_METADATA = {
-  description: 'Lists the active views exposed by the agent process',
-  mimeType: 'application/json',
-  title: 'Agent Views',
 }
