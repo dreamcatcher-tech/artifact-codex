@@ -62,6 +62,5 @@ Deno.test('writes notify.json atomically in dir and errors if exists', async () 
   const file = join(dir, 'notify.json')
   const content = await Deno.readTextFile(file)
   expect(JSON.parse(content)).toEqual(JSON.parse(payload))
-  // Second call should error since file already exists
   await expect(handleNotification(payload, { dir })).rejects.toThrow()
 })

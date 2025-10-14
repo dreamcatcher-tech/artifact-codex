@@ -4,7 +4,6 @@ import {
   AGENT_TOML,
   AGENT_WORKSPACE,
   INTERACTION_TOOLS,
-  type InteractionStatus,
   toStructured,
 } from '@artifact/shared'
 import { CodexAgent, createCodexAgent } from './codex.ts'
@@ -15,17 +14,12 @@ import { envs } from './env.ts'
 
 export function registerAgent(server: McpServer) {
   const optionsPromise = resolveAgentOptions()
-  let agent: CodexAgent | null = null
-  let agentInitialized = false
+  let agent: CodexAgent
 
   const getAgent = async (): Promise<CodexAgent> => {
-    if (!agentInitialized) {
+    if (!agent) {
       const options = await optionsPromise
       agent = createCodexAgent(options)
-      agentInitialized = true
-    }
-    if (!agent) {
-      throw new Error('failed to initialize agent')
     }
     return agent
   }
@@ -33,7 +27,7 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_start',
     INTERACTION_TOOLS.interaction_start,
-    async ({ agentId: _agentId, input }) => {
+    async ({ input }) => {
       const agent = await getAgent()
       const interactionId = await agent.startInteraction(String(input ?? ''))
       return toStructured({ interactionId })
@@ -43,7 +37,7 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_await',
     INTERACTION_TOOLS.interaction_await,
-    async ({ agentId: _agentId, interactionId }) => {
+    async ({ interactionId }) => {
       const agent = await getAgent()
       const value = await agent.awaitInteraction(String(interactionId))
       return toStructured({ value })
@@ -53,7 +47,7 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_cancel',
     INTERACTION_TOOLS.interaction_cancel,
-    async ({ agentId: _agentId, interactionId }) => {
+    async ({ interactionId }) => {
       const agent = await getAgent()
       const { cancelled, wasActive } = await agent.cancelInteraction(
         String(interactionId),
@@ -65,11 +59,9 @@ export function registerAgent(server: McpServer) {
   server.registerTool(
     'interaction_status',
     INTERACTION_TOOLS.interaction_status,
-    async ({ agentId: _agentId, interactionId }) => {
+    async ({ interactionId }) => {
       const agent = await getAgent()
-      const state = agent.interactionStatus(
-        String(interactionId),
-      ) satisfies InteractionStatus['state']
+      const state = agent.interactionStatus(String(interactionId))
       return toStructured({ state })
     },
   )
@@ -83,15 +75,9 @@ export function registerAgent(server: McpServer) {
       return toStructured({ views })
     },
   )
-
-  addEventListener('unload', () => {
-    if (!agentInitialized || !agent) return
-    agent.destroy().catch(() => {
-      // ignore shutdown errors
-    })
-  })
 }
 
+// all this is just to resolve the agent config that should be used
 const resolveAgentOptions = (): Promise<CodexAgentOptions> => {
   const envOptions = resolveAgentOptionsFromEnv()
   if (envOptions) {

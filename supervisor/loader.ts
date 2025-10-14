@@ -6,6 +6,7 @@ import {
   AGENT_HOME,
   AGENT_WORKSPACE,
   COMPUTER_AGENTS,
+  INTERACTION_TOOL_NAMES,
   NFS_MOUNT_DIR,
   toStructured,
   waitForPidExit,
@@ -58,6 +59,7 @@ export const createLoader = (
 
         const client = new Client({ name, version })
         await client.connect(transport)
+        await checkClient(client)
         agentMcpClient = client
         log('agent mcp client connected')
       } finally {
@@ -123,4 +125,21 @@ const fsAgentResolver: AgentResolver = (computerId, agentId) => {
     },
     cwd,
   })
+}
+
+const checkClient = async (client: Client) => {
+  const { tools } = await client.listTools()
+  if (tools.length === 0) {
+    throw new Error('No tools found')
+  }
+  const names = new Set(tools.map((tool) => tool.name))
+  const missing = []
+  for (const name of INTERACTION_TOOL_NAMES) {
+    if (!names.has(name)) {
+      missing.push(name)
+    }
+  }
+  if (missing.length > 0) {
+    throw new Error(`Missing interaction tools: ${missing.join(', ')}`)
+  }
 }

@@ -46,12 +46,6 @@ const TEMPLATE_REWRITES: Record<string, string> = {
     'mcp-computers',
     'main.ts',
   ),
-  '__MCP_AGENTS_COMMAND__': join(REPO_ROOT, 'mcp-agents', 'main.ts'),
-  '__MCP_INTERACTIONS_COMMAND__': join(
-    REPO_ROOT,
-    'mcp-interactions',
-    'main.ts',
-  ),
   '__OPENAI_PROXY_BASE_URL__': envs.DC_OPENAI_PROXY_BASE_URL(),
 }
 
@@ -60,7 +54,7 @@ export type LaunchPreparation = {
   home: string
 }
 
-export async function prepareLaunchDirectories(
+export async function prepareEnvironment(
   opts: CodexAgentOptions,
 ): Promise<LaunchPreparation | undefined> {
   const workspace = opts.workspace

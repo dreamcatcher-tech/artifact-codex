@@ -18,14 +18,6 @@ notify = "__CODEX_NOTIFY__"
   web_search = true
   view_image = true
 
-[mcp_servers.mcp-computers]
-  command = "__MCP_COMPUTERS_COMMAND__"
-  args    = []
-
-[mcp_servers.mcp-agents]
-  command = "__MCP_AGENTS_COMMAND__"
-  args    = []
-
-[mcp_servers.mcp-interactions]
-  command = "__MCP_INTERACTIONS_COMMAND__"
-  args    = []
+[mcp_servers.dreamcatcher]
+  url                  = "__MCP_DREAMCATCHER_URL__"
+  bearer_token_env_var = "__MCP_DREAMCATCHER_BEARER_TOKEN_ENV_VAR__"

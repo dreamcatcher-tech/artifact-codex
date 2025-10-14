@@ -13,7 +13,7 @@ import {
   type CodexLaunchArgs,
   type CodexLaunchResult,
   type CodexOverrides,
-  prepareLaunchDirectories,
+  prepareEnvironment,
 } from './config.ts'
 
 const TTYD_PORT = 10000
@@ -408,7 +408,7 @@ export class CodexAgent {
   }
 
   private async launchInternal(): Promise<void> {
-    const prepared = await prepareLaunchDirectories(this.options)
+    const prepared = await prepareEnvironment(this.options)
     if (!prepared) {
       this.ensureNotifyWatcher()
       return
