@@ -15,7 +15,7 @@ export async function dev(port: number = 8080) {
       cwd: agentProjectDir,
     })
 
-  console.log('Starting agent-test fixture...')
+  console.log('Starting agent-cmd fixture...')
   console.log(`Agent entry: ${agentFilePath}`)
   console.log(`Agent cwd: ${agentProjectDir}`)
 
