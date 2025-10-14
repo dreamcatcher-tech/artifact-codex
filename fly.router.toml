@@ -1,4 +1,4 @@
-app = 'org1-fly-router'
+app            = 'org1-fly-router'
 primary_region = 'syd'
 
 [build]
@@ -9,33 +9,33 @@ primary_region = 'syd'
   # CLERK_SECRET_KEY = '#secrets#'
   DC_CLERK_SIGN_IN_URL = 'https://accounts.agentic.dreamcatcher.land/sign-in'
   DC_CLERK_SIGN_UP_URL = 'https://accounts.agentic.dreamcatcher.land/sign-up'
-  DC_DOMAIN = 'agentic.dreamcatcher.land'
-  DC_NFS = 'nfs-proto.flycast'
-  DC_EXEC = 'org1-fly-exec.flycast'
-  DC_WORKER_POOL_APP = 'org1-worker-pool'
-  DEBUG = '@artifact/fly-router*'
-  DEBUG_COLORS = '1'
-  DEBUG_HIDE_DATE = '1'
+  DC_DOMAIN            = 'agentic.dreamcatcher.land'
+  DC_NFS               = 'nfs-proto.flycast'
+  DC_EXEC              = 'org1-fly-exec.flycast'
+  DC_WORKER_POOL_APP   = 'org1-worker-pool'
+  DEBUG                = '@artifact/fly-router*'
+  DEBUG_COLORS         = '1'
+  DEBUG_HIDE_DATE      = '1'
 
 [http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = 'suspend'
-  auto_start_machines = true
+  internal_port        = 8080
+  force_https          = true
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
   min_machines_running = 0
 
 [[services]]
-  protocol = 'tcp'
-  internal_port = 8080
-  auto_stop_machines = 'suspend'
-  auto_start_machines = true
+  protocol             = 'tcp'
+  internal_port        = 8080
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
   min_machines_running = 0
 
   [[services.ports]]
-    start_port = 3000
-    end_port = 30000
-    handlers = ['tls', 'http']
+    start_port = 1024
+    end_port   = 65535
+    handlers   = ['tls', 'http']
 
 [[vm]]
-  size = 'shared-cpu-1x'
+  size   = 'shared-cpu-1x'
   memory = '256mb'
