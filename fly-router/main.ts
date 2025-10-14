@@ -9,5 +9,7 @@ if (import.meta.main) {
   const port = Number(Deno.env.get('PORT') ?? '8080')
 
   log('starting fly-auth server on :%d', port)
-  Deno.serve({ port }, app.fetch)
+  const fly6pnHostname = '[::]' // in fly, grabs the ipv4 address too
+
+  Deno.serve({ port, hostname: fly6pnHostname }, app.fetch)
 }

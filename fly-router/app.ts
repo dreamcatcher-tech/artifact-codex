@@ -16,6 +16,8 @@ import {
   isBaseDomain,
   isComputerDomain,
 } from './hostnames.ts'
+import Debug from 'debug'
+const log = Debug('@artifact/fly-router')
 
 const TEST_COMPUTER_HEADER = 'x-artifact-test-user'
 const TEST_COMPUTER_ID = 'test-computer'
@@ -27,7 +29,6 @@ type CreateAppOptions = {
   computerDir?: string
   kickExecApp?: (computerId: string) => Promise<void>
 }
-
 export const createApp = (options: CreateAppOptions = {}) => {
   const app = new Hono<
     { Variables: ClerkAuthVariables & { userId: string } }
@@ -38,8 +39,8 @@ export const createApp = (options: CreateAppOptions = {}) => {
   } = options
   const computerManager = createComputerManager(options)
 
+  app.use('*', logger(log))
   app.use('*', clerkMiddleware())
-  app.use('*', logger())
   app.all('*', async (c, next) => {
     const auth = getAuth(c)
     if (!auth?.userId) {
