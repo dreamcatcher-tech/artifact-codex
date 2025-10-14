@@ -31,6 +31,11 @@ Deno.test('destroy removes home directory when prepared', async () => {
     const home = status.home
     if (!home) throw new Error('expected home directory')
     expect(await pathExists(home)).toBe(true)
+    expect(status.config).toBe(join(home, 'config.toml'))
+    const auth = JSON.parse(
+      await Deno.readTextFile(join(home, 'auth.json')),
+    ) as { OPENAI_API_KEY: string }
+    expect(auth.OPENAI_API_KEY).toBe('test-key')
     await agent.destroy()
     expect(await pathExists(home)).toBe(false)
   } finally {

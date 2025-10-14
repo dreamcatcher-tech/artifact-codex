@@ -5,6 +5,7 @@ import {
   SHARED_TMUX_SOCKET,
 } from '@artifact/shared'
 import type { AgentView } from '@artifact/shared'
+import { join } from '@std/path'
 import { startNotifyWatcher } from './notify_watcher.ts'
 import {
   type CodexAgentOptions,
@@ -162,14 +163,18 @@ export class CodexAgent {
     if (this.launchError) {
       throw this.launchError
     }
+    const homeDir = this.configDir ?? this.options.home
+    const configPath = this.configDir
+      ? join(this.configDir, 'config.toml')
+      : undefined
     return {
       startedAt: this.startedAt.toISOString(),
       closed: this.closed,
       interactions: this.interactionSeq,
       lastInteractionId: this.lastInteractionId,
       pid: this.launchState.pid,
-      config: this.configDir,
-      home: this.configDir,
+      config: configPath,
+      home: homeDir,
       workspace: this.workspaceDir ?? this.options.workspace,
       notifications: this.notifications,
       lastNotificationRaw: this.lastNotificationRaw,

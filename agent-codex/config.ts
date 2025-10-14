@@ -69,7 +69,7 @@ export async function prepareLaunchDirectories(
   await requireDirectory(workspace, 'workspace')
   const home = resolveHomePath(opts.home, workspace)
   await ensureHomeDirectory(home)
-  await writeAuthFile(home)
+  await writeAuthFile(home, opts.config)
   await writeConfigTemplate(home)
   return { workspace, home }
 }
@@ -154,9 +154,23 @@ function ensureNotifyBlock(template: string, configDir: string): string {
   return replaced
 }
 
-async function writeAuthFile(configDir: string) {
-  const OPENAI_API_KEY = codexEnvs.OPENAI_API_KEY()
+async function writeAuthFile(configDir: string, cfg?: CodexConfig) {
+  const OPENAI_API_KEY = resolveOpenAiKey(cfg)
   const payload = JSON.stringify({ OPENAI_API_KEY }, null, 2)
   const outPath = join(configDir, 'auth.json')
   await Deno.writeTextFile(outPath, `${payload}\n`)
+}
+
+function resolveOpenAiKey(cfg?: CodexConfig): string {
+  const direct = cfg?.env?.OPENAI_API_KEY
+  if (typeof direct === 'string') {
+    const trimmed = direct.trim()
+    if (trimmed.length > 0) return trimmed
+  }
+  const fromGetter = cfg?.getEnv?.('OPENAI_API_KEY')
+  if (typeof fromGetter === 'string') {
+    const trimmed = fromGetter.trim()
+    if (trimmed.length > 0) return trimmed
+  }
+  return codexEnvs.OPENAI_API_KEY()
 }

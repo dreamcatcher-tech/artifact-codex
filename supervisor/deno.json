@@ -7,7 +7,7 @@
   },
   "tasks": {
     "dev": "DEBUG='@artifact/*' deno run -A --watch dev.ts",
-    "mcp": "DEBUG='@artifact/*' deno run -A mcp.ts",
+    "mcp": "DEBUG='@artifact/*' deno run -A mcp-cli.ts",
     "test": "deno test -A",
     "watch": "deno test -A --watch --trace-leaks",
     "lint": "deno lint --fix",

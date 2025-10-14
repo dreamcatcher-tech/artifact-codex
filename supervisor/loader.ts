@@ -105,6 +105,8 @@ const fsAgentResolver: AgentResolver = (computerId, agentId) => {
   // if each agent supplied its own env setter, then we can pass that in to the command
   // makes it easy to mock, but also guarantees we have everything we want
 
+  // provide computer object so we can query the computer using an api
+
   const cwd = join(import.meta.dirname!, '..', 'agent-test')
   const file = join(cwd, 'main.ts')
   const computer = computerId.toLowerCase()
