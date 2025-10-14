@@ -100,9 +100,12 @@ export const createLoader = (
 }
 
 const fsAgentResolver: AgentResolver = (computerId, agentId) => {
-  log('fsAgentResolver defaulting to codex', computerId, agentId)
+  log('fsAgentResolver defaulting to test', computerId, agentId)
 
-  const cwd = join(import.meta.dirname!, '..', 'agent-codex')
+  // if each agent supplied its own env setter, then we can pass that in to the command
+  // makes it easy to mock, but also guarantees we have everything we want
+
+  const cwd = join(import.meta.dirname!, '..', 'agent-test')
   const file = join(cwd, 'main.ts')
   const computer = computerId.toLowerCase()
   const agent = agentId.toLowerCase()
