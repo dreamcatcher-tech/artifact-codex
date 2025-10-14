@@ -168,8 +168,12 @@ const isAgentMcpRequest = (req: HonoRequest, forwardedPort: number | null) => {
     return false
   }
   if (isLocalhostRequest(req)) {
-    const marker = req.header('dc-agent-mcp')
-    return marker !== undefined
+    const authHeader = req.header('authorization')
+    if (!authHeader) {
+      return false
+    }
+    const scheme = authHeader.trim().split(/\s+/)[0]?.toLowerCase()
+    return scheme === 'bearer'
   }
   return false
 }

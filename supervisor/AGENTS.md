@@ -22,7 +22,8 @@ behavior and prevents regressions when we extend the router.
    - If the forwarded port equals `MCP_PORT` (default `442`), the request is
      **supervisor MCP** and goes to `agent.external`.
    - If _no_ forwarded port is present, the request targets `localhost`,
-     `127.0.0.1`, or `::1`, and it includes _any_ `dc-agent-mcp` header value,
+     `127.0.0.1`, or `::1`, and it includes an `Authorization` header whose
+     scheme is `Bearer`,
      the request is **agent MCP** and goes to `agent.internal`.
    - Everything else is **web**. We proxy to the forwarded port when provided.
      When there is no forwarded port (or it equals `443`), we resolve the
@@ -45,8 +46,8 @@ a loading response.
   listener port. Calling the `interaction_views` tool tells the supervisor which
   web port(s) the agent currently exposes (if any), so we route to the right
   place without relying on a hard-coded default.
-- **Explicit agent intent** – requiring `dc-agent-mcp` keeps agent calls opt-in
-  and stops local browser traffic (which may also originate from `localhost`)
+- **Explicit agent intent** – requiring a `Bearer` auth header keeps agent calls
+  opt-in and stops local browser traffic (which may also originate from `localhost`)
   from tripping agent mode.
 
 ## Testing Scenarios
