@@ -43,7 +43,7 @@ export const SERVICE_VIEW_BROAD_PORTS = {
   protocol: 'tcp',
   ports: [{
     start_port: 1024,
-    end_port: 65534,
+    end_port: 65534, // fly has a bug that makes 65535 fail silently
     handlers: ['tls', 'http'],
   }],
 }

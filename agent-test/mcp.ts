@@ -75,6 +75,7 @@ export function registerAgent(server: McpServer) {
           agentId,
           input,
           view,
+          views,
         }
         const body = JSON.stringify(info, null, 2)
         console.log('serve session response', info)
