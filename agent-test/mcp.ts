@@ -65,7 +65,6 @@ export function registerAgent(server: McpServer) {
     const viewName = `test-agent-${interactionId}`
     const controller = new AbortController()
     let count = 0
-
     const server = Deno.serve(
       { hostname: HOST, port: 0, signal: controller.signal },
       () => {
@@ -75,6 +74,7 @@ export function registerAgent(server: McpServer) {
           interactionId,
           agentId,
           input,
+          view,
         }
         const body = JSON.stringify(info, null, 2)
         console.log('serve session response', info)

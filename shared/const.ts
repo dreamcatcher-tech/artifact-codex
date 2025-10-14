@@ -43,7 +43,7 @@ export const SERVICE_VIEW_BROAD_PORTS = {
   protocol: 'tcp',
   ports: [{
     start_port: 1024,
-    end_port: 65535,
+    end_port: 65534,
     handlers: ['tls', 'http'],
   }],
 }
