@@ -176,7 +176,7 @@ const baseStartInstance = async (
         DC_NFS: envs.DC_NFS(),
         DC_DOMAIN: envs.DC_DOMAIN(),
         DC_EXEC: envs.DC_EXEC(),
-        DC_OPENAI_PROXY_BASE_URL: envs.DC_OPENAI_PROXY_BASE_URL(),
+        DC_OPENAI_PROXY_URL: envs.DC_OPENAI_PROXY_URL(),
       },
       services: [
         SERVICE_AGENT_CONTROL,

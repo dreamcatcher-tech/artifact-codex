@@ -11,13 +11,13 @@ notify = "__CODEX_NOTIFY__"
 
 [model_providers.openai]
   name     = "OpenAI"
-  base_url = "__OPENAI_PROXY_BASE_URL__"
+  base_url = "__OPENAI_PROXY_URL__"
   wire_api = "responses"
 
 [tools]
   web_search = true
   view_image = true
 
-[mcp_servers.dreamcatcher]
-  url                  = "__MCP_DREAMCATCHER_URL__"
-  bearer_token_env_var = "__MCP_DREAMCATCHER_BEARER_TOKEN_ENV_VAR__"
+[mcp_servers.local]
+  url                  = "__MCP_LOCAL_URL__"
+  bearer_token_env_var = "__MCP_BEARER_TOKEN_ENV_VAR__"

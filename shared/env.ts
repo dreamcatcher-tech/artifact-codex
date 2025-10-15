@@ -67,7 +67,8 @@ export const envs = {
   DC_WORKER_POOL_APP: () => readAppEnv('DC_WORKER_POOL_APP'),
   DC_FLY_API_TOKEN: () => readAppEnv('DC_FLY_API_TOKEN'),
   DC_COMPUTER_ID: () => readAppEnv('DC_COMPUTER_ID'),
-  DC_OPENAI_PROXY_BASE_URL: () =>
-    readAppEnv('DC_OPENAI_PROXY_BASE_URL', 'https://localhost'),
+  DC_OPENAI_PROXY_URL: () =>
+    readAppEnv('DC_OPENAI_PROXY_URL', 'https://localhost'),
   DC_PORT: () => Number(readAppEnv('DC_PORT', '8080')),
+  DC_LOCAL_MCP_AUTH: () => readAppEnv('DC_LOCAL_MCP_AUTH', ''),
 }

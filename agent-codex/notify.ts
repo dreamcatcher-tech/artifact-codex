@@ -1,4 +1,3 @@
-#!/usr/bin/env -S deno run -A
 import { join } from '@std/path'
 
 /**
@@ -79,10 +78,12 @@ if (import.meta.main) {
       // Ignore unknown extras for forward-compat
     }
   }
+
   if (!payload || !dir) {
     console.error('Usage: codex-notify  [--dir <PATH>] <NOTIFICATION_JSON>')
     Deno.exit(1)
   }
+
   try {
     await handleNotification(payload, { dir })
   } catch (err) {

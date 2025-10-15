@@ -1,5 +1,3 @@
-type LaunchMode = 'tmux' | 'disabled'
-
 function readAppEnv(name: string, fallback?: string): string {
   const value = Deno.env.get(name) ?? ''
   if (value.length === 0 && typeof fallback === 'string') {
@@ -11,22 +9,14 @@ function readAppEnv(name: string, fallback?: string): string {
   return value
 }
 
-export const envs = {
-  OPENAI_API_KEY: (): string => {
-    const value = readAppEnv('OPENAI_API_KEY', '')
-    if (!value) {
-      console.warn('OPENAI_API_KEY is not set')
-    }
-    return value
-  },
-  CODEX_AGENT_WORKSPACE: (): string => readAppEnv('CODEX_AGENT_WORKSPACE'),
-  CODEX_AGENT_HOME: (): string => readAppEnv('CODEX_AGENT_HOME'),
-  CODEX_AGENT_LAUNCH: (): LaunchMode | undefined => {
-    const value = readAppEnv('CODEX_AGENT_LAUNCH')
-    if (value === 'tmux' || value === 'disabled') return value
-    return undefined
-  },
-  CODEX_AGENT_NOTIFY_DIR: (): string => readAppEnv('CODEX_AGENT_NOTIFY_DIR'),
+/** The config strings that can be injected or default to the environment */
+export type Env = {
+  /** The URL of the OpenAI proxy that has the api keys in it */
+  DC_OPENAI_PROXY_URL: string
+  /** The local port for the agent mcp server */
+  DC_PORT: number
+  /** The local mcp auth token */
+  DC_LOCAL_MCP_AUTH: string
 }
 
-export type { LaunchMode }
+export const envs = {}

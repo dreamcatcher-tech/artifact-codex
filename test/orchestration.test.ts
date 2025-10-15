@@ -22,7 +22,7 @@ function setTestEnv(baseDomain: string, workerApp: string) {
   Deno.env.set('DC_FLY_API_TOKEN', 'test-token')
   Deno.env.set('DC_NFS', '/test-nfs')
   Deno.env.set('DC_EXEC', 'exec.test.internal')
-  Deno.env.set('DC_OPENAI_PROXY_BASE_URL', 'https://localhost')
+  Deno.env.set('DC_OPENAI_PROXY_URL', 'https://localhost')
 }
 
 async function seedImageRecord(root: string) {

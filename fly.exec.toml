@@ -1,4 +1,4 @@
-app = 'org1-fly-exec'
+app            = 'org1-fly-exec'
 primary_region = 'syd'
 
 [build]
@@ -7,23 +7,23 @@ primary_region = 'syd'
 [env]
   # the deploy token for the DC_WORKER_POOL_APP
   # DC_FLY_API_TOKEN = '#secrets#'
-  DC_DOMAIN = 'agentic.dreamcatcher.land'
-  DC_NFS = 'nfs-proto.flycast'
-  DC_ROUTER = 'org1-fly-router.flycast'
-  DC_EXEC = 'org1-fly-exec.flycast'
-  DC_WORKER_POOL_APP = 'org1-worker-pool'
-  DC_OPENAI_PROXY_BASE_URL = 'http://org1-openai-proxy.flycast'
+  DC_DOMAIN           = 'agentic.dreamcatcher.land'
+  DC_NFS              = 'nfs-proto.flycast'
+  DC_ROUTER           = 'org1-fly-router.flycast'
+  DC_EXEC             = 'org1-fly-exec.flycast'
+  DC_WORKER_POOL_APP  = 'org1-worker-pool'
+  DC_OPENAI_PROXY_URL = 'http://org1-openai-proxy.flycast'
 
-  DEBUG = '@artifact/fly-exec*'
-  DEBUG_COLORS = '1'
+  DEBUG           = '@artifact/fly-exec*'
+  DEBUG_COLORS    = '1'
   DEBUG_HIDE_DATE = '1'
 
 [http_service]
-  internal_port = 8080
-  auto_stop_machines = 'suspend'
-  auto_start_machines = true
+  internal_port        = 8080
+  auto_stop_machines   = 'suspend'
+  auto_start_machines  = true
   min_machines_running = 0
 
 [[vm]]
-  size = 'shared-cpu-1x'
+  size   = 'shared-cpu-1x'
   memory = '1gb'
