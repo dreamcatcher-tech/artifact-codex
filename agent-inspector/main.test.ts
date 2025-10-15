@@ -7,6 +7,7 @@ import {
 import type { AgentView, ToolResult } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { expect } from '@std/expect'
+import * as _ from './main.ts' // hot reload stdio files
 
 const agentId = 'agent-inspector'
 

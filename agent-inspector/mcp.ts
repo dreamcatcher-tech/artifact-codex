@@ -8,10 +8,6 @@ import {
 
 export function register(server: McpServer) {
   const abort = new AbortController()
-  server.server.onclose = () => {
-    console.log('server closed')
-    abort.abort()
-  }
 
   //CLIENT_PORT=8080 SERVER_PORT=9000
   const env = {
@@ -21,9 +17,9 @@ export function register(server: McpServer) {
 
   const command = new Deno.Command('npx', {
     args: ['-y', '@modelcontextprotocol/inspector'],
-    clearEnv: true,
     env,
     signal: abort.signal,
+    stdout: 'null', // without this, the child process will leak resources
   })
   command.spawn()
   const views: AgentView[] = [
