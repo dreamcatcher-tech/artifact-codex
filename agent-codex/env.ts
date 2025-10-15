@@ -1,13 +1,4 @@
-function readAppEnv(name: string, fallback?: string): string {
-  const value = Deno.env.get(name) ?? ''
-  if (value.length === 0 && typeof fallback === 'string') {
-    return fallback
-  }
-  if (value.length === 0) {
-    throw new Error(`Missing ${name} in environment`)
-  }
-  return value
-}
+import { envs } from '@artifact/shared'
 
 /** The config strings that can be injected or default to the environment */
 export type Env = {
@@ -19,4 +10,10 @@ export type Env = {
   DC_LOCAL_MCP_AUTH: string
 }
 
-export const envs = {}
+export function getEnv(): Env {
+  return {
+    DC_OPENAI_PROXY_URL: envs.DC_OPENAI_PROXY_URL(),
+    DC_PORT: envs.DC_PORT(),
+    DC_LOCAL_MCP_AUTH: envs.DC_LOCAL_MCP_AUTH(),
+  }
+}

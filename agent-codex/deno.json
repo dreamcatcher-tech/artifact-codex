@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "exports": "./mod.ts",
   "tasks": {
-    "dev": "deno run -A dev.ts",
+    "dev": "DEBUG='@artifact/*' deno run -A --watch dev.ts",
     "watch": "deno test -A --watch",
     "test": "deno test -A",
     "lint": "deno lint --fix",

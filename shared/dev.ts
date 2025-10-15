@@ -5,13 +5,15 @@ import { createLoadedFixture } from '@artifact/supervisor/fixture'
 type CreateAgentDevOptions = {
   /** Optional port that the returned dev handler will default to. */
   defaultPort?: number
+  env?: Record<string, string | number | boolean>
+  setup?: () => Promise<{ [Symbol.asyncDispose]: () => Promise<void> }>
 }
 
 type AgentDev = (port?: number) => Promise<void>
 
 export function createAgentDev(
   meta: ImportMeta,
-  { defaultPort = 8080 }: CreateAgentDevOptions = {},
+  { defaultPort = 8080, env = {}, setup }: CreateAgentDevOptions = {},
 ): AgentDev {
   const agentFileUrl = new URL('./main.ts', meta.url)
   const agentFilePath = fromFileUrl(agentFileUrl)
@@ -22,7 +24,7 @@ export function createAgentDev(
     Promise.resolve({
       command: 'deno',
       args: ['run', '-A', agentFilePath],
-      env: {},
+      env,
       cwd: agentProjectDir,
     })
 
@@ -31,7 +33,9 @@ export function createAgentDev(
     console.log(`Agent entry: ${agentFilePath}`)
     console.log(`Agent cwd: ${agentProjectDir}`)
 
-    const fixture = await createLoadedFixture({ agentResolver })
+    await using _ = await setup?.()
+
+    await using fixture = await createLoadedFixture({ agentResolver })
 
     const server = Deno.serve({
       port,

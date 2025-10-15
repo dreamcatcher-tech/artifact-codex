@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { waitForPidExit } from './mcp.ts'
 import { join } from '@std/path'
+import { AGENT_HOME, AGENT_WORKSPACE } from './const.ts'
 
 export type SpawnOptions = {
   /**
@@ -39,10 +40,7 @@ export async function spawnStdioMcpServer(
     'run',
     '-c',
     'deno.json',
-    '--allow-read',
-    '--allow-write',
-    '--allow-env',
-    '--allow-net',
+    '-A',
     'main.ts',
   ]
 
@@ -92,24 +90,23 @@ export function isTextContent(content: unknown): content is TextContent {
   )
 }
 
-export async function createTempHostFs(prefix?: string) {
-  const tempRoot = await Deno.makeTempDir({ prefix })
-  const workspaceDir = join(tempRoot, 'workspace')
-  const homeDir = join(tempRoot, 'home')
-  const notifyDir = join(tempRoot, 'notify')
+export async function createAgentFs(prefix?: string) {
+  const agentDir = await Deno.makeTempDir({ prefix })
+  const workspaceDir = join(agentDir, AGENT_WORKSPACE)
+  const homeDir = join(agentDir, AGENT_HOME)
   await Promise.all([
     Deno.mkdir(workspaceDir, { recursive: true }),
     Deno.mkdir(homeDir, { recursive: true }),
-    Deno.mkdir(notifyDir, { recursive: true }),
   ])
+
+  const dispose = async () => {
+    await cleanupTempDir(agentDir)
+  }
 
   return {
     workspaceDir,
     homeDir,
-    notifyDir,
-    [Symbol.asyncDispose]: async () => {
-      await cleanupTempDir(tempRoot)
-    },
+    [Symbol.asyncDispose]: dispose,
   }
 }
 

@@ -22,7 +22,7 @@ const log = Debug('@artifact/supervisor:loader')
 export type AgentResolver = (computerId: string, agentId: string) => Promise<{
   command: string
   args: string[]
-  env: Record<string, string>
+  env: Record<string, string | number | boolean>
   cwd: string
 }>
 
@@ -55,7 +55,12 @@ export const createLoader = (
       )
 
       try {
-        transport = new StdioClientTransport({ command, args, env, cwd })
+        transport = new StdioClientTransport({
+          command,
+          args,
+          env: env as Record<string, string>,
+          cwd,
+        })
 
         const client = new Client({ name, version })
         await client.connect(transport)

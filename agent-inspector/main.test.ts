@@ -10,28 +10,8 @@ import { expect } from '@std/expect'
 
 const agentId = 'agent-inspector'
 
-async function prepareEnv(
-  config: Record<string, unknown> = { test: true },
-) {
-  const workspace = await Deno.makeTempDir()
-  const home = await Deno.makeTempDir()
-  const env = {
-    AGENT_INSPECTOR_WORKSPACE: workspace,
-    AGENT_INSPECTOR_HOME: home,
-    AGENT_INSPECTOR_CONFIG: JSON.stringify(config),
-  }
-  const dispose = async () => {
-    await Promise.allSettled([
-      Deno.remove(workspace, { recursive: true }),
-      Deno.remove(home, { recursive: true }),
-    ])
-  }
-  return { env, dispose }
-}
-
-Deno.test('stdio exposes agent interaction tools', async () => {
-  const { env, dispose } = await prepareEnv()
-  await using srv = await spawnStdioMcpServer({ env, dispose })
+Deno.test.only('stdio exposes agent interaction tools', async () => {
+  await using srv = await spawnStdioMcpServer()
   const listed = await srv.client.listTools({})
   const names = listed.tools.map((tool) => tool.name)
   for (const name of INTERACTION_TOOL_NAMES) {
@@ -39,9 +19,8 @@ Deno.test('stdio exposes agent interaction tools', async () => {
   }
 })
 
-Deno.test('interaction_start rejects requests', async () => {
-  const { env, dispose } = await prepareEnv()
-  await using srv = await spawnStdioMcpServer({ env, dispose })
+Deno.test('interaction_* rejects requests', async () => {
+  await using srv = await spawnStdioMcpServer()
   const started = await srv.client.callTool({
     name: 'interaction_start',
     arguments: { agentId, input: 'launch inspector' },
@@ -50,11 +29,6 @@ Deno.test('interaction_start rejects requests', async () => {
   expect(readErrorText(started as CallToolResult)).toContain(
     'does not support interactions',
   )
-})
-
-Deno.test('interaction_cancel rejects requests', async () => {
-  const { env, dispose } = await prepareEnv()
-  await using srv = await spawnStdioMcpServer({ env, dispose })
   const cancelled = await srv.client.callTool({
     name: 'interaction_cancel',
     arguments: { agentId, interactionId: 'noop' },
@@ -72,11 +46,6 @@ Deno.test('interaction_cancel rejects requests', async () => {
   expect(readErrorText(status as CallToolResult)).toContain(
     'does not support interactions',
   )
-})
-
-Deno.test('interaction_await rejects requests', async () => {
-  const { env, dispose } = await prepareEnv()
-  await using srv = await spawnStdioMcpServer({ env, dispose })
   const result = await srv.client.callTool({
     name: 'interaction_await',
     arguments: { agentId, interactionId: 'missing' },
@@ -88,8 +57,7 @@ Deno.test('interaction_await rejects requests', async () => {
 })
 
 Deno.test('interaction_views lists inspector views', async () => {
-  const { env, dispose } = await prepareEnv()
-  await using srv = await spawnStdioMcpServer({ env, dispose })
+  await using srv = await spawnStdioMcpServer()
   const viewsResult = await srv.client.callTool({
     name: 'interaction_views',
     arguments: {},

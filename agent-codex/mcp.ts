@@ -12,7 +12,7 @@ import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 import { envs } from './env.ts'
 
-export function registerAgent(server: McpServer) {
+export function register(server: McpServer) {
   const optionsPromise = resolveAgentOptions()
   let agent: CodexAgent
 
