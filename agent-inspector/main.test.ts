@@ -11,7 +11,7 @@ import * as _ from './main.ts' // hot reload stdio files
 
 const agentId = 'agent-inspector'
 
-Deno.test.only('stdio exposes agent interaction tools', async () => {
+Deno.test('stdio exposes agent interaction tools', async () => {
   await using srv = await spawnStdioMcpServer()
   const listed = await srv.client.listTools({})
   const names = listed.tools.map((tool) => tool.name)
