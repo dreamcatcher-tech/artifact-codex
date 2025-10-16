@@ -104,3 +104,9 @@ references (for example `.refs/codex/codex-rs/`).
   `deno.lock` stays accurate.
 - Tests should use `expect` from `jsr:@std/expect`.
 - Avoid async IIFEs; prefer named async functions and call them explicitly.
+
+### Running `deno task dev`
+
+Beward as these tasks to not exit, as they start server processes. Commonly, you
+would use this process to start a web server, then hit the port that it exposes
+to induce outcomes and check responses.

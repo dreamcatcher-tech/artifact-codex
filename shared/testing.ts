@@ -43,11 +43,13 @@ export async function spawnStdioMcpServer(
     '-A',
     'main.ts',
   ]
+  const fs = await createAgentFs()
+  const env = { ...opts.env, DC_AGENTS_DIR: fs.agentDir }
 
   const transport = new StdioClientTransport({
     command: cmd,
     args,
-    env: opts.env,
+    env,
     cwd: Deno.cwd(),
   })
 
@@ -61,6 +63,7 @@ export async function spawnStdioMcpServer(
     const { pid } = transport
     await client.close()
     await waitForPidExit(pid)
+    await fs.dispose()
     if (opts.dispose) {
       try {
         await opts.dispose()
@@ -105,6 +108,7 @@ export async function createAgentFs(prefix?: string) {
 
   return {
     agentDir,
+    dispose,
     [Symbol.asyncDispose]: dispose,
   }
 }

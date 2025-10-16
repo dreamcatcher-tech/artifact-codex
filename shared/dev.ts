@@ -2,7 +2,7 @@ import { basename, dirname, fromFileUrl } from '@std/path'
 import type { AgentResolver } from '@artifact/supervisor'
 import { createLoadedFixture } from '@artifact/supervisor/fixture'
 import { createAgentFs } from './mod.ts'
-
+import { HOST } from './const.ts'
 type CreateAgentDevOptions = {
   /** Optional port that the returned dev handler will default to. */
   defaultPort?: number
@@ -40,7 +40,7 @@ export function createAgentDev(
 
     const server = Deno.serve({
       port,
-      hostname: 'localhost',
+      hostname: HOST,
       onListen: ({ hostname, port }) => {
         console.log(`Fixture ready at http://${hostname}:${port}/`)
         console.log('Press Ctrl+C to stop.')

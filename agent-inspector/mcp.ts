@@ -13,6 +13,7 @@ export function register(server: McpServer) {
   const env = {
     ALLOWED_ORIGINS: '*',
     MCP_AUTO_OPEN_ENABLED: 'false',
+    HOST,
   }
 
   const command = new Deno.Command('npx', {

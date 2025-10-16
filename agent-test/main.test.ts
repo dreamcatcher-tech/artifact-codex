@@ -12,16 +12,10 @@ import {
 import { expect } from '@std/expect'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-async function spawnInitializedServer() {
-  const server = await spawnStdioMcpServer()
-  await server.client.listTools({})
-  return server
-}
-
 const agentId = 'agent-test'
 
 Deno.test('stdio exposes agent interaction tools', async () => {
-  await using srv = await spawnInitializedServer()
+  await using srv = await spawnStdioMcpServer()
   const list = await srv.client.listTools({})
   const names = list.tools.map((tool) => tool.name)
   for (const name of INTERACTION_TOOL_NAMES) {
@@ -30,7 +24,7 @@ Deno.test('stdio exposes agent interaction tools', async () => {
 })
 
 Deno.test('interaction_start values are available via interaction_await', async () => {
-  await using srv = await spawnInitializedServer()
+  await using srv = await spawnStdioMcpServer()
 
   const started = await srv.client.callTool({
     name: 'interaction_start',
@@ -48,7 +42,7 @@ Deno.test('interaction_start values are available via interaction_await', async 
 })
 
 Deno.test('interaction_cancel clears stored interaction and updates status', async () => {
-  await using srv = await spawnInitializedServer()
+  await using srv = await spawnStdioMcpServer()
 
   const started = await srv.client.callTool({
     name: 'interaction_start',
@@ -84,7 +78,7 @@ Deno.test('interaction_cancel clears stored interaction and updates status', asy
 })
 
 Deno.test('interaction_await reports error for unknown interaction ids', async () => {
-  await using srv = await spawnInitializedServer()
+  await using srv = await spawnStdioMcpServer()
 
   const result = await srv.client.callTool({
     name: 'interaction_await',
