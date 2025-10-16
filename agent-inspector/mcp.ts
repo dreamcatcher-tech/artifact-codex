@@ -20,6 +20,7 @@ export function register(server: McpServer) {
     env,
     signal: abort.signal,
     stdout: 'null', // without this, the child process will leak resources
+    stdin: 'null', // without this, the stdio comms will break
   })
   command.spawn()
   const views: AgentView[] = [

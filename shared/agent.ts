@@ -15,7 +15,7 @@ export type AgentView = z.infer<typeof agentViewSchema>
 export async function startAgent(
   name: string,
   version: string,
-  register: (server: McpServer, agentDir: string) => void,
+  register: (server: McpServer, agentDir: string) => Promise<void> | void,
 ) {
   try {
     const server = new McpServer({ name, version })

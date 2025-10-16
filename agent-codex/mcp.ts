@@ -6,20 +6,19 @@ import {
   INTERACTION_TOOLS,
   toStructured,
 } from '@artifact/shared'
-import { CodexAgent, createCodexAgent } from './codex.ts'
+import { CodexAgent } from './codex.ts'
 import type { CodexAgentOptions, CodexConfig } from './config.ts'
 import { join } from '@std/path'
 import { parse as parseToml } from '@std/toml'
 import { envs } from './env.ts'
 
-export function register(server: McpServer) {
-  const optionsPromise = resolveAgentOptions()
+export function register(server: McpServer, agentDir: string) {
   let agent: CodexAgent
 
   const getAgent = async (): Promise<CodexAgent> => {
     if (!agent) {
       const options = await optionsPromise
-      agent = createCodexAgent(options)
+      agent = new CodexAgent(options)
     }
     return agent
   }
@@ -75,100 +74,4 @@ export function register(server: McpServer) {
       return toStructured({ views })
     },
   )
-}
-
-// all this is just to resolve the agent config that should be used
-const resolveAgentOptions = (): Promise<CodexAgentOptions> => {
-  const envOptions = resolveAgentOptionsFromEnv()
-  if (envOptions) {
-    return Promise.resolve(envOptions)
-  }
-  return resolveAgentOptionsFromFs()
-}
-
-function resolveAgentOptionsFromEnv(): CodexAgentOptions | undefined {
-  const workspace = envs.CODEX_AGENT_WORKSPACE()
-  const home = envs.CODEX_AGENT_HOME()
-  const launchEnv = envs.CODEX_AGENT_LAUNCH()
-  const notifyDir = envs.CODEX_AGENT_NOTIFY_DIR()
-
-  const cfg: CodexConfig = {}
-  let hasConfig = false
-  if (launchEnv) {
-    cfg.launch = launchEnv
-    hasConfig = true
-  }
-  if (notifyDir) {
-    cfg.notifyDir = notifyDir
-    hasConfig = true
-  }
-
-  if (!workspace && !home && !hasConfig) {
-    return undefined
-  }
-
-  const options: CodexAgentOptions = {}
-  if (workspace) options.workspace = workspace
-  if (home) options.home = home
-  if (hasConfig) options.config = cfg
-  return options
-}
-
-async function resolveAgentOptionsFromFs(): Promise<CodexAgentOptions> {
-  const cwd = Deno.cwd()
-  const [workspace, home, config] = await Promise.all([
-    resolveDirectory(join(cwd, AGENT_WORKSPACE)),
-    resolveDirectory(join(cwd, AGENT_HOME)),
-    readAgentConfig(join(cwd, AGENT_TOML)),
-  ])
-  return {
-    workspace,
-    home,
-    config,
-  }
-}
-
-async function resolveDirectory(path: string): Promise<string | undefined> {
-  try {
-    const stat = await Deno.stat(path)
-    return stat.isDirectory ? path : undefined
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      return undefined
-    }
-    throw error
-  }
-}
-
-async function readAgentConfig(path: string): Promise<CodexConfig | undefined> {
-  try {
-    const text = await Deno.readTextFile(path)
-    if (text.trim().length === 0) return {}
-    const parsed = parseToml(text)
-    if (!parsed || typeof parsed !== 'object') return {}
-    return toCodexConfig(parsed as Record<string, unknown>)
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      return undefined
-    }
-    throw new Error(
-      `failed to read agent config (${path}): ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    )
-  }
-}
-
-function toCodexConfig(raw: Record<string, unknown>): CodexConfig {
-  const cfg: CodexConfig = {}
-  if (typeof raw.launch === 'string') {
-    const launch = raw.launch.trim()
-    if (launch === 'tmux' || launch === 'disabled') {
-      cfg.launch = launch
-    }
-  }
-  if (typeof raw.notifyDir === 'string' && raw.notifyDir.trim().length > 0) {
-    cfg.notifyDir = raw.notifyDir
-  }
-  return cfg
 }

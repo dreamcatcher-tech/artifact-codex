@@ -7,14 +7,7 @@ import {
 import type { AgentView } from '@artifact/shared'
 import { join } from '@std/path'
 import { startNotifyWatcher } from './notify_watcher.ts'
-import {
-  type CodexAgentOptions,
-  type CodexConfig,
-  type CodexLaunchArgs,
-  type CodexLaunchResult,
-  type CodexOverrides,
-  prepareEnvironment,
-} from './config.ts'
+import { prepareEnvironment } from './config.ts'
 
 const TTYD_PORT = 10000
 const CODEX_PROMPT_REGEX = /(?:^|\n)›\s/
@@ -619,8 +612,4 @@ function ensureEnv(env: Record<string, string>, key: string, value: string) {
   if (!current || current.trim().length === 0) {
     env[key] = value
   }
-}
-
-export function createCodexAgent(options: CodexAgentOptions = {}): CodexAgent {
-  return new CodexAgent(options)
 }
