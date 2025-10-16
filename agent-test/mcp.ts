@@ -20,7 +20,7 @@ type ServeSession = {
   view: AgentView
 }
 
-export function registerAgent(server: McpServer) {
+export function register(server: McpServer) {
   let interactionIdSequence = 0
   const interactions = new Map<
     string,
