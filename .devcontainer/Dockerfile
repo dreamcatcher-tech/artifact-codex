@@ -8,7 +8,8 @@ RUN apt-get update && \
     add-apt-repository --yes universe
 
 # now install build deps
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     software-properties-common \
     build-essential \
     curl \
@@ -52,7 +53,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     apt-get install -y --no-install-recommends nodejs
 
 # enable pnpm via corepack for the Node workspace
-RUN corepack enable && corepack prepare pnpm@10.8.1 --activate
+RUN npm install -g corepack@latest && \
+    corepack enable && \
+    corepack prepare pnpm@latest --activate
 
 # install latest Deno (stable) to /usr/local/bin
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
