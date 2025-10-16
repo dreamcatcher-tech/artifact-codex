@@ -46,7 +46,8 @@ RUN apt-get update && \
     python3-venv \
     tmux \
     ttyd \
-    lsof
+    lsof \
+    time
 
 RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     apt-get update && \
