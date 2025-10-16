@@ -104,8 +104,7 @@ export async function createAgentFs(prefix?: string) {
   }
 
   return {
-    workspaceDir,
-    homeDir,
+    agentDir,
     [Symbol.asyncDispose]: dispose,
   }
 }

@@ -53,6 +53,7 @@ export const createLoader = (
         computerId,
         agentId,
       )
+      testEnv(env)
 
       try {
         transport = new StdioClientTransport({
@@ -118,9 +119,9 @@ const fsAgentResolver: AgentResolver = (computerId, agentId) => {
   const file = join(cwd, 'main.ts')
   const computer = computerId.toLowerCase()
   const agent = agentId.toLowerCase()
-  const agentRoot = join(NFS_MOUNT_DIR, computer, COMPUTER_AGENTS, agent)
-  const workspaceDir = join(agentRoot, AGENT_WORKSPACE)
-  const homeDir = join(agentRoot, AGENT_HOME)
+  const agentDir = join(NFS_MOUNT_DIR, computer, COMPUTER_AGENTS, agent)
+  const workspaceDir = join(agentDir, AGENT_WORKSPACE)
+  const homeDir = join(agentDir, AGENT_HOME)
   return Promise.resolve({
     command: 'deno',
     args: ['run', '-A', file],
@@ -146,5 +147,11 @@ const checkClient = async (client: Client) => {
   }
   if (missing.length > 0) {
     throw new Error(`Missing interaction tools: ${missing.join(', ')}`)
+  }
+}
+
+function testEnv(env: Record<string, string | number | boolean>) {
+  if (!env.DC_AGENTS_DIR) {
+    throw new Error('DC_AGENTS_DIR is required')
   }
 }

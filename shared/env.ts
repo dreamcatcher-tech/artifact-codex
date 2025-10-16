@@ -71,4 +71,5 @@ export const envs = {
     readAppEnv('DC_OPENAI_PROXY_URL', 'https://localhost'),
   DC_PORT: () => Number(readAppEnv('DC_PORT', '8080')),
   DC_LOCAL_MCP_AUTH: () => readAppEnv('DC_LOCAL_MCP_AUTH', ''),
+  DC_AGENTS_DIR: () => readAppEnv('DC_AGENTS_DIR'),
 }

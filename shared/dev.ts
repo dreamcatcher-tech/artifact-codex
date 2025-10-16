@@ -1,6 +1,7 @@
 import { basename, dirname, fromFileUrl } from '@std/path'
 import type { AgentResolver } from '@artifact/supervisor'
 import { createLoadedFixture } from '@artifact/supervisor/fixture'
+import { createAgentFs } from './mod.ts'
 
 type CreateAgentDevOptions = {
   /** Optional port that the returned dev handler will default to. */
@@ -17,21 +18,21 @@ export function createAgentDev(
 ): AgentDev {
   const agentFileUrl = new URL('./main.ts', meta.url)
   const agentFilePath = fromFileUrl(agentFileUrl)
-  const agentProjectDir = dirname(agentFilePath)
-  const agentLabel = basename(agentProjectDir)
-
-  const agentResolver: AgentResolver = () =>
-    Promise.resolve({
-      command: 'deno',
-      args: ['run', '-A', agentFilePath],
-      env,
-      cwd: agentProjectDir,
-    })
+  const agentModuleDir = dirname(agentFilePath)
+  const agentLabel = basename(agentModuleDir)
 
   return async (port: number = defaultPort) => {
+    await using agentFs = await createAgentFs()
+    const agentResolver: AgentResolver = () =>
+      Promise.resolve({
+        command: 'deno',
+        args: ['run', '-A', agentFilePath],
+        env: { ...env, DC_AGENTS_DIR: agentFs.agentDir },
+        cwd: agentModuleDir,
+      })
     console.log(`Starting ${agentLabel} fixture...`)
     console.log(`Agent entry: ${agentFilePath}`)
-    console.log(`Agent cwd: ${agentProjectDir}`)
+    console.log(`Agent cwd: ${agentModuleDir}`)
 
     await using _ = await setup?.()
 

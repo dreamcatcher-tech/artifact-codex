@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { createApp } from './app.ts'
 import type { Hono } from '@hono/hono'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
-import { createIdleTrigger } from '@artifact/shared'
+import { createIdleTrigger, readErrorText } from '@artifact/shared'
 import type { SupervisorEnv } from './app.ts'
 import { MCP_PORT } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
@@ -16,7 +16,8 @@ export async function createFixture(
 ) {
   const controller = new AbortController()
   const idler = createIdleTrigger(controller, timeoutMs)
-  const { app, [Symbol.asyncDispose]: close } = createApp(idler, agentResolver)
+
+  const { app, close: supervisorClose } = createApp(idler, agentResolver)
 
   const fetch = createInMemoryFetch(app)
   const client = new Client({ name: 'test-client', version: '0.0.0' })
@@ -25,10 +26,14 @@ export async function createFixture(
   })
   await client.connect(transport)
   const load = async (computerId = 'comp-1', agentId = 'agent-1') => {
-    await client.callTool({
+    const result = await client.callTool({
       name: 'load',
       arguments: { computerId, agentId },
     }) as CallToolResult
+    if (result.isError) {
+      const text = readErrorText(result)
+      throw new Error('Failed to load agent', { cause: text })
+    }
   }
   return {
     app,
@@ -38,7 +43,7 @@ export async function createFixture(
     [Symbol.asyncDispose]: async () => {
       await client.close()
       controller.abort()
-      await close()
+      await supervisorClose()
     },
   }
 }

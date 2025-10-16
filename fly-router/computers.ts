@@ -2,6 +2,7 @@ import {
   AGENT_HOME,
   AGENT_TOML,
   AGENT_WORKSPACE,
+  agentTomlSchema,
   COMPUTER_AGENT_CONTAINERS,
   COMPUTER_AGENTS,
   COMPUTER_EXEC,
@@ -9,6 +10,7 @@ import {
   envs,
   NFS_MOUNT_DIR,
   REPO_CONTAINER_IMAGES,
+  toAgentToml,
 } from '@artifact/shared'
 import { join } from '@std/path'
 import { ensureDir } from '@std/fs'
@@ -53,11 +55,11 @@ export function createComputerManager(options: ComputerManagerOptions) {
   const upsertLandingAgent = async (computer: string) => {
     computer = computer.toLowerCase()
     const path = join(computerDir, computer)
-    const agents = join(path, 'agents')
+    const agentsDir = join(path, COMPUTER_AGENTS)
 
-    const name = await makeAgentFolder(agents)
-    await populateAgent(join(agents, name))
-    return name
+    const agentName = await makeAgentFolder(agentsDir)
+    await populateAgent(join(agentsDir, agentName))
+    return agentName
   }
 
   const computerExists = async (computer: string) => {
@@ -196,10 +198,23 @@ async function makeAgentFolder(path: string) {
   }
 }
 
-async function populateAgent(name: string) {
-  return await Promise.all([
-    Deno.mkdir(join(name, AGENT_HOME)),
-    Deno.mkdir(join(name, AGENT_WORKSPACE)),
-    Deno.writeTextFile(join(name, AGENT_TOML), ''),
-  ])
+async function populateAgent(agentDir: string) {
+  await ensureDir(agentDir)
+  await ensureDir(join(agentDir, AGENT_HOME))
+  await ensureDir(join(agentDir, AGENT_WORKSPACE))
+
+  const agentConfig = agentTomlSchema.parse({
+    name: 'test-agent',
+    version: '0.0.1',
+    description: 'A test agent',
+    agent: {
+      command: 'deno',
+      args: ['run', '-A', 'main.ts'],
+      env: {},
+      cwd: join(import.meta.dirname!, '..', 'agent-test'),
+    },
+  })
+  const toml = toAgentToml(agentConfig)
+
+  await Deno.writeTextFile(join(agentDir, AGENT_TOML), toml)
 }
