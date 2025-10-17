@@ -31,6 +31,7 @@
     "jsr:@std/ulid@1": "1.0.0",
     "npm:@alexarena/fly-io-client@1": "1.0.0",
     "npm:@clerk/backend@^2.4.1": "2.18.1",
+    "npm:@modelcontextprotocol/sdk@1.20.0": "1.20.0_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.17.1": "1.20.0_express@5.1.0_zod@3.25.76",
     "npm:@modelcontextprotocol/sdk@^1.20.0": "1.20.0_express@5.1.0_zod@3.25.76",
     "npm:@types/node@*": "24.2.0",

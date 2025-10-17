@@ -1,17 +1,18 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import {
   type AgentView,
   HOST,
   INTERACTION_TOOLS,
+  type Register,
   toStructured,
+  waitForPort,
 } from '@artifact/shared'
 
-export function register(server: McpServer) {
-  const abort = new AbortController()
+const INSPECTOR_PORT = 6274
 
+export const register: Register = (server) => {
   //CLIENT_PORT=8080 SERVER_PORT=9000
   const env = {
-    ALLOWED_ORIGINS: '*',
+    ALLOWED_ORIGINS: 'http://localhost:8080/',
     MCP_AUTO_OPEN_ENABLED: 'false',
     HOST,
   }
@@ -19,17 +20,18 @@ export function register(server: McpServer) {
   const command = new Deno.Command('npx', {
     args: ['-y', '@modelcontextprotocol/inspector'],
     env,
-    signal: abort.signal,
-    stdout: 'null', // without this, the child process will leak resources
-    stdin: 'null', // without this, the stdio comms will break
+    stdout: 'null',
+    stdin: 'null',
   })
+
   command.spawn()
+
   const views: AgentView[] = [
     {
       name: 'client',
-      port: 6274,
+      port: INSPECTOR_PORT,
       protocol: 'http',
-      url: `http://${HOST}:6274`,
+      url: `http://${HOST}:${INSPECTOR_PORT}`,
     },
   ]
 
@@ -64,10 +66,17 @@ export function register(server: McpServer) {
       throw new Error('agent-inspector does not support interactions')
     },
   )
+
+  let waitForPortPromise: Promise<void>
+
   server.registerTool(
     'interaction_views',
     INTERACTION_TOOLS.interaction_views,
-    () => {
+    async () => {
+      if (!waitForPortPromise) {
+        waitForPortPromise = waitForPort(INSPECTOR_PORT, HOST)
+      }
+      await waitForPortPromise
       return toStructured({ views })
     },
   )

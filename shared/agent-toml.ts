@@ -34,6 +34,7 @@ export const agentTomlSchema = z.object({
 })
 
 export type AgentToml = z.infer<typeof agentTomlSchema>
+export type AgentParams = AgentToml['agent']
 
 export function readAgentToml(tomlContent: string): AgentToml {
   const parsed = parse(tomlContent)

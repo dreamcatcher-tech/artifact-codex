@@ -66,6 +66,7 @@ export function toStructured(
   structuredContent: Record<string, unknown>,
 ): CallToolResult {
   return {
+    isError: false,
     content: [{
       type: 'text',
       text: JSON.stringify(structuredContent, null, 2),

@@ -1,4 +1,4 @@
-import { requireStructured, spawnStdioMcpServer } from '@artifact/shared'
+import { requireStructured, startTestStdioClient } from '@artifact/shared'
 import type {
   AgentView,
   InteractionAwait,
@@ -12,7 +12,7 @@ import { expect } from '@std/expect'
 const agentId = 'agent-cmd'
 
 Deno.test('interaction_start followed by interaction_await returns ok', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
 
   const started = await srv.client.callTool({
     name: 'interaction_start',
@@ -30,7 +30,7 @@ Deno.test('interaction_start followed by interaction_await returns ok', async ()
 })
 
 Deno.test('interaction_cancel marks interaction as cancelled', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
 
   const started = await srv.client.callTool({
     name: 'interaction_start',
@@ -61,7 +61,7 @@ Deno.test('interaction_cancel marks interaction as cancelled', async () => {
 })
 
 Deno.test('interaction_await for unknown interaction id returns error', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
 
   const result = await srv.client.callTool({
     name: 'interaction_await',
@@ -77,7 +77,7 @@ Deno.test('interaction_await for unknown interaction id returns error', async ()
 })
 
 Deno.test('interaction_views returns current views', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
 
   const viewsResult = await srv.client.callTool({
     name: 'interaction_views',

@@ -95,6 +95,7 @@ references (for example `.refs/codex/codex-rs/`).
 - you never need to make lines like
   `"dev": "deno run --config ../deno.json --allow-net --allow-env main.ts"`
   since the `--config ../deno.json` is always added by deno automatically.
+- we are never on windows, only ever on linux
 
 ### Deno Configuration
 
@@ -110,3 +111,7 @@ references (for example `.refs/codex/codex-rs/`).
 Beward as these tasks to not exit, as they start server processes. Commonly, you
 would use this process to start a web server, then hit the port that it exposes
 to induce outcomes and check responses.
+
+If you run a process that opens ports, you should check that those ports are
+clear before starting the process, as it may have been left over from a previous
+run.

@@ -1,13 +1,13 @@
 {
-  "name": "@artifact/shared",
+  "name": "@artifact/ttyd",
   "version": "0.0.1",
+  "exports": "./mod.ts",
   "tasks": {
+    "dev": "deno run -A dev.ts",
     "watch": "deno test -A --watch",
     "test": "deno test -A",
     "lint": "deno lint --fix",
+    "fmt": "deno fmt",
     "ok": "deno check && deno task test && deno fmt --check && deno lint"
-  },
-  "exports": {
-    ".": "./mod.ts"
   }
 }

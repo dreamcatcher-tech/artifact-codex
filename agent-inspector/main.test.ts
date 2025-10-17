@@ -2,7 +2,7 @@ import {
   INTERACTION_TOOL_NAMES,
   readErrorText,
   requireStructured,
-  spawnStdioMcpServer,
+  startTestStdioClient,
 } from '@artifact/shared'
 import type { AgentView, ToolResult } from '@artifact/shared'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
@@ -12,7 +12,7 @@ import * as _ from './main.ts' // hot reload stdio files
 const agentId = 'agent-inspector'
 
 Deno.test('stdio exposes agent interaction tools', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
   const listed = await srv.client.listTools({})
   const names = listed.tools.map((tool) => tool.name)
   for (const name of INTERACTION_TOOL_NAMES) {
@@ -21,7 +21,7 @@ Deno.test('stdio exposes agent interaction tools', async () => {
 })
 
 Deno.test('interaction_* rejects requests', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
   const started = await srv.client.callTool({
     name: 'interaction_start',
     arguments: { agentId, input: 'launch inspector' },
@@ -58,11 +58,12 @@ Deno.test('interaction_* rejects requests', async () => {
 })
 
 Deno.test('interaction_views lists inspector views', async () => {
-  await using srv = await spawnStdioMcpServer()
+  await using srv = await startTestStdioClient()
   const viewsResult = await srv.client.callTool({
     name: 'interaction_views',
     arguments: {},
   }) as ToolResult<{ views: AgentView[] }>
+  expect(viewsResult.isError).toBe(false)
   const { views } = requireStructured(viewsResult)
   expect(Array.isArray(views)).toBe(true)
   expect(views.length).toBeGreaterThan(0)

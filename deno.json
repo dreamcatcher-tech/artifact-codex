@@ -4,6 +4,7 @@
     "agent-codex",
     "agent-inspector",
     "agent-test",
+    "ttyd",
     "shared",
     "supervisor",
     "fly-exec",

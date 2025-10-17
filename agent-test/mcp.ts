@@ -1,8 +1,8 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import {
   type AgentView,
   HOST,
   INTERACTION_TOOLS,
+  type Register,
   toStructured,
 } from '@artifact/shared'
 
@@ -20,7 +20,7 @@ type ServeSession = {
   view: AgentView
 }
 
-export function register(server: McpServer) {
+export const register: Register = (server) => {
   let interactionIdSequence = 0
   const interactions = new Map<
     string,
